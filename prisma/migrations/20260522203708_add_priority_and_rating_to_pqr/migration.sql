@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `pqr` ADD COLUMN `priority` ENUM('BAJA', 'MEDIA', 'ALTA', 'URGENTE') NOT NULL DEFAULT 'MEDIA',
+    ADD COLUMN `ratedAt` DATETIME(3) NULL,
+    ADD COLUMN `rating` INTEGER NULL,
+    ADD COLUMN `ratingComment` VARCHAR(191) NULL;

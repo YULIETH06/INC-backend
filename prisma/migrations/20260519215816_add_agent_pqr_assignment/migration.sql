@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `pqr` ADD COLUMN `assignedToId` INTEGER NULL;
+
+-- AddForeignKey
+ALTER TABLE `PQR` ADD CONSTRAINT `PQR_assignedToId_fkey` FOREIGN KEY (`assignedToId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

@@ -1,0 +1,1065 @@
+# Documentación de modelos de tablas Prisma
+
+## Descripción general
+
+Este documento describe los modelos principales definidos en el archivo `schema.prisma`.
+
+El sistema está dividido en dos módulos principales:
+
+1. **Módulo PQR**
+   - Gestión de solicitudes, mensajes, adjuntos, notificaciones y lectura de chats.
+
+2. **Módulo Talento Humano**
+   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación y presentación de candidatos.
+
+---
+
+# Modelo User
+
+## Descripción
+
+El modelo `User` representa a los usuarios registrados en el sistema.
+
+Los usuarios tienen un rol general del sistema, pero los cargos organizacionales no se guardan directamente en este modelo.
+
+La relación entre una persona y un cargo se maneja mediante el modelo `UserPositionAssignment`.
+
+Esto permite manejar:
+
+- Historial de cargos.
+- Cambio de responsables.
+- Múltiples cargos activos si la empresa lo requiere.
+- Separación entre usuarios del sistema y cargos de la empresa.
+
+## Campos principales
+
+| Campo                                  | Tipo                                  | Descripción                                                           |
+| -------------------------------------- | ------------------------------------- | --------------------------------------------------------------------- |
+| id                                     | Int                                   | Identificador único del usuario                                       |
+| name                                   | String                                | Nombre del usuario                                                    |
+| email                                  | String                                | Correo electrónico único del usuario                                  |
+| password                               | String                                | Contraseña encriptada del usuario                                     |
+| role                                   | Role                                  | Rol general del sistema: USER, ADMIN o AGENT                          |
+| signatureUrl                           | String?                               | Ruta de la imagen de la firma registrada por el usuario               |
+| pqrsCreated                            | PQR[]                                 | PQR creadas por el usuario                                            |
+| pqrsAssigned                           | PQR[]                                 | PQR asignadas al usuario cuando actúa como agente                     |
+| pqrMessages                            | PqrMessage[]                          | Mensajes enviados por el usuario en chats de PQR                      |
+| notifications                          | Notification[]                        | Notificaciones recibidas por el usuario                               |
+| pqrChatReads                           | PqrChatRead[]                         | Registros de lectura de chats de PQR                                  |
+| positionAssignments                    | UserPositionAssignment[]              | Asignaciones de cargos del usuario                                    |
+| personnelRequisitions                  | PersonnelRequisition[]                | Requisiciones de personal creadas por el usuario                      |
+| assignedRequisitionApprovals           | PersonnelRequisitionApproval[]        | Aprobaciones de requisiciones asignadas al usuario                    |
+| decidedRequisitionApprovals            | PersonnelRequisitionApproval[]        | Aprobaciones de requisiciones decididas por el usuario                |
+| hiringConfirmations                    | PersonnelHiringConfirmation[]         | Confirmaciones de contratación creadas por el usuario                 |
+| assignedHiringConfirmationApprovals    | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación asignadas al usuario     |
+| decidedHiringConfirmationApprovals     | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación decididas por el usuario |
+| uploadedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]       | Candidatos y hojas de vida cargados por el usuario                    |
+| createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
+| updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
+
+
+---
+
+# Modelo PQR
+
+## Descripción
+
+El modelo `PQR` representa las solicitudes creadas por los usuarios dentro del módulo de PQR.
+
+Una PQR puede tener mensajes, archivos adjuntos por medio de los mensajes, notificaciones y registros de lectura del chat.
+
+## Campos principales
+
+| Campo         | Tipo           | Descripción                            |
+| ------------- | -------------- | -------------------------------------- |
+| id            | Int            | Identificador único de la PQR          |
+| caseType      | PqrCaseType    | Tipo de caso de la PQR                 |
+| description   | String         | Descripción de la solicitud            |
+| status        | PqrStatus      | Estado actual de la PQR                |
+| createdAt     | DateTime       | Fecha de creación de la PQR            |
+| updatedAt     | DateTime       | Fecha de última actualización          |
+| userId        | Int            | Usuario que creó la PQR                |
+| user          | User           | Relación con el usuario creador        |
+| assignedToId  | Int?           | Usuario agente asignado a la PQR       |
+| assignedTo    | User?          | Relación con el agente asignado        |
+| priority      | PqrPriority?   | Prioridad de la PQR                    |
+| rating        | Int?           | Calificación dada por el usuario       |
+| ratingComment | String?        | Comentario opcional de la calificación |
+| ratedAt       | DateTime?      | Fecha de calificación                  |
+| messages      | PqrMessage[]   | Mensajes asociados a la PQR            |
+| notifications | Notification[] | Notificaciones relacionadas con la PQR |
+| chatReads     | PqrChatRead[]  | Registros de lectura del chat          |
+
+---
+
+# Modelo PqrMessage
+
+## Descripción
+
+El modelo `PqrMessage` representa los mensajes enviados dentro del chat de una PQR.
+
+Un mensaje pertenece a una PQR y a un usuario remitente. También puede tener archivos adjuntos.
+
+## Campos principales
+
+| Campo       | Tipo                   | Descripción                         |
+| ----------- | ---------------------- | ----------------------------------- |
+| id          | Int                    | Identificador único del mensaje     |
+| content     | String?                | Contenido del mensaje               |
+| createdAt   | DateTime               | Fecha de creación del mensaje       |
+| pqrId       | Int                    | Identificador de la PQR relacionada |
+| pqr         | PQR                    | Relación con la PQR                 |
+| senderId    | Int                    | Usuario que envió el mensaje        |
+| sender      | User                   | Relación con el usuario remitente   |
+| attachments | PqrMessageAttachment[] | Archivos adjuntos del mensaje       |
+
+---
+
+# Modelo PqrChatRead
+
+## Descripción
+
+El modelo `PqrChatRead` representa la última lectura del chat de una PQR por parte de un usuario.
+
+Sirve para saber si un usuario tiene mensajes pendientes por leer.
+
+## Campos principales
+
+| Campo      | Tipo     | Descripción                       |
+| ---------- | -------- | --------------------------------- |
+| id         | Int      | Identificador único del registro  |
+| pqrId      | Int      | Identificador de la PQR           |
+| userId     | Int      | Identificador del usuario         |
+| lastReadAt | DateTime | Fecha y hora de la última lectura |
+| pqr        | PQR      | Relación con la PQR               |
+| user       | User     | Relación con el usuario           |
+
+## Restricción única
+
+```prisma
+@@unique([pqrId, userId])
+```
+
+Esta restricción evita que un mismo usuario tenga más de un registro de lectura para la misma PQR.
+
+---
+
+# Modelo PqrMessageAttachment
+
+## Descripción
+
+El modelo `PqrMessageAttachment` representa los archivos adjuntos enviados dentro de los mensajes del chat de una PQR.
+
+## Campos principales
+
+| Campo        | Tipo              | Descripción                               |
+| ------------ | ----------------- | ----------------------------------------- |
+| id           | Int               | Identificador único del archivo adjunto   |
+| fileName     | String            | Nombre generado para almacenar el archivo |
+| originalName | String            | Nombre original del archivo               |
+| fileUrl      | String            | Ruta o URL donde se almacena el archivo   |
+| fileType     | PqrAttachmentType | Tipo de archivo adjunto                   |
+| mimeType     | String            | Tipo MIME del archivo                     |
+| fileSize     | Int               | Tamaño del archivo                        |
+| createdAt    | DateTime          | Fecha de carga del archivo                |
+| messageId    | Int               | Mensaje al que pertenece el archivo       |
+| message      | PqrMessage        | Relación con el mensaje                   |
+
+---
+
+# Modelo Notification
+
+## Descripción
+
+El modelo `Notification` representa las notificaciones internas generadas para los usuarios.
+
+Puede relacionarse con una PQR o con una requisición de personal, dependiendo del módulo que genere la notificación.
+
+## Campos principales
+
+| Campo                  | Tipo                  | Descripción                                       |
+| ---------------------- | --------------------- | ------------------------------------------------- |
+| id                     | Int                   | Identificador único de la notificación            |
+| title                  | String                | Título de la notificación                         |
+| message                | String                | Mensaje de la notificación                        |
+| type                   | NotificationType      | Tipo de notificación                              |
+| isRead                 | Boolean               | Indica si la notificación fue leída               |
+| userId                 | Int                   | Usuario destinatario                              |
+| pqrId                  | Int?                  | PQR relacionada, si aplica                        |
+| personnelRequisitionId | Int?                  | Requisición de personal relacionada, si aplica    |
+| createdAt              | DateTime              | Fecha de creación                                 |
+| user                   | User                  | Relación con el usuario destinatario              |
+| pqr                    | PQR?                  | Relación opcional con una PQR                     |
+| personnelRequisition   | PersonnelRequisition? | Relación opcional con una requisición de personal |
+
+
+## Tipos de notificación de Talento Humano
+
+El enum `NotificationType` incluye actualmente los siguientes tipos relacionados con Talento Humano:
+
+```txt
+REQUISITION_PENDING_APPROVAL
+REQUISITION_APPROVED
+REQUISITION_REJECTED
+HIRING_CONFIRMATION_PENDING
+HIRING_CONFIRMATION_APPROVED
+HIRING_CONFIRMATION_REJECTED
+REQUISITION_CANDIDATES_PENDING
+REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
+REQUISITION_CANDIDATES_CLOSED
+REQUISITION_CANDIDATES_REOPENED
+```
+
+---
+
+# Modelo Department
+
+## Descripción
+
+El modelo `Department` representa los departamentos o áreas de la empresa.
+
+Este modelo es clave para el flujo de aprobación de requisiciones porque permite definir:
+
+1. A qué departamento pertenece una requisición.
+2. Qué cargo es responsable de aprobar en ese departamento.
+3. Cuál es el departamento superior al que debe subir la aprobación.
+
+## Campos principales
+
+| Campo                 | Tipo                           | Descripción                                        |
+| --------------------- | ------------------------------ | -------------------------------------------------- |
+| id                    | Int                            | Identificador único del departamento               |
+| code                  | String                         | Código único del departamento                      |
+| name                  | String                         | Nombre del departamento                            |
+| isActive              | Boolean                        | Indica si el departamento está activo              |
+| parentDepartmentId    | Int?                           | Departamento superior o padre                      |
+| parentDepartment      | Department?                    | Relación con el departamento superior              |
+| childDepartments      | Department[]                   | Departamentos hijos o dependientes                 |
+| responsiblePositionId | Int?                           | Cargo responsable de aprobar por este departamento |
+| responsiblePosition   | PositionProfile?               | Relación con el cargo responsable                  |
+| positions             | PositionProfile[]              | Cargos que tienen este departamento como base      |
+| requisitions          | PersonnelRequisition[]         | Requisiciones creadas para este departamento       |
+| requisitionApprovals  | PersonnelRequisitionApproval[] | Aprobaciones generadas para este departamento      |
+| createdAt             | DateTime                       | Fecha de creación                                  |
+| updatedAt             | DateTime                       | Fecha de última actualización                      |
+
+## Ejemplo de jerarquía
+
+```txt
+Producción
+Responsable: Jefe de Producción
+Padre: Dirección de Operaciones
+
+Dirección de Operaciones
+Responsable: Director de Operaciones
+Padre: Gerencia
+
+Gerencia
+Responsable: Subgerente General
+Padre: ninguno
+```
+
+Con esta estructura, una requisición de Producción sube así:
+
+```txt
+Jefe de Producción
+↓
+Director de Operaciones
+↓
+Subgerente General
+```
+
+---
+
+# Modelo PositionProfile
+
+## Descripción
+
+El modelo `PositionProfile` representa los cargos o perfiles de cargo de la empresa.
+
+Los cargos son un catálogo. No dependen directamente de una persona y no deben eliminarse cuando cambia el empleado que ocupa el cargo.
+
+La relación entre un usuario y un cargo se maneja mediante `UserPositionAssignment`.
+
+## Campos principales
+
+| Campo                       | Tipo                                  | Descripción                                                                    |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------ |
+| id                          | Int                                   | Identificador único del cargo                                                  |
+| code                        | String                                | Código único del cargo o perfil                                                |
+| name                        | String                                | Nombre del cargo                                                               |
+| isActive                    | Boolean                               | Indica si el cargo está activo                                                 |
+| homeDepartmentId            | Int?                                  | Departamento base del cargo                                                    |
+| homeDepartment              | Department?                           | Relación con el departamento base                                              |
+| responsibleForDepartments   | Department[]                          | Departamentos donde este cargo es responsable                                  |
+| userAssignments             | UserPositionAssignment[]              | Usuarios asignados histórica o actualmente a este cargo                        |
+| requisitions                | PersonnelRequisition[]                | Requisiciones donde se solicita este cargo                                     |
+| requisitionApprovals        | PersonnelRequisitionApproval[]        | Aprobaciones de requisición donde este cargo debe aprobar                      |
+| hiringConfirmationApprovals | PersonnelHiringConfirmationApproval[] | Aprobaciones de contratación donde este cargo debe aprobar                     |
+| humanTalentAnalystConfigs   | HumanTalentWorkflowConfig[]           | Configuraciones donde este cargo actúa como primer VoBo de Talento Humano      |
+| humanTalentChiefConfigs     | HumanTalentWorkflowConfig[]           | Configuraciones donde este cargo actúa como aprobación final de Talento Humano |
+| revisions                   | PositionProfileRevision[]             | Historial de revisiones asociadas con el perfil de cargo                       |
+| createdAt                   | DateTime                              | Fecha de creación                                                              |
+| updatedAt                   | DateTime                              | Fecha de última actualización                                                  |
+
+---
+
+# Modelo PositionRequirement
+
+## Descripción
+
+El modelo `PositionRequirement` representa los requisitos fijos utilizados en las revisiones de los perfiles de cargo.
+
+Los requisitos se almacenan de forma independiente y pueden relacionarse con múltiples descripciones pertenecientes a diferentes revisiones.
+
+Los requisitos configurados actualmente son:
+
+```txt
+Formación académica
+Experiencia
+Conocimientos específicos
+```
+
+## Campos principales
+
+| Campo        | Tipo                             | Descripción                                                      |
+| ------------ | -------------------------------- | ---------------------------------------------------------------- |
+| id           | Int                              | Identificador único del requisito                                |
+| name         | String                           | Nombre único del requisito                                       |
+| descriptions | PositionRequirementDescription[] | Descripciones asociadas con el requisito en distintas revisiones |
+
+---
+
+# Modelo PositionProfileRevision
+
+## Descripción
+
+El modelo `PositionProfileRevision` representa una versión específica de un perfil de cargo.
+
+Cada perfil puede tener varias revisiones para conservar su historial. Una revisión puede encontrarse en estado `BORRADOR`, `VIGENTE` u `OBSOLETA`.
+
+Las requisiciones de personal quedan asociadas con la revisión utilizada al momento de su creación, permitiendo conservar la información histórica aunque posteriormente se publique una nueva revisión.
+
+## Campos principales
+
+| Campo                   | Tipo                             | Descripción                                            |
+| ----------------------- | -------------------------------- | ------------------------------------------------------ |
+| id                      | Int                              | Identificador único de la revisión                     |
+| positionProfileId       | Int                              | Identificador del perfil de cargo                      |
+| positionProfile         | PositionProfile                  | Relación con el perfil de cargo                        |
+| revisionNumber          | Int                              | Número consecutivo de la revisión                      |
+| revisionDate            | DateTime                         | Fecha de creación de la revisión                       |
+| status                  | PositionProfileRevisionStatus    | Estado de la revisión: BORRADOR, VIGENTE u OBSOLETA    |
+| changeObservation       | String?                          | Observación general o descripción del cambio           |
+| deletedAt               | DateTime?                        | Fecha de eliminación lógica cuando aplica              |
+| requirementDescriptions | PositionRequirementDescription[] | Descripciones de requisitos registradas en la revisión |
+| requisitions            | PersonnelRequisition[]           | Requisiciones creadas utilizando esta revisión         |
+| updatedAt               | DateTime                         | Fecha de última actualización                          |
+
+## Restricción única
+
+```prisma
+@@unique([positionProfileId, revisionNumber])
+```
+
+Esta restricción evita que un mismo perfil de cargo tenga dos revisiones con el mismo número.
+
+---
+
+# Modelo PositionRequirementDescription
+
+## Descripción
+
+El modelo `PositionRequirementDescription` representa una descripción registrada para un requisito dentro de una revisión específica.
+
+Una revisión puede tener varias descripciones para cada requisito. Las descripciones pueden eliminarse lógicamente mediante el campo `deletedAt`.
+
+## Campos principales
+
+| Campo         | Tipo                    | Descripción                                  |
+| ------------- | ----------------------- | -------------------------------------------- |
+| id            | Int                     | Identificador único de la descripción        |
+| revisionId    | Int                     | Identificador de la revisión                 |
+| revision      | PositionProfileRevision | Relación con la revisión del perfil de cargo |
+| requirementId | Int                     | Identificador del requisito                  |
+| requirement   | PositionRequirement     | Relación con el requisito                    |
+| description   | String                  | Contenido de la descripción del requisito    |
+| createdAt     | DateTime                | Fecha de creación                            |
+| updatedAt     | DateTime                | Fecha de última actualización                |
+| deletedAt     | DateTime?               | Fecha de eliminación lógica cuando aplica    |
+
+---
+
+# Modelo UserPositionAssignment
+
+## Descripción
+
+El modelo `UserPositionAssignment` representa la asignación de un usuario a un cargo.
+
+Este modelo permite manejar:
+
+1. Cargo actual de un usuario.
+2. Historial de cargos.
+3. Múltiples cargos activos si la empresa lo requiere.
+4. Cambio de responsables sin modificar el catálogo de cargos.
+
+## Campos principales
+
+| Campo                       | Tipo                                  | Descripción                                                   |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------- |
+| id                          | Int                                   | Identificador único de la asignación                          |
+| userId                      | Int                                   | Usuario asignado al cargo                                     |
+| user                        | User                                  | Relación con el usuario                                       |
+| positionId                  | Int                                   | Cargo asignado                                                |
+| position                    | PositionProfile                       | Relación con el cargo                                         |
+| startDate                   | DateTime                              | Fecha de inicio de la asignación                              |
+| endDate                     | DateTime?                             | Fecha de finalización de la asignación                        |
+| isActive                    | Boolean                               | Indica si la asignación está activa                           |
+| requisitionApprovals        | PersonnelRequisitionApproval[]        | Aprobaciones de requisición relacionadas con esta asignación  |
+| hiringConfirmationApprovals | PersonnelHiringConfirmationApproval[] | Aprobaciones de contratación relacionadas con esta asignación |
+| createdAt                   | DateTime                              | Fecha de creación                                             |
+| updatedAt                   | DateTime                              | Fecha de actualización                                        |
+
+## Ejemplo
+
+```txt
+Usuario: María Pérez
+Cargo: Jefe de Producción
+isActive: true
+```
+
+Con esto, el sistema sabe que cuando una requisición necesita aprobación del cargo `Jefe de Producción`, debe notificar al usuario que tenga activa esa asignación.
+
+---
+
+# Modelo City
+
+## Descripción
+
+El modelo `City` representa las ciudades disponibles para crear requisiciones de personal.
+
+Esta tabla permite controlar desde la base de datos qué ciudades se muestran en el formulario.
+
+## Campos principales
+
+| Campo        | Tipo                   | Descripción                         |
+| ------------ | ---------------------- | ----------------------------------- |
+| id           | Int                    | Identificador único de la ciudad    |
+| name         | String                 | Nombre de la ciudad                 |
+| isActive     | Boolean                | Indica si la ciudad está activa     |
+| requisitions | PersonnelRequisition[] | Requisiciones asociadas a la ciudad |
+| createdAt    | DateTime               | Fecha de creación                   |
+| updatedAt    | DateTime               | Fecha de actualización              |
+
+---
+
+
+# Modelo IdentificationType
+
+## Descripción
+
+El modelo `IdentificationType` representa el catálogo de tipos de identificación.
+
+Este catálogo permite reutilizar los tipos de documento sin guardar su nombre directamente en las tablas.
+
+Cada tipo de identificación puede activarse o desactivarse mediante el campo `isActive`.
+
+## Campos principales
+
+| Campo      | Tipo                            | Descripción                                                      |
+| ---------- | ------------------------------- | ---------------------------------------------------------------- |
+| id         | Int                             | Identificador único del tipo de identificación                   |
+| code       | String                          | Código único del tipo de identificación, por ejemplo `CC` o `CE` |
+| name       | String                          | Nombre único del tipo de identificación                          |
+| isActive   | Boolean                         | Indica si el tipo de identificación se encuentra activo          |
+| candidates | PersonnelRequisitionCandidate[] | Candidatos registrados con este tipo de identificación           |
+| createdAt  | DateTime                        | Fecha de creación                                                |
+| updatedAt  | DateTime                        | Fecha de última actualización                                    |
+
+## Restricciones principales
+
+```prisma
+code String @unique
+name String @unique
+```
+
+Estas restricciones evitan registrar dos tipos de identificación con el mismo código o con el mismo nombre.
+
+---
+
+# Modelo PersonnelRequisition
+
+## Descripción
+
+El modelo `PersonnelRequisition` representa una requisición de personal creada por un usuario.
+
+Una requisición pertenece a un departamento, solicita un cargo y queda asociada obligatoriamente con la revisión del perfil de cargo utilizada al momento de su creación.
+
+También contiene una ciudad, un motivo, la descripción obligatoria de ese motivo, las condiciones de contratación, un salario propuesto y un estado general.
+
+También controla el proceso de cargue y presentación de candidatos una vez la requisición ha sido aprobada completamente.
+
+El flujo de aprobación de la requisición se genera a partir del departamento seleccionado y su jerarquía organizacional.
+
+## Campos principales
+
+| Campo                       | Tipo                            | Descripción                                                    |
+| --------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| id                          | Int                             | Identificador único de la requisición                          |
+| requestDate                 | DateTime                        | Fecha de solicitud                                             |
+| departmentId                | Int                             | Departamento para el cual se crea la requisición               |
+| department                  | Department                      | Relación con el departamento                                   |
+| positionId                  | Int                             | Identificador del cargo solicitado                             |
+| position                    | PositionProfile                 | Relación con el cargo solicitado                               |
+| positionRevisionId          | Int                             | Identificador obligatorio de la revisión utilizada             |
+| positionRevision            | PositionProfileRevision         | Relación obligatoria con la revisión del perfil de cargo       |
+| reason                      | RequisitionReason               | Motivo seleccionado para crear la requisición                  |
+| otherReason                 | String                          | Descripción obligatoria correspondiente al motivo seleccionado |
+| cityId                      | Int                             | Ciudad de la requisición                                       |
+| city                        | City                            | Relación con la ciudad                                         |
+| contractType                | ContractType?                   | Tipo principal de contratación                                 |
+| directContractType          | DirectContractType?             | Tipo de contrato directo                                       |
+| contractDurationMonths      | Int?                            | Duración del contrato en meses cuando aplica                   |
+| internContractType          | InternContractType?             | Tipo de practicante cuando aplica                              |
+| proposedSalary              | Decimal                         | Salario propuesto                                              |
+| status                      | PersonnelRequisitionStatus      | Estado general de la requisición                               |
+| createdById                 | Int                             | Usuario que creó la requisición                                |
+| createdBy                   | User                            | Relación con el usuario creador                                |
+| approvals                   | PersonnelRequisitionApproval[]  | Pasos de aprobación de la requisición                          |
+| hiringConfirmation          | PersonnelHiringConfirmation?    | Confirmación de contratación asociada                          |
+| candidateSubmissionStatus   | CandidateSubmissionStatus       | Estado del proceso de cargue y presentación de candidatos      |
+| candidateSubmissionClosedAt | DateTime?                       | Fecha y hora del cierre actual; vuelve a `null` al reabrir     |
+| candidates                  | PersonnelRequisitionCandidate[] | Candidatos y hojas de vida asociados a la requisición          |
+| notifications               | Notification[]                  | Notificaciones relacionadas con la requisición                 |
+| createdAt                   | DateTime                        | Fecha de creación                                              |
+| updatedAt                   | DateTime                        | Fecha de actualización                                         |
+
+## Estados principales de la requisición
+
+| Estado                                | Descripción                                                                 |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| PENDIENTE_APROBACION                  | La requisición fue creada y está pendiente por iniciar o asignar aprobación |
+| EN_APROBACION                         | La requisición está en flujo de aprobación jerárquica                       |
+| PENDIENTE_CONFIRMACION_TALENTO_HUMANO | Ya fue aprobada por la jerarquía y espera confirmación de Talento Humano    |
+| PENDIENTE_APROBACION_TALENTO_HUMANO   | La confirmación fue creada y espera aprobación final de Talento Humano      |
+| APROBADA                              | La requisición fue aprobada completamente                                   |
+| RECHAZADA                             | La requisición fue rechazada                                                |
+| CANCELADA                             | La requisición fue cancelada                                                |
+
+## Estados del cargue de candidatos
+
+El cargue de candidatos se controla por separado del estado general de la requisición.
+
+| Estado      | Descripción                                                                         |
+| ----------- | ----------------------------------------------------------------------------------- |
+| NO_INICIADA | La requisición todavía no está habilitada para recibir candidatos                   |
+| ABIERTA     | El Auxiliar de Talento Humano puede registrar o modificar candidatos                |
+| CERRADA     | La presentación fue finalizada y los candidatos quedan bloqueados para modificación |
+
+---
+
+# Modelo PersonnelRequisitionCandidate
+
+## Descripción
+
+El modelo `PersonnelRequisitionCandidate` representa un candidato registrado para una requisición de personal.
+
+Cada candidato queda identificado mediante un tipo de identificación y un número de identificación. También almacena el nombre, una observación opcional y la información de la hoja de vida cargada.
+
+
+## Campos principales
+
+| Campo                | Tipo                 | Descripción                                              |
+| -------------------- | -------------------- | -------------------------------------------------------- |
+| id                   | Int                  | Identificador único del candidato                        |
+| requisitionId        | Int                  | Identificador de la requisición relacionada              |
+| requisition          | PersonnelRequisition | Relación con la requisición de personal                  |
+| identificationTypeId | Int                  | Identificador del tipo de identificación                 |
+| identificationType   | IdentificationType   | Relación con el tipo de identificación                   |
+| identificationNumber | String               | Número de identificación del candidato                   |
+| name                 | String               | Nombre completo del candidato                            |
+| observation          | String?              | Observación opcional registrada por Talento Humano       |
+| originalName         | String               | Nombre original de la hoja de vida cargada               |
+| fileName             | String               | Nombre generado por el backend para almacenar el archivo |
+| fileUrl              | String               | Ruta donde se encuentra almacenada la hoja de vida       |
+| mimeType             | String               | Tipo MIME del archivo                                    |
+| fileSize             | Int                  | Tamaño del archivo expresado en bytes                    |
+| uploadedById         | Int                  | Identificador del usuario que realizó el cargue          |
+| uploadedBy           | User                 | Relación con el usuario que registró al candidato        |
+| createdAt            | DateTime             | Fecha y hora en que se registró el candidato             |
+| updatedAt            | DateTime             | Fecha y hora de la última modificación                   |
+
+## Información ingresada por el usuario
+
+El formulario de cargue solicita:
+
+```txt
+Tipo de identificación
+Número de identificación
+Nombre
+Hoja de vida
+Observación
+```
+
+Ejemplo:
+
+```txt
+Tipo de identificación: CC
+Número de identificación: 1045678901
+Nombre: Carlos Gómez
+Hoja de vida: Carlos_Gomez.pdf
+Observación: Experiencia de 4 años
+```
+
+La observación es opcional.
+
+## Información generada automáticamente
+
+El backend obtiene o genera automáticamente:
+
+```txt
+requisitionId
+originalName
+fileName
+fileUrl
+mimeType
+fileSize
+uploadedById
+createdAt
+updatedAt
+```
+
+El usuario no debe enviar manualmente estos datos.
+
+## Restricción única de identificación por requisición
+
+```prisma
+@@unique([requisitionId, identificationTypeId, identificationNumber])
+```
+
+Esta restricción evita registrar dentro de una misma requisición dos candidatos con la misma combinación de tipo y número de identificación.
+
+El mismo número puede existir con otro tipo de identificación o dentro de otra requisición, porque la restricción incluye los tres campos.
+
+## Índices
+
+```prisma
+@@index([requisitionId])
+@@index([identificationTypeId])
+@@index([uploadedById])
+```
+
+Estos índices facilitan las consultas por requisición, tipo de identificación y usuario que realizó el cargue.
+
+---
+
+# Modelo PersonnelRequisitionApproval
+
+## Descripción
+
+El modelo `PersonnelRequisitionApproval` representa cada paso de aprobación jerárquica de una requisición de personal.
+
+Estos pasos ya no dependen de roles como `JEFE_AREA`, `JEFE_DEPARTAMENTO` o `GERENTE_GENERAL`.
+
+Ahora se generan desde la estructura organizacional:
+
+```txt
+Department
+↓
+responsiblePosition
+↓
+parentDepartment
+↓
+responsiblePosition
+```
+
+## Campos principales
+
+| Campo                | Tipo                    | Descripción                                               |
+| -------------------- | ----------------------- | --------------------------------------------------------- |
+| id                   | Int                     | Identificador único del paso de aprobación                |
+| requisitionId        | Int                     | Requisición relacionada                                   |
+| requisition          | PersonnelRequisition    | Relación con la requisición                               |
+| approvalOrder        | Int                     | Orden del paso dentro del flujo                           |
+| departmentId         | Int?                    | Departamento que origina este paso de aprobación          |
+| department           | Department?             | Relación con el departamento del paso                     |
+| approverPositionId   | Int                     | Cargo que debe aprobar este paso                          |
+| approverPosition     | PositionProfile         | Relación con el cargo aprobador                           |
+| approverAssignmentId | Int?                    | Asignación usuario-cargo usada para resolver el aprobador |
+| approverAssignment   | UserPositionAssignment? | Relación con la asignación del aprobador                  |
+| approverUserId       | Int?                    | Usuario asignado para aprobar                             |
+| approverUser         | User?                   | Relación con el usuario aprobador asignado                |
+| decision             | ApprovalDecision?       | Decisión tomada: aprobada, rechazada o cancelada          |
+| comment              | String?                 | Comentario opcional de la decisión                        |
+| decidedById          | Int?                    | Usuario que tomó la decisión                              |
+| decidedBy            | User?                   | Relación con el usuario que decidió                       |
+| assignedAt           | DateTime                | Fecha en que se asignó el paso                            |
+| decidedAt            | DateTime?               | Fecha en que se tomó la decisión                          |
+| isCurrent            | Boolean                 | Indica si este paso es el paso activo actualmente         |
+| createdAt            | DateTime                | Fecha de creación                                         |
+| updatedAt            | DateTime                | Fecha de actualización                                    |
+
+## Restricción única
+
+```prisma
+@@unique([requisitionId, approvalOrder])
+```
+
+Esta restricción evita que una misma requisición tenga dos pasos con el mismo orden.
+
+## Ejemplo
+
+Para una requisición de Producción:
+
+```txt
+approvalOrder: 1
+department: Producción
+approverPosition: Jefe de Producción
+isCurrent: true
+```
+
+```txt
+approvalOrder: 2
+department: Dirección de Operaciones
+approverPosition: Director de Operaciones
+isCurrent: false
+```
+
+```txt
+approvalOrder: 3
+department: Gerencia
+approverPosition: Subgerente General
+isCurrent: false
+```
+
+Cuando aprueba el paso 1, el paso 1 pasa a `isCurrent: false` y el paso 2 pasa a `isCurrent: true`.
+
+---
+
+# Modelo HumanTalentWorkflowConfig
+
+## Descripción
+
+El modelo `HumanTalentWorkflowConfig` define qué cargos participan en el cierre de Talento Humano después de que una requisición fue aprobada por la jerarquía organizacional.
+
+En el flujo actual se usa un solo registro activo:
+
+```txt
+Auxiliar de Talento Humano
+↓
+Jefe de Talento Humano
+```
+
+Este modelo evita dejar estos cargos quemados directamente en el código.
+
+## Campos principales
+
+| Campo             | Tipo            | Descripción                                                       |
+| ----------------- | --------------- | ----------------------------------------------------------------- |
+| id                | Int             | Identificador único de la configuración                           |
+| name              | String          | Nombre de la configuración                                        |
+| analystPositionId | Int             | Cargo que realiza el primer VoBo o confirmación de Talento Humano |
+| analystPosition   | PositionProfile | Relación con el cargo del primer VoBo                             |
+| chiefPositionId   | Int             | Cargo que realiza la aprobación final de Talento Humano           |
+| chiefPosition     | PositionProfile | Relación con el cargo aprobador final                             |
+| isActive          | Boolean         | Indica si esta configuración está activa                          |
+| createdAt         | DateTime        | Fecha de creación                                                 |
+| updatedAt         | DateTime        | Fecha de actualización                                            |
+
+## Ejemplo
+
+```txt
+name: Flujo principal de Talento Humano
+analystPosition: Auxiliar de Talento Humano
+chiefPosition: Jefe de Talento Humano
+isActive: true
+```
+
+---
+
+# Modelo PersonnelHiringConfirmation
+
+## Descripción
+
+El modelo `PersonnelHiringConfirmation` representa la confirmación de contratación que realiza Talento Humano cuando una requisición ya fue aprobada por la jerarquía.
+
+Aquí se registran los datos finales o confirmados de contratación, como tipo de contrato, duración y salario aprobado.
+
+## Campos principales
+
+| Campo                  | Tipo                                  | Descripción                                  |
+| ---------------------- | ------------------------------------- | -------------------------------------------- |
+| id                     | Int                                   | Identificador único de la confirmación       |
+| requisitionId          | Int                                   | Requisición relacionada                      |
+| requisition            | PersonnelRequisition                  | Relación con la requisición                  |
+| contractType           | ContractType                          | Tipo principal de contratación confirmado    |
+| directContractType     | DirectContractType?                   | Tipo de contrato directo confirmado          |
+| contractDurationMonths | Int?                                  | Duración del contrato en meses cuando aplica |
+| internContractType     | InternContractType?                   | Tipo de practicante cuando aplica            |
+| approvedSalary         | Decimal                               | Salario aprobado                             |
+| status                 | PersonnelHiringConfirmationStatus     | Estado de la confirmación                    |
+| createdById            | Int                                   | Usuario que creó la confirmación             |
+| createdBy              | User                                  | Relación con el usuario creador              |
+| approvals              | PersonnelHiringConfirmationApproval[] | Pasos de aprobación de la confirmación       |
+| createdAt              | DateTime                              | Fecha de creación                            |
+| updatedAt              | DateTime                              | Fecha de actualización                       |
+
+## Estados principales
+
+| Estado               | Descripción                                               |
+| -------------------- | --------------------------------------------------------- |
+| PENDIENTE_APROBACION | La confirmación fue creada y está pendiente de aprobación |
+| APROBADA             | La confirmación fue aprobada                              |
+| RECHAZADA            | La confirmación fue rechazada                             |
+| CANCELADA            | La confirmación fue cancelada                             |
+
+---
+
+# Modelo PersonnelHiringConfirmationApproval
+
+## Descripción
+
+El modelo `PersonnelHiringConfirmationApproval` representa los pasos de aprobación del cierre de contratación de Talento Humano.
+
+Este flujo se genera a partir de `HumanTalentWorkflowConfig`.
+
+En el flujo actual:
+
+```txt
+1. Auxiliar de Talento Humano
+2. Jefe de Talento Humano
+```
+
+## Campos principales
+
+| Campo                | Tipo                        | Descripción                                               |
+| -------------------- | --------------------------- | --------------------------------------------------------- |
+| id                   | Int                         | Identificador único del paso                              |
+| hiringConfirmationId | Int                         | Confirmación de contratación relacionada                  |
+| hiringConfirmation   | PersonnelHiringConfirmation | Relación con la confirmación                              |
+| approvalOrder        | Int                         | Orden del paso dentro del flujo                           |
+| approverPositionId   | Int                         | Cargo que debe aprobar este paso                          |
+| approverPosition     | PositionProfile             | Relación con el cargo aprobador                           |
+| approverAssignmentId | Int?                        | Asignación usuario-cargo usada para resolver el aprobador |
+| approverAssignment   | UserPositionAssignment?     | Relación con la asignación del aprobador                  |
+| approverUserId       | Int?                        | Usuario asignado para aprobar                             |
+| approverUser         | User?                       | Relación con el usuario aprobador                         |
+| decision             | ApprovalDecision?           | Decisión tomada                                           |
+| comment              | String?                     | Comentario opcional de la decisión                        |
+| decidedById          | Int?                        | Usuario que tomó la decisión                              |
+| decidedBy            | User?                       | Relación con el usuario que decidió                       |
+| assignedAt           | DateTime                    | Fecha en que se asignó el paso                            |
+| decidedAt            | DateTime?                   | Fecha de decisión                                         |
+| isCurrent            | Boolean                     | Indica si este paso está activo actualmente               |
+| createdAt            | DateTime                    | Fecha de creación                                         |
+| updatedAt            | DateTime                    | Fecha de actualización                                    |
+
+## Restricción única
+
+```prisma
+@@unique([hiringConfirmationId, approvalOrder])
+```
+
+Esta restricción evita que una misma confirmación tenga dos pasos con el mismo orden.
+
+---
+
+# Relación general del flujo de requisiciones
+
+## 1. Creación de requisición
+
+Cuando un usuario crea una requisición, selecciona o registra:
+
+```txt
+Departamento
+Cargo solicitado
+Ciudad
+Motivo
+Descripción del motivo
+Tipo de contrato
+Salario propuesto
+```
+
+Al seleccionar el cargo, el sistema consulta su revisión vigente y guarda obligatoriamente su identificador en:
+
+```txt
+positionRevisionId
+```
+
+La descripción del motivo también es obligatoria para cualquiera de los motivos disponibles y se almacena en:
+
+```txt
+otherReason
+```
+
+Se crea un registro en:
+
+```txt
+PersonnelRequisition
+```
+
+---
+
+## 2. Generación del flujo de aprobación
+
+El sistema toma el departamento de la requisición y sube por su jerarquía.
+
+Ejemplo:
+
+```txt
+Producción
+↓
+Dirección de Operaciones
+↓
+Gerencia
+```
+
+Por cada nivel crea un registro en:
+
+```txt
+PersonnelRequisitionApproval
+```
+
+---
+
+## 3. Resolución del usuario aprobador
+
+Cada paso tiene un cargo aprobador.
+
+Ejemplo:
+
+```txt
+Jefe de Producción
+```
+
+El sistema busca en:
+
+```txt
+UserPositionAssignment
+```
+
+qué usuario tiene activo ese cargo.
+
+Así puede enviar la notificación al usuario correcto.
+
+---
+
+## 4. Confirmación de Talento Humano
+
+Cuando termina la aprobación jerárquica, la requisición pasa a:
+
+```txt
+PENDIENTE_CONFIRMACION_TALENTO_HUMANO
+```
+
+Después el sistema consulta:
+
+```txt
+HumanTalentWorkflowConfig
+```
+
+y genera el flujo final de Talento Humano:
+
+```txt
+Auxiliar de Talento Humano
+↓
+Jefe de Talento Humano
+```
+
+Este flujo se guarda en:
+
+```txt
+PersonnelHiringConfirmationApproval
+```
+
+---
+
+## 5. Aprobación final y cargue de candidatos
+
+Cuando el Jefe de Talento Humano aprueba el último paso, la confirmación y la requisición pasan a estado:
+
+```txt
+APROBADA
+```
+
+Al mismo tiempo, el sistema habilita el cargue de candidatos:
+
+```txt
+candidateSubmissionStatus: ABIERTA
+candidateSubmissionClosedAt: null
+```
+
+El sistema busca un usuario con una asignación activa al cargo:
+
+```txt
+DPC-TH-0080
+Auxiliar de Talento Humano
+```
+
+Si existe un auxiliar activo, se le notifica que tiene un cargue de candidatos pendiente.
+
+Si no existe un auxiliar activo, se notifica al Jefe de Talento Humano que realizó la aprobación final.
+
+Mientras el cargue permanezca abierto, el Auxiliar de Talento Humano puede registrar hasta cinco candidatos en:
+
+```txt
+PersonnelRequisitionCandidate
+```
+
+Cuando el Auxiliar finaliza la presentación:
+
+```txt
+candidateSubmissionStatus: CERRADA
+candidateSubmissionClosedAt: fecha y hora del cierre
+```
+
+Si posteriormente necesita realizar ajustes, puede reabrir el cargue:
+
+```txt
+candidateSubmissionStatus: ABIERTA
+candidateSubmissionClosedAt: null
+```
+
+Cuando el cargue se cierre nuevamente, `candidateSubmissionClosedAt` almacenará la fecha del cierre actual. Este campo no representa un historial de cierres.
+
+---
+
+# Conclusión
+
+Los modelos del módulo de Talento Humano permiten separar correctamente:
+
+1. Los usuarios del sistema.
+2. Los cargos de la empresa.
+3. Las asignaciones de usuarios a cargos.
+4. Los perfiles de cargo y sus revisiones históricas.
+5. Los requisitos y las descripciones de cada revisión.
+6. La jerarquía organizacional.
+7. El catálogo de tipos de identificación.
+8. Las requisiciones de personal.
+9. Las aprobaciones jerárquicas.
+10. La confirmación final de contratación por Talento Humano.
+11. Los candidatos, su identificación y sus hojas de vida.
+
+La lógica ya no depende de roles organizacionales como `JEFE_AREA`, `JEFE_DEPARTAMENTO` o `GERENTE_GENERAL`.
+
+Ahora el flujo depende de la estructura real de la empresa:
+
+```txt
+Departamento
+↓
+Cargo responsable
+↓
+Departamento superior
+↓
+Cargo responsable superior
+↓
+Auxiliar de Talento Humano
+↓
+Jefe de Talento Humano
+↓
+Cargue de candidatos
+↓
+Cierre de presentación
+↓
+Reapertura para ajustes, cuando sea necesaria
+```

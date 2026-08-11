@@ -1,0 +1,630 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  AGENT
+}
+
+enum PqrStatus {
+  PENDIENTE
+  EN_PROCESO
+  CERRADA
+}
+
+enum PqrCaseType {
+  SAP
+  BEAS
+  TERMINAL
+  CORREO
+  INTRANET
+  SOPORTE_EQUIPOS
+  SOPORTE_RED
+  MI_PORTAL_SAP
+  LEGALISAPP
+  NUEVAS_SOLICITUDES
+}
+
+enum PqrPriority {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum NotificationType {
+  NEW_PQR
+  STATUS_CHANGE
+  PRIORITY_CHANGE
+  PQR_CLOSED
+  PQR_RATED
+  PQR_TAKEN
+  PQR_ASSIGNED
+  PQR_UNASSIGNED
+
+  REQUISITION_PENDING_APPROVAL
+  REQUISITION_APPROVED
+  REQUISITION_REJECTED
+
+  HIRING_CONFIRMATION_PENDING
+  HIRING_CONFIRMATION_APPROVED
+  HIRING_CONFIRMATION_REJECTED
+
+  REQUISITION_CANDIDATES_PENDING
+  REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
+  REQUISITION_CANDIDATES_CLOSED
+  REQUISITION_CANDIDATES_REOPENED
+}
+
+enum PqrAttachmentType {
+  IMAGE
+  DOCUMENT
+}
+
+enum RequisitionReason {
+  CARGO_NUEVO
+  REEMPLAZO_RETIRO
+  INCREMENTO_PRODUCCION
+  SOLICITUD_PRACTICANTES
+  OTROS
+}
+
+enum ContractType {
+  DIRECTO
+  TEMPORAL
+  PRACTICANTE
+}
+
+enum DirectContractType {
+  INDEFINIDO
+  FIJO
+}
+
+enum InternContractType {
+  APRENDIZ
+  PASANTE
+  ROTANTE
+}
+
+enum ApprovalDecision {
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum PersonnelRequisitionStatus {
+  PENDIENTE_APROBACION
+  EN_APROBACION
+  PENDIENTE_CONFIRMACION_TALENTO_HUMANO
+  PENDIENTE_APROBACION_TALENTO_HUMANO
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum PersonnelHiringConfirmationStatus {
+  PENDIENTE_APROBACION
+  APROBADA
+  RECHAZADA
+  CANCELADA
+}
+
+enum CandidateSubmissionStatus {
+  NO_INICIADA
+  ABIERTA
+  CERRADA
+}
+
+enum PositionProfileRevisionStatus {
+  BORRADOR
+  VIGENTE
+  OBSOLETA
+}
+
+model City {
+  id       Int     @id @default(autoincrement())
+  name     String
+  isActive Boolean @default(true)
+
+  requisitions PersonnelRequisition[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model IdentificationType {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @unique @db.VarChar(100)
+  isActive Boolean @default(true)
+
+  candidates PersonnelRequisitionCandidate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id           Int     @id @default(autoincrement())
+  name         String
+  email        String  @unique
+  password     String
+  role         Role    @default(USER)
+  signatureUrl String?
+
+  pqrsCreated  PQR[] @relation("UserPqrs")
+  pqrsAssigned PQR[] @relation("AgentPqrs")
+
+  pqrMessages   PqrMessage[]
+  notifications Notification[]
+  pqrChatReads  PqrChatRead[]
+
+  positionAssignments UserPositionAssignment[]
+
+  personnelRequisitions PersonnelRequisition[] @relation("CreatedRequisitions")
+
+  assignedRequisitionApprovals PersonnelRequisitionApproval[] @relation("AssignedRequisitionApprovals")
+
+  decidedRequisitionApprovals PersonnelRequisitionApproval[] @relation("DecidedRequisitionApprovals")
+
+  hiringConfirmations PersonnelHiringConfirmation[] @relation("CreatedHiringConfirmations")
+
+  assignedHiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("AssignedHiringApprovals")
+
+  decidedHiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("DecidedHiringApprovals")
+
+  uploadedPersonnelRequisitionCandidates PersonnelRequisitionCandidate[] @relation("UploadedPersonnelRequisitionCandidates")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PQR {
+  id          Int         @id @default(autoincrement())
+  caseType    PqrCaseType
+  description String      @db.VarChar(500)
+  status      PqrStatus   @default(PENDIENTE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  userId Int
+  user   User @relation("UserPqrs", fields: [userId], references: [id])
+
+  assignedToId Int?
+  assignedTo   User? @relation("AgentPqrs", fields: [assignedToId], references: [id])
+
+  priority PqrPriority?
+
+  rating        Int?
+  ratingComment String?   @db.VarChar(300)
+  ratedAt       DateTime?
+
+  messages      PqrMessage[]
+  notifications Notification[]
+  chatReads     PqrChatRead[]
+}
+
+model PqrMessage {
+  id        Int      @id @default(autoincrement())
+  content   String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  pqrId Int
+  pqr   PQR @relation(fields: [pqrId], references: [id], onDelete: Cascade)
+
+  senderId Int
+  sender   User @relation(fields: [senderId], references: [id])
+
+  attachments PqrMessageAttachment[]
+}
+
+model PqrChatRead {
+  id         Int      @id @default(autoincrement())
+  pqrId      Int
+  userId     Int
+  lastReadAt DateTime @default(now())
+
+  pqr  PQR  @relation(fields: [pqrId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pqrId, userId])
+}
+
+model PqrMessageAttachment {
+  id           Int               @id @default(autoincrement())
+  fileName     String
+  originalName String
+  fileUrl      String
+  fileType     PqrAttachmentType
+  mimeType     String
+  fileSize     Int
+  createdAt    DateTime          @default(now())
+
+  messageId Int
+  message   PqrMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id                     Int              @id @default(autoincrement())
+  title                  String
+  message                String
+  type                   NotificationType
+  isRead                 Boolean          @default(false)
+  userId                 Int
+  pqrId                  Int?
+  personnelRequisitionId Int?
+  createdAt              DateTime         @default(now())
+
+  user                 User                  @relation(fields: [userId], references: [id])
+  pqr                  PQR?                  @relation(fields: [pqrId], references: [id])
+  personnelRequisition PersonnelRequisition? @relation(fields: [personnelRequisitionId], references: [id])
+
+  @@index([userId])
+  @@index([pqrId])
+  @@index([personnelRequisitionId])
+}
+
+model Department {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true)
+
+  parentDepartmentId Int?
+  parentDepartment   Department?  @relation("DepartmentHierarchy", fields: [parentDepartmentId], references: [id])
+  childDepartments   Department[] @relation("DepartmentHierarchy")
+
+  responsiblePositionId Int?
+  responsiblePosition   PositionProfile? @relation("DepartmentResponsiblePosition", fields: [responsiblePositionId], references: [id])
+
+  positions PositionProfile[] @relation("PositionHomeDepartment")
+
+  requisitions PersonnelRequisition[] @relation("RequisitionDepartment")
+
+  requisitionApprovals PersonnelRequisitionApproval[] @relation("ApprovalDepartment")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentDepartmentId])
+  @@index([responsiblePositionId])
+}
+
+model PositionProfile {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true)
+
+  homeDepartmentId Int?
+  homeDepartment   Department? @relation("PositionHomeDepartment", fields: [homeDepartmentId], references: [id])
+
+  responsibleForDepartments Department[] @relation("DepartmentResponsiblePosition")
+
+  userAssignments UserPositionAssignment[]
+
+  requisitions PersonnelRequisition[] @relation("RequestedPosition")
+
+  requisitionApprovals PersonnelRequisitionApproval[] @relation("RequisitionApproverPosition")
+
+  hiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("HiringApproverPosition")
+
+  humanTalentAnalystConfigs HumanTalentWorkflowConfig[] @relation("HumanTalentAnalystPosition")
+
+  humanTalentChiefConfigs HumanTalentWorkflowConfig[] @relation("HumanTalentChiefPosition")
+
+  revisions PositionProfileRevision[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([homeDepartmentId])
+}
+
+model PositionRequirement {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+
+  descriptions PositionRequirementDescription[]
+}
+
+model PositionProfileRevision {
+  id Int @id @default(autoincrement())
+
+  positionProfileId Int
+  positionProfile   PositionProfile @relation(fields: [positionProfileId], references: [id])
+
+  revisionNumber Int
+  revisionDate   DateTime                      @default(now())
+  status         PositionProfileRevisionStatus @default(BORRADOR)
+
+  changeObservation String? @db.VarChar(500)
+
+  deletedAt DateTime?
+
+  requirementDescriptions PositionRequirementDescription[]
+
+  requisitions PersonnelRequisition[] @relation("RequisitionPositionRevision")
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([positionProfileId, revisionNumber])
+  @@index([positionProfileId, status, deletedAt])
+}
+
+model PositionRequirementDescription {
+  id Int @id @default(autoincrement())
+
+  revisionId Int
+  revision   PositionProfileRevision @relation(fields: [revisionId], references: [id])
+
+  requirementId Int
+  requirement   PositionRequirement @relation(fields: [requirementId], references: [id])
+
+  description String @db.VarChar(500)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([requirementId])
+  @@index([revisionId, requirementId, deletedAt, createdAt])
+}
+
+model UserPositionAssignment {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+
+  positionId Int
+  position   PositionProfile @relation(fields: [positionId], references: [id])
+
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+
+  isActive Boolean @default(true)
+
+  requisitionApprovals PersonnelRequisitionApproval[] @relation("RequisitionApproverAssignment")
+
+  hiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("HiringApproverAssignment")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([positionId])
+  @@index([isActive])
+  @@index([positionId, isActive])
+}
+
+model PersonnelRequisition {
+  id Int @id @default(autoincrement())
+
+  requestDate DateTime @default(now())
+
+  departmentId Int
+  department   Department @relation("RequisitionDepartment", fields: [departmentId], references: [id])
+
+  positionId Int
+  position   PositionProfile @relation("RequestedPosition", fields: [positionId], references: [id])
+
+  positionRevisionId Int
+  positionRevision   PositionProfileRevision @relation("RequisitionPositionRevision", fields: [positionRevisionId], references: [id], onDelete: Restrict)
+
+  reason      RequisitionReason
+  otherReason String            @db.VarChar(300)
+
+  cityId Int
+  city   City @relation(fields: [cityId], references: [id])
+
+  contractType ContractType?
+
+  directContractType     DirectContractType?
+  contractDurationMonths Int?
+
+  internContractType InternContractType?
+
+  proposedSalary Decimal @db.Decimal(12, 2)
+
+  status PersonnelRequisitionStatus @default(PENDIENTE_APROBACION)
+
+  createdById Int
+  createdBy   User @relation("CreatedRequisitions", fields: [createdById], references: [id])
+
+  approvals          PersonnelRequisitionApproval[]
+  hiringConfirmation PersonnelHiringConfirmation?
+
+  candidateSubmissionStatus   CandidateSubmissionStatus @default(NO_INICIADA)
+  candidateSubmissionClosedAt DateTime?
+
+  candidates PersonnelRequisitionCandidate[]
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([positionRevisionId])
+  @@index([cityId])
+  @@index([createdById])
+  @@index([status])
+  @@index([candidateSubmissionStatus])
+}
+
+model PersonnelRequisitionCandidate {
+  id Int @id @default(autoincrement())
+
+  requisitionId Int
+  requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  identificationTypeId Int
+  identificationType   IdentificationType @relation(fields: [identificationTypeId], references: [id], onDelete: Restrict)
+
+  identificationNumber String @db.VarChar(50)
+
+  name        String  @db.VarChar(150)
+  observation String? @db.VarChar(500)
+
+  originalName String
+  fileName     String
+  fileUrl      String
+  mimeType     String
+  fileSize     Int
+
+  uploadedById Int
+  uploadedBy   User @relation("UploadedPersonnelRequisitionCandidates", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requisitionId, identificationTypeId, identificationNumber])
+  @@index([requisitionId])
+  @@index([identificationTypeId])
+  @@index([uploadedById])
+}
+
+model PersonnelRequisitionApproval {
+  id Int @id @default(autoincrement())
+
+  requisitionId Int
+  requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  approvalOrder Int
+
+  departmentId Int?
+  department   Department? @relation("ApprovalDepartment", fields: [departmentId], references: [id])
+
+  approverPositionId Int
+  approverPosition   PositionProfile @relation("RequisitionApproverPosition", fields: [approverPositionId], references: [id])
+
+  approverAssignmentId Int?
+  approverAssignment   UserPositionAssignment? @relation("RequisitionApproverAssignment", fields: [approverAssignmentId], references: [id])
+
+  approverUserId Int?
+  approverUser   User? @relation("AssignedRequisitionApprovals", fields: [approverUserId], references: [id])
+
+  decision ApprovalDecision?
+
+  decidedById Int?
+  decidedBy   User? @relation("DecidedRequisitionApprovals", fields: [decidedById], references: [id])
+
+  assignedAt DateTime  @default(now())
+  decidedAt  DateTime?
+
+  comment String? @db.VarChar(500)
+
+  isCurrent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([requisitionId, approvalOrder])
+  @@index([requisitionId])
+  @@index([departmentId])
+  @@index([approverPositionId])
+  @@index([approverAssignmentId])
+  @@index([approverUserId])
+  @@index([decision])
+  @@index([isCurrent])
+}
+
+model HumanTalentWorkflowConfig {
+  id Int @id @default(autoincrement())
+
+  name String @db.VarChar(100)
+
+  analystPositionId Int
+  analystPosition   PositionProfile @relation("HumanTalentAnalystPosition", fields: [analystPositionId], references: [id])
+
+  chiefPositionId Int
+  chiefPosition   PositionProfile @relation("HumanTalentChiefPosition", fields: [chiefPositionId], references: [id])
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([analystPositionId])
+  @@index([chiefPositionId])
+  @@index([isActive])
+}
+
+model PersonnelHiringConfirmation {
+  id Int @id @default(autoincrement())
+
+  requisitionId Int                  @unique
+  requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  contractType ContractType
+
+  directContractType     DirectContractType?
+  contractDurationMonths Int?
+
+  internContractType InternContractType?
+
+  approvedSalary Decimal @db.Decimal(12, 2)
+
+  status PersonnelHiringConfirmationStatus @default(PENDIENTE_APROBACION)
+
+  createdById Int
+  createdBy   User @relation("CreatedHiringConfirmations", fields: [createdById], references: [id])
+
+  approvals PersonnelHiringConfirmationApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdById])
+  @@index([status])
+}
+
+model PersonnelHiringConfirmationApproval {
+  id Int @id @default(autoincrement())
+
+  hiringConfirmationId Int
+  hiringConfirmation   PersonnelHiringConfirmation @relation(fields: [hiringConfirmationId], references: [id], onDelete: Cascade)
+
+  approvalOrder Int
+
+  approverPositionId Int
+  approverPosition   PositionProfile @relation("HiringApproverPosition", fields: [approverPositionId], references: [id])
+
+  approverAssignmentId Int?
+  approverAssignment   UserPositionAssignment? @relation("HiringApproverAssignment", fields: [approverAssignmentId], references: [id])
+
+  approverUserId Int?
+  approverUser   User? @relation("AssignedHiringApprovals", fields: [approverUserId], references: [id])
+
+  decision ApprovalDecision?
+
+  decidedById Int?
+  decidedBy   User? @relation("DecidedHiringApprovals", fields: [decidedById], references: [id])
+
+  assignedAt DateTime  @default(now())
+  decidedAt  DateTime?
+
+  comment String? @db.VarChar(500)
+
+  isCurrent Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([hiringConfirmationId, approvalOrder])
+  @@index([hiringConfirmationId])
+  @@index([approverPositionId])
+  @@index([approverAssignmentId])
+  @@index([approverUserId])
+  @@index([decision])
+  @@index([isCurrent])
+}
