@@ -8075,6 +8075,8 @@ Si se envía una nueva hoja de vida, el sistema actualiza la información del ar
 
 La actualización solo se permite mientras la requisición esté aprobada y el cargue de candidatos permanezca abierto.
 
+Además, un candidato que ya tenga una validación iniciada no puede ser modificado.
+
 ---
 
 ## Tipo de envío requerido
@@ -8418,6 +8420,16 @@ form-data
 
 ---
 
+## Respuesta si el candidato ya inició validación
+
+```json
+{
+  "message": "No se puede actualizar el candidato porque ya inició el proceso de validación"
+}
+```
+
+---
+
 ## Respuesta en caso de error
 
 ```json
@@ -8454,6 +8466,8 @@ Hoja de vida almacenada en el servidor
 ```
 
 La eliminación solo se permite mientras la requisición esté aprobada y el cargue de candidatos permanezca abierto.
+
+Además, un candidato que ya tenga una validación iniciada no puede ser eliminado.
 
 ---
 
@@ -8596,11 +8610,471 @@ Este endpoint no requiere body.
 
 ---
 
+## Respuesta si el candidato ya inició validación
+
+```json
+{
+  "message": "No se puede eliminar el candidato porque ya inició el proceso de validación"
+}
+```
+
+---
+
 ## Respuesta en caso de error
 
 ```json
 {
   "message": "Error al eliminar el candidato"
+}
+```
+
+---
+
+# Iniciar validación de cargo y postulante
+
+## Endpoint protegido
+
+```http
+POST /api/human-talent/candidate-validations/:candidateId
+```
+
+## Ejemplo
+
+```http
+POST /api/human-talent/candidate-validations/1
+```
+
+## Descripción
+
+Endpoint privado encargado de guardar la **Fase 1: Concepto de aplicación** e iniciar formalmente la validación de un candidato.
+
+Para iniciar el proceso, el candidato debe pertenecer a una requisición que cumpla:
+
+```txt
+status: APROBADA
+candidateSubmissionStatus: CERRADA
+```
+
+Solo puede existir una validación por candidato.
+
+Una vez creada la validación, el candidato ya no puede ser actualizado ni eliminado desde el proceso de cargue, incluso si posteriormente se reabre la presentación de candidatos.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+```
+
+Código del cargo autorizado:
+
+```txt
+DPC-TH-0080
+```
+
+---
+
+## Parámetros
+
+| Parámetro   | Tipo   | Descripción                         |
+| ----------- | ------ | ----------------------------------- |
+| candidateId | number | Identificador del candidato a validar |
+
+---
+
+## Conceptos de aplicación permitidos
+
+```txt
+INGRESO
+MODIFICACION_CARGO
+```
+
+---
+
+## Body
+
+```json
+{
+  "applicationConcept": "INGRESO"
+}
+```
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Validación de candidato iniciada correctamente",
+  "validation": {
+    "id": 1,
+    "candidateId": 1,
+    "applicationConcept": "INGRESO",
+    "completedStep": 1,
+    "createdAt": "2026-08-13T15:00:00.000Z",
+    "updatedAt": "2026-08-13T15:00:00.000Z"
+  }
+}
+```
+
+---
+
+## Respuesta si el concepto no es válido
+
+```json
+{
+  "message": "Concepto de aplicación no válido",
+  "allowedApplicationConcepts": [
+    "INGRESO",
+    "MODIFICACION_CARGO"
+  ]
+}
+```
+
+---
+
+## Respuesta si el candidato no está disponible
+
+```json
+{
+  "message": "El candidato no existe o todavía no está disponible para validación"
+}
+```
+
+---
+
+## Respuesta si ya existe una validación
+
+```json
+{
+  "message": "El candidato ya tiene una validación iniciada"
+}
+```
+
+---
+
+# Guardar validación de cargo
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/candidate-validations/:candidateId/position
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/candidate-validations/1/position
+```
+
+## Descripción
+
+Endpoint privado encargado de guardar la **Fase 2: Validación de cargo**.
+
+La Fase 1 debe existir previamente. El sistema registra el tipo de cargo y calcula automáticamente si la revisión del perfil utilizada por la requisición continúa siendo la revisión vigente del mismo perfil.
+
+El valor `isPositionProfileCurrent` no se envía desde el frontend.
+
+```txt
+true  = la revisión usada por la requisición continúa VIGENTE
+false = actualmente existe otra revisión VIGENTE o no se encuentra la misma revisión como vigente
+```
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+```
+
+---
+
+## Tipos de cargo permitidos
+
+```txt
+NUEVO_CARGO
+CARGO_EXISTENTE
+```
+
+---
+
+## Body para cargo existente
+
+```json
+{
+  "positionType": "CARGO_EXISTENTE"
+}
+```
+
+---
+
+## Body para nuevo cargo
+
+```json
+{
+  "positionType": "NUEVO_CARGO",
+  "changeControlCode": "CC-2026-001"
+}
+```
+
+Cuando `positionType` es `NUEVO_CARGO`, `changeControlCode` es obligatorio.
+
+Cuando `positionType` es `CARGO_EXISTENTE`, el backend almacena `changeControlCode` como `null`.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Validación de cargo guardada correctamente",
+  "validation": {
+    "id": 1,
+    "candidateId": 1,
+    "applicationConcept": "INGRESO",
+    "positionType": "CARGO_EXISTENTE",
+    "changeControlCode": null,
+    "isPositionProfileCurrent": true,
+    "completedStep": 2,
+    "updatedAt": "2026-08-13T15:10:00.000Z"
+  }
+}
+```
+
+---
+
+## Respuesta si el tipo de cargo no es válido
+
+```json
+{
+  "message": "Tipo de cargo no válido",
+  "allowedPositionTypes": [
+    "NUEVO_CARGO",
+    "CARGO_EXISTENTE"
+  ]
+}
+```
+
+---
+
+## Respuesta si falta el código para un nuevo cargo
+
+```json
+{
+  "message": "El código de control de cambio es obligatorio para un nuevo cargo"
+}
+```
+
+---
+
+## Respuesta si no se completó la Fase 1
+
+```json
+{
+  "message": "Debe completar primero el concepto de aplicación"
+}
+```
+
+---
+
+# Completar validación del postulante
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/candidate-validations/:candidateId/candidate
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/candidate-validations/1/candidate
+```
+
+## Descripción
+
+Endpoint privado encargado de completar la **Fase 3: Validación del postulante**.
+
+El sistema toma como referencia las descripciones activas de los requisitos pertenecientes a la revisión exacta del perfil guardada en la requisición.
+
+Todas las descripciones de esa revisión deben evaluarse una sola vez.
+
+Reglas por requisito:
+
+```txt
+complies: true
+→ evidence obligatorio
+→ gapClosure se almacena como null
+
+complies: false
+→ evidence se almacena como null
+→ gapClosure obligatorio
+```
+
+Al completar la fase, el backend registra automáticamente el usuario que realizó la validación y la fecha de finalización.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+```
+
+---
+
+## Body
+
+```json
+{
+  "isSuitable": true,
+  "requirementValidations": [
+    {
+      "requirementDescriptionId": 15,
+      "complies": true,
+      "evidence": "Formación académica verificada",
+      "gapClosure": null
+    },
+    {
+      "requirementDescriptionId": 18,
+      "complies": false,
+      "evidence": null,
+      "gapClosure": "Completar experiencia requerida mediante el plan definido por Talento Humano"
+    }
+  ]
+}
+```
+
+> El arreglo debe contener todas las descripciones activas de requisitos de la revisión exacta asociada con la requisición. Los identificadores del ejemplo son ilustrativos.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Validación del postulante completada correctamente",
+  "validation": {
+    "id": 1,
+    "candidateId": 1,
+    "applicationConcept": "INGRESO",
+    "positionType": "CARGO_EXISTENTE",
+    "changeControlCode": null,
+    "isPositionProfileCurrent": true,
+    "isSuitable": true,
+    "performedById": 8,
+    "completedStep": 3,
+    "validatedAt": "2026-08-13T15:20:00.000Z",
+    "requirementValidations": [
+      {
+        "id": 1,
+        "requirementDescriptionId": 15,
+        "complies": true,
+        "evidence": "Formación académica verificada",
+        "gapClosure": null
+      }
+    ],
+    "updatedAt": "2026-08-13T15:20:00.000Z"
+  }
+}
+```
+
+---
+
+## Respuesta si falta completar la Fase 2
+
+```json
+{
+  "message": "Debe completar primero la validación de cargo"
+}
+```
+
+---
+
+## Respuesta si falta evaluar algún requisito
+
+```json
+{
+  "message": "Debe evaluar todos los requisitos del perfil de cargo"
+}
+```
+
+---
+
+## Respuesta si se repite una descripción
+
+```json
+{
+  "message": "No se puede evaluar una misma descripción de requisito más de una vez"
+}
+```
+
+---
+
+## Respuesta si una descripción no pertenece a la revisión
+
+```json
+{
+  "message": "Uno o más requisitos no pertenecen a la revisión del cargo de esta requisición"
+}
+```
+
+---
+
+## Respuesta si falta evidencia cuando cumple
+
+```json
+{
+  "message": "La evidencia es obligatoria cuando el postulante cumple el requisito"
+}
+```
+
+---
+
+## Respuesta si falta cierre de brecha cuando no cumple
+
+```json
+{
+  "message": "El cierre de brecha es obligatorio cuando el postulante no cumple el requisito"
+}
+```
+
+---
+
+## Respuesta si la validación ya fue completada
+
+```json
+{
+  "message": "La validación del candidato ya fue completada"
 }
 ```
 
@@ -8663,6 +9137,9 @@ Este endpoint no requiere body.
 | PATCH  | /api/human-talent/requisitions/:id/candidates/reopen                                                                                        | Reabre el proceso de cargue de candidatos                  | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Auxiliar de Talento Humano                                      |
 | DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Auxiliar de Talento Humano                                      |
+| POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Auxiliar de Talento Humano                                      |
 
 
 ---

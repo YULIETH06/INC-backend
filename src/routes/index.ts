@@ -14,6 +14,7 @@ import departmentRoutes from "./humanTalent/department.routes.js";
 import personnelRequisitionRoutes from "./humanTalent/personnelRequisition.routes.js";
 import personnelHiringConfirmationRoutes from "./humanTalent/personnelHiringConfirmation.routes.js";
 import personnelRequisitionCandidateRoutes from "./humanTalent/personnelRequisitionCandidate.routes.js";
+import personnelCandidateValidationRoutes from "./humanTalent/personnelCandidateValidation.routes.js";
 
 import positionProfileRoutes from "./positionManagement/positionProfile.routes.js";
 import positionProfileRevisionRoutes from "./positionManagement/positionProfileRevision.routes.js";
@@ -65,6 +66,11 @@ router.use(
 router.use(
   "/human-talent/requisitions",
   personnelRequisitionCandidateRoutes
+);
+
+router.use(
+  "/human-talent/candidate-validations",
+  personnelCandidateValidationRoutes
 );
 
 // Gestión de cargos.

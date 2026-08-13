@@ -585,12 +585,24 @@ export const deletePersonnelRequisitionCandidateService =
                     originalName: true,
                     fileName: true,
                     fileUrl: true,
+
+                    validation: {
+                        select: {
+                            id: true,
+                        },
+                    },
                 },
             });
 
         if (!candidate) {
             throw new Error(
                 "El candidato no existe o no pertenece a esta requisición"
+            );
+        }
+
+        if (candidate.validation) {
+            throw new Error(
+                "No se puede eliminar el candidato porque ya inició el proceso de validación"
             );
         }
 
@@ -668,12 +680,24 @@ export const updatePersonnelRequisitionCandidateService =
                     fileName: true,
                     identificationTypeId: true,
                     identificationNumber: true,
+
+                    validation: {
+                        select: {
+                            id: true,
+                        },
+                    },
                 },
             });
 
         if (!currentCandidate) {
             throw new Error(
                 "El candidato no existe o no pertenece a esta requisición"
+            );
+        }
+
+        if (currentCandidate.validation) {
+            throw new Error(
+                "No se puede actualizar el candidato porque ya inició el proceso de validación"
             );
         }
 

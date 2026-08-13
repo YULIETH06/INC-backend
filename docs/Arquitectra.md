@@ -2,9 +2,7 @@
 
 ## Descripción
 
-Documentación técnica inicial del backend desarrollado con Node.js, Express y TypeScript.
-
-El backend permite gestionar usuarios, autenticación mediante JWT, roles, carga masiva de usuarios, creación y administración de PQR, asignación de agentes, cambio de estado, prioridad, calificación de PQR cerradas y chat en tiempo real para el seguimiento de cada solicitud mediante Socket.IO.
+Este documento describe la arquitectura general del backend, su organización interna, la distribución de carpetas y archivos, y la forma en que se estructuran los distintos módulos del sistema.
 
 ---
 
@@ -75,6 +73,7 @@ src/
 │   │
 │   ├── humanTalent/
 │   │   ├── department.controller.ts
+│   │   ├── personnelCandidateValidation.controller.ts
 │   │   ├── personnelHiringConfirmation.controller.ts
 │   │   ├── personnelRequisition.controller.ts
 │   │   └── personnelRequisitionCandidate.controller.ts
@@ -100,6 +99,7 @@ src/
 │   │   └── auth.interface.ts
 │   │
 │   ├── humanTalent/
+│   │   ├── personnelCandidateValidation.interface.ts
 │   │   ├── personnelHiringConfirmation.interface.ts
 │   │   ├── personnelRequisition.interface.ts
 │   │   └── personnelRequisitionCandidate.interface.ts
@@ -144,6 +144,7 @@ src/
 │   │
 │   ├── humanTalent/
 │   │   ├── department.routes.ts
+│   │   ├── personnelCandidateValidation.routes.ts
 │   │   ├── personnelHiringConfirmation.routes.ts
 │   │   ├── personnelRequisition.routes.ts
 │   │   └── personnelRequisitionCandidate.routes.ts
@@ -176,6 +177,7 @@ src/
 │   │
 │   ├── humanTalent/
 │   │   ├── department.service.ts
+│   │   ├── personnelCandidateValidation.service.ts
 │   │   ├── personnelHiringConfirmation.service.ts
 │   │   ├── personnelRequisition.service.ts
 │   │   └── personnelRequisitionCandidate.service.ts

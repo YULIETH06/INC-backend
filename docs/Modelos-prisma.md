@@ -10,7 +10,7 @@ El sistema está dividido en dos módulos principales:
    - Gestión de solicitudes, mensajes, adjuntos, notificaciones y lectura de chats.
 
 2. **Módulo Talento Humano**
-   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación y presentación de candidatos.
+   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos y validación de cargo y postulante.
 
 ---
 
@@ -54,6 +54,7 @@ Esto permite manejar:
 | assignedHiringConfirmationApprovals    | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación asignadas al usuario     |
 | decidedHiringConfirmationApprovals     | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación decididas por el usuario |
 | uploadedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]       | Candidatos y hojas de vida cargados por el usuario                    |
+| performedPersonnelCandidateValidations | PersonnelCandidateValidation[]          | Validaciones de candidatos finalizadas por el usuario                 |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
 
@@ -387,6 +388,7 @@ Una revisión puede tener varias descripciones para cada requisito. Las descripc
 | createdAt     | DateTime                | Fecha de creación                            |
 | updatedAt     | DateTime                | Fecha de última actualización                |
 | deletedAt     | DateTime?               | Fecha de eliminación lógica cuando aplica    |
+| requirementValidations | PersonnelCandidateRequirementValidation[] | Evaluaciones de candidatos asociadas con esta descripción |
 
 ---
 
@@ -586,6 +588,7 @@ Cada candidato queda identificado mediante un tipo de identificación y un núme
 | fileSize             | Int                  | Tamaño del archivo expresado en bytes                    |
 | uploadedById         | Int                  | Identificador del usuario que realizó el cargue          |
 | uploadedBy           | User                 | Relación con el usuario que registró al candidato        |
+| validation | PersonnelCandidateValidation? | Relación opcional con la validación de cargo y postulante. Es `null` mientras el candidato no haya iniciado el proceso y contiene una única validación después de guardar la Fase 1. |
 | createdAt            | DateTime             | Fecha y hora en que se registró el candidato             |
 | updatedAt            | DateTime             | Fecha y hora de la última modificación                   |
 
@@ -650,6 +653,96 @@ El mismo número puede existir con otro tipo de identificación o dentro de otra
 ```
 
 Estos índices facilitan las consultas por requisición, tipo de identificación y usuario que realizó el cargue.
+---
+
+# Modelo PersonnelCandidateValidation
+
+## Descripción
+
+El modelo `PersonnelCandidateValidation` representa el proceso general de validación de cargo y postulante asociado con un candidato.
+
+Cada candidato puede tener como máximo una validación. El registro se crea únicamente al guardar la Fase 1 y conserva el avance mediante `completedStep`.
+
+## Fases
+
+```txt
+1 = Concepto de aplicación
+2 = Validación de cargo
+3 = Validación del postulante completada
+```
+
+## Campos principales
+
+| Campo                    | Tipo                                  | Descripción                                                                 |
+| ------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| id                       | Int                                   | Identificador único de la validación                                        |
+| candidateId              | Int                                   | Identificador único del candidato asociado                                  |
+| candidate                | PersonnelRequisitionCandidate         | Relación con el candidato                                                   |
+| applicationConcept       | CandidateApplicationConcept           | Concepto de aplicación seleccionado en la Fase 1                            |
+| positionType             | CandidatePositionType?                | Tipo de cargo seleccionado en la Fase 2                                     |
+| changeControlCode        | String?                               | Código de control de cambio cuando se selecciona `NUEVO_CARGO`              |
+| isPositionProfileCurrent | Boolean?                              | Indica si la revisión del perfil de cargo usada en la requisición coincide con la revisión VIGENTE al momento de guardar la Fase 2 |
+| isSuitable               | Boolean?                              | Resultado final que indica si el postulante es apto                         |
+| performedById            | Int?                                  | Usuario que completó la validación                                          |
+| performedBy              | User?                                 | Relación con el usuario que completó la validación                          |
+| completedStep            | Int                                   | Indica la última fase completada de la validación                                     |
+| validatedAt              | DateTime?                             | Fecha y hora en que se completó la Fase 3                                   |
+| requirementValidations   | PersonnelCandidateRequirementValidation[] | Evaluaciones individuales de las descripciones de requisitos           |
+| createdAt                | DateTime                              | Fecha de creación                                                           |
+| updatedAt                | DateTime                              | Fecha de última actualización                                               |
+
+## Restricción única
+
+```prisma
+candidateId Int @unique
+```
+
+Esta restricción garantiza que un candidato no pueda tener más de una validación.
+
+---
+
+# Modelo PersonnelCandidateRequirementValidation
+
+## Descripción
+
+El modelo `PersonnelCandidateRequirementValidation` almacena la evaluación individual de cada descripción de requisito utilizada en la Fase 3.
+
+Cada registro pertenece a una validación general y a una `PositionRequirementDescription` de la revisión exacta utilizada por la requisición.
+
+## Campos principales
+
+| Campo                    | Tipo                                   | Descripción                                                       |
+| ------------------------ | -------------------------------------- | ----------------------------------------------------------------- |
+| id                       | Int                                    | Identificador único del resultado                                 |
+| candidateValidationId    | Int                                    | Identificador de la validación general                            |
+| candidateValidation      | PersonnelCandidateValidation           | Relación con la validación general                                |
+| requirementDescriptionId | Int                                    | Descripción exacta del requisito evaluado                         |
+| requirementDescription   | PositionRequirementDescription         | Relación con la descripción del requisito                         |
+| complies                 | Boolean                                | Indica si el candidato cumple la descripción                      |
+| evidence                 | String?                                | Evidencia obligatoria cuando `complies` es `true`                 |
+| gapClosure               | String?                                | Cierre de brecha obligatorio cuando `complies` es `false`         |
+| createdAt                | DateTime                               | Fecha de creación                                                 |
+| updatedAt                | DateTime                               | Fecha de actualización                                            |
+
+## Restricción única
+
+```prisma
+@@unique([candidateValidationId, requirementDescriptionId])
+```
+
+Esta restricción evita evaluar dos veces la misma descripción dentro de una misma validación.
+
+## Regla de evidencia y cierre de brecha
+
+```txt
+complies = true
+→ evidence obligatorio
+→ gapClosure null
+
+complies = false
+→ evidence null
+→ gapClosure obligatorio
+```
 
 ---
 
@@ -1021,45 +1114,3 @@ candidateSubmissionClosedAt: null
 ```
 
 Cuando el cargue se cierre nuevamente, `candidateSubmissionClosedAt` almacenará la fecha del cierre actual. Este campo no representa un historial de cierres.
-
----
-
-# Conclusión
-
-Los modelos del módulo de Talento Humano permiten separar correctamente:
-
-1. Los usuarios del sistema.
-2. Los cargos de la empresa.
-3. Las asignaciones de usuarios a cargos.
-4. Los perfiles de cargo y sus revisiones históricas.
-5. Los requisitos y las descripciones de cada revisión.
-6. La jerarquía organizacional.
-7. El catálogo de tipos de identificación.
-8. Las requisiciones de personal.
-9. Las aprobaciones jerárquicas.
-10. La confirmación final de contratación por Talento Humano.
-11. Los candidatos, su identificación y sus hojas de vida.
-
-La lógica ya no depende de roles organizacionales como `JEFE_AREA`, `JEFE_DEPARTAMENTO` o `GERENTE_GENERAL`.
-
-Ahora el flujo depende de la estructura real de la empresa:
-
-```txt
-Departamento
-↓
-Cargo responsable
-↓
-Departamento superior
-↓
-Cargo responsable superior
-↓
-Auxiliar de Talento Humano
-↓
-Jefe de Talento Humano
-↓
-Cargue de candidatos
-↓
-Cierre de presentación
-↓
-Reapertura para ajustes, cuando sea necesaria
-```

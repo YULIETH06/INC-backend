@@ -128,6 +128,16 @@ enum PositionProfileRevisionStatus {
   OBSOLETA
 }
 
+enum CandidateApplicationConcept {
+  INGRESO
+  MODIFICACION_CARGO
+}
+
+enum CandidatePositionType {
+  NUEVO_CARGO
+  CARGO_EXISTENTE
+}
+
 model City {
   id       Int     @id @default(autoincrement())
   name     String
@@ -181,6 +191,8 @@ model User {
   decidedHiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("DecidedHiringApprovals")
 
   uploadedPersonnelRequisitionCandidates PersonnelRequisitionCandidate[] @relation("UploadedPersonnelRequisitionCandidates")
+
+  performedPersonnelCandidateValidations PersonnelCandidateValidation[] @relation("PerformedPersonnelCandidateValidations")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -370,6 +382,8 @@ model PositionRequirementDescription {
 
   description String @db.VarChar(500)
 
+  requirementValidations PersonnelCandidateRequirementValidation[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -468,7 +482,7 @@ model PersonnelRequisitionCandidate {
   requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
 
   identificationTypeId Int
-  identificationType   IdentificationType @relation(fields: [identificationTypeId], references: [id], onDelete: Restrict)
+  identificationType   IdentificationType @relation(fields: [identificationTypeId], references: [id])
 
   identificationNumber String @db.VarChar(50)
 
@@ -484,6 +498,8 @@ model PersonnelRequisitionCandidate {
   uploadedById Int
   uploadedBy   User @relation("UploadedPersonnelRequisitionCandidates", fields: [uploadedById], references: [id])
 
+  validation PersonnelCandidateValidation?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -491,6 +507,67 @@ model PersonnelRequisitionCandidate {
   @@index([requisitionId])
   @@index([identificationTypeId])
   @@index([uploadedById])
+}
+
+model PersonnelCandidateValidation {
+  id Int @id @default(autoincrement())
+
+  candidateId Int                           @unique
+  candidate   PersonnelRequisitionCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+
+  applicationConcept CandidateApplicationConcept
+
+  positionType             CandidatePositionType?
+  changeControlCode        String?                @db.VarChar(100)
+  isPositionProfileCurrent Boolean?
+
+  isSuitable Boolean?
+
+  performedById Int?
+  performedBy   User? @relation("PerformedPersonnelCandidateValidations", fields: [performedById], references: [id], onDelete: Restrict)
+
+  completedStep Int @default(1)
+
+  validatedAt DateTime?
+
+  requirementValidations PersonnelCandidateRequirementValidation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([performedById])
+  @@index([completedStep])
+}
+
+// Almacena la evaluación individual de cada requisito del postulante.
+model PersonnelCandidateRequirementValidation {
+  id Int @id @default(autoincrement())
+
+  // Validación general a la que pertenece este resultado.
+  candidateValidationId Int
+  candidateValidation   PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
+
+  // Descripción exacta del requisito que se está evaluando.
+  requirementDescriptionId Int
+  requirementDescription   PositionRequirementDescription @relation(fields: [requirementDescriptionId], references: [id], onDelete: Restrict)
+
+  // Indica si el candidato cumple o no con esta descripción.
+  complies Boolean
+
+  // Se diligencia cuando el candidato cumple.
+  evidence String? @db.VarChar(1000)
+
+  // Se diligencia cuando el candidato no cumple.
+  gapClosure String? @db.VarChar(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Una misma descripción solo puede evaluarse una vez
+  // dentro de la misma validación.
+  @@unique([candidateValidationId, requirementDescriptionId])
+  @@index([candidateValidationId])
+  @@index([requirementDescriptionId])
 }
 
 model PersonnelRequisitionApproval {
