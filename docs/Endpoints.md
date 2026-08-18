@@ -7129,7 +7129,7 @@ Tamaño máximo permitido:
 Cada requisición puede tener un máximo de:
 
 ```txt
-5 candidatos
+10 candidatos
 ```
 
 Los candidatos pueden registrarse progresivamente mientras el cargue permanezca en estado `ABIERTA`.
@@ -7398,11 +7398,11 @@ Cuando no se envía ningún campo, el sistema controla el cuerpo vacío y devuel
 
 ---
 
-## Respuesta si ya existen cinco candidatos
+## Respuesta si ya existen 10 candidatos
 
 ```json
 {
-  "message": "La requisición ya tiene el máximo de 5 candidatos"
+  "message": "La requisición ya tiene el máximo de 10 candidatos"
 }
 ```
 
@@ -7877,8 +7877,12 @@ Al reabrir el cargue:
 * La requisición conserva su estado general `APROBADA`.
 * `candidateSubmissionStatus` cambia nuevamente a `ABIERTA`.
 * `candidateSubmissionClosedAt` vuelve a `null`.
-* El Auxiliar de Talento Humano puede volver a registrar, actualizar o eliminar candidatos.
-* Mientras el cargue permanezca abierto, los demás usuarios relacionados con la requisición no pueden consultar las hojas de vida.
+* El Auxiliar de Talento Humano puede registrar nuevos candidatos.
+* Los candidatos que todavía no hayan iniciado validación pueden actualizarse o eliminarse.
+* Los candidatos que ya tengan una validación iniciada permanecen protegidos y no pueden actualizarse ni eliminarse.
+* Los candidatos con validación iniciada continúan disponibles en el módulo de Validación de cargo y postulante, aunque el cargue esté reabierto.
+* Los candidatos sin validación iniciada dejan de estar disponibles temporalmente en ese módulo mientras el cargue permanezca abierto.
+* Mientras el cargue permanezca abierto, los demás usuarios relacionados con la requisición no pueden consultar las hojas de vida desde el proceso de cargue.
 * El usuario creador de la requisición recibe una notificación indicando que Talento Humano reabrió el cargue para realizar ajustes.
 * Cuando el Auxiliar finalice nuevamente la presentación, debe cerrar otra vez el cargue mediante el endpoint de cierre.
 
@@ -9080,6 +9084,214 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 
 ---
 
+
+# Obtener candidatos disponibles para validación
+
+## Endpoint protegido
+
+```http
+GET /api/human-talent/candidate-validations
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener los candidatos que deben mostrarse en la pantalla principal del módulo **Validación de cargo y postulante**.
+
+La requisición debe encontrarse en estado `APROBADA`.
+
+El candidato se incluye cuando el cargue está `CERRADA` o cuando ya existe una validación asociada con el candidato.
+
+Si el cargue se reabre, los candidatos que ya habían iniciado validación continúan visibles y pueden seguir avanzando. Los candidatos que todavía no habían iniciado validación dejan de aparecer temporalmente hasta que el cargue vuelva a cerrarse.
+
+## Acceso permitido
+
+```txt
+Auxiliar de Talento Humano
+Jefe de Talento Humano
+ADMIN
+```
+
+```txt
+Auxiliar de Talento Humano → canManageValidation: true
+Jefe de Talento Humano     → canManageValidation: false
+ADMIN                       → canManageValidation: false
+```
+
+`canManageValidation` indica si el usuario puede trabajar y guardar las fases de la validación.
+
+## Estados calculados
+
+```txt
+validation: null
+→ SIN_INICIAR
+
+completedStep: 1
+→ CONCEPTO_APLICACION_COMPLETADO
+
+completedStep: 2
+→ VALIDACION_CARGO_COMPLETADA
+
+completedStep: 3
+→ VALIDACION_COMPLETADA
+```
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Candidatos para validación obtenidos correctamente",
+  "candidates": [
+    {
+      "id": 15,
+      "requisitionId": 10,
+      "identificationNumber": "1045678901",
+      "name": "Carlos Pérez",
+      "identificationType": {
+        "id": 1,
+        "code": "CC",
+        "name": "Cédula de ciudadanía"
+      },
+      "requisition": {
+        "id": 10,
+        "candidateSubmissionStatus": "CERRADA",
+        "department": {
+          "id": 5,
+          "code": "TECNOLOGIA",
+          "name": "Tecnología"
+        },
+        "position": {
+          "id": 8,
+          "code": "DPC-TI-001",
+          "name": "Técnico de Soporte"
+        }
+      },
+      "validation": {
+        "id": 3,
+        "applicationConcept": "INGRESO",
+        "positionType": "CARGO_EXISTENTE",
+        "isPositionProfileCurrent": true,
+        "isSuitable": null,
+        "completedStep": 2,
+        "validatedAt": null
+      },
+      "validationStatus": "VALIDACION_CARGO_COMPLETADA"
+    }
+  ],
+  "canManageValidation": true
+}
+```
+
+## Respuesta si el usuario no tiene acceso
+
+```json
+{
+  "message": "No tienes permisos para consultar las validaciones de candidatos"
+}
+```
+
+---
+
+# Obtener detalle de la validación de un candidato
+
+## Endpoint protegido
+
+```http
+GET /api/human-talent/candidate-validations/:candidateId
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener la información necesaria para abrir el proceso de validación de un candidato seleccionado.
+
+## Acceso permitido
+
+```txt
+Auxiliar de Talento Humano
+Jefe de Talento Humano
+ADMIN
+```
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Detalle de la validación obtenido correctamente",
+  "candidate": {
+    "id": 15,
+    "requisitionId": 10,
+    "identificationNumber": "1045678901",
+    "name": "Carlos Pérez",
+    "identificationType": {
+      "id": 1,
+      "code": "CC",
+      "name": "Cédula de ciudadanía"
+    },
+    "requisition": {
+      "id": 10,
+      "candidateSubmissionStatus": "CERRADA",
+      "positionRevisionId": 5,
+      "department": {
+        "id": 3,
+        "code": "TECNOLOGIA",
+        "name": "Tecnología"
+      },
+      "position": {
+        "id": 8,
+        "code": "DPC-TI-001",
+        "name": "Técnico de Soporte"
+      },
+      "positionRevision": {
+        "id": 5,
+        "revisionNumber": 2,
+        "status": "VIGENTE",
+        "requirementDescriptions": [
+          {
+            "id": 15,
+            "description": "Profesional o tecnólogo en sistemas",
+            "requirement": {
+              "id": 1,
+              "name": "Formación académica"
+            }
+          }
+        ]
+      }
+    },
+    "validation": {
+      "id": 3,
+      "applicationConcept": "INGRESO",
+      "positionType": "CARGO_EXISTENTE",
+      "changeControlCode": null,
+      "isPositionProfileCurrent": true,
+      "isSuitable": null,
+      "completedStep": 2,
+      "validatedAt": null,
+      "performedBy": null,
+      "requirementValidations": []
+    }
+  },
+  "canManageValidation": true
+}
+```
+
+## Respuesta si el candidato no está disponible
+
+```json
+{
+  "message": "El candidato no existe o no está disponible para validación"
+}
+```
+
+## Respuesta si el usuario no tiene acceso
+
+```json
+{
+  "message": "No tienes permisos para consultar las validaciones de candidatos"
+}
+```
+
+---
+
+
 # Resumen actualizado de endpoints funcionales
 
 | Método | Endpoint                                                                                                                                    | Descripción                                                | Acceso                                                          |
@@ -9137,6 +9349,8 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 | PATCH  | /api/human-talent/requisitions/:id/candidates/reopen                                                                                        | Reabre el proceso de cargue de candidatos                  | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Auxiliar de Talento Humano                                      |
 | DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Auxiliar de Talento Humano                                      |
+| GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Auxiliar TH / Jefe TH / ADMIN                                   |
+| GET    | /api/human-talent/candidate-validations/:candidateId                                                                                         | Obtiene el detalle completo de la validación               | Auxiliar TH / Jefe TH / ADMIN                                   |
 | POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Auxiliar de Talento Humano                                      |

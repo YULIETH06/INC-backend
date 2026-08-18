@@ -13,6 +13,7 @@ import type {
 import {
     validatePersonnelCandidateManager,
 } from "../../utils/humanTalent/personnelCandidateManager.helper.js";
+import { validatePersonnelCandidateValidationAccess } from "../../utils/humanTalent/personnelCandidateValidationAccess.helper.js";
 
 // Inicia la validación de cargo y postulante.
 export const createPersonnelCandidateValidationService = async (
@@ -97,7 +98,6 @@ export const updatePersonnelCandidatePositionValidationService = async (
                 id: data.candidateId,
                 requisition: {
                     status: "APROBADA",
-                    candidateSubmissionStatus: "CERRADA",
                 },
             },
             select: {
@@ -210,7 +210,6 @@ export const completePersonnelCandidateValidationService = async (
                 id: data.candidateId,
                 requisition: {
                     status: "APROBADA",
-                    candidateSubmissionStatus: "CERRADA",
                 },
             },
             select: {
@@ -420,4 +419,252 @@ export const completePersonnelCandidateValidationService = async (
     );
 
     return validation;
+};
+
+// Obtiene los candidatos disponibles para validación de cargo y postulante.
+export const getPersonnelCandidateValidationsService = async (
+    authenticatedUser: PersonnelCandidateAuthenticatedUser
+) => {
+    const access =
+        await validatePersonnelCandidateValidationAccess(
+            prisma,
+            authenticatedUser.id,
+            authenticatedUser.role
+        );
+
+    const candidates =
+        await prisma.personnelRequisitionCandidate.findMany({
+            where: {
+                requisition: {
+                    status: "APROBADA",
+                },
+                OR: [
+                    {
+                        requisition: {
+                            candidateSubmissionStatus:
+                                "CERRADA",
+                        },
+                    },
+                    {
+                        validation: {
+                            isNot: null,
+                        },
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                requisitionId: true,
+                identificationNumber: true,
+                name: true,
+                createdAt: true,
+                identificationType: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                    },
+                },
+                requisition: {
+                    select: {
+                        id: true,
+                        candidateSubmissionStatus: true,
+                        department: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                        position: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                    },
+                },
+                validation: {
+                    select: {
+                        id: true,
+                        applicationConcept: true,
+                        positionType: true,
+                        isPositionProfileCurrent: true,
+                        isSuitable: true,
+                        completedStep: true,
+                        validatedAt: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+    const formattedCandidates = candidates.map(
+        (candidate) => {
+            let validationStatus =
+                "SIN_INICIAR";
+
+            if (candidate.validation?.completedStep === 1) {
+                validationStatus =
+                    "CONCEPTO_APLICACION_COMPLETADO";
+            }
+
+            if (candidate.validation?.completedStep === 2) {
+                validationStatus =
+                    "VALIDACION_CARGO_COMPLETADA";
+            }
+
+            if (candidate.validation?.completedStep === 3) {
+                validationStatus =
+                    "VALIDACION_COMPLETADA";
+            }
+
+            return {
+                ...candidate,
+                validationStatus,
+            };
+        }
+    );
+
+    return {
+        candidates: formattedCandidates,
+        canManageValidation:
+            access.canManageValidation,
+    };
+};
+
+// Obtiene el detalle de la validación de un candidato.
+export const getPersonnelCandidateValidationDetailService = async (
+    candidateId: number,
+    authenticatedUser: PersonnelCandidateAuthenticatedUser
+) => {
+    const access =
+        await validatePersonnelCandidateValidationAccess(
+            prisma,
+            authenticatedUser.id,
+            authenticatedUser.role
+        );
+
+    const candidate =
+        await prisma.personnelRequisitionCandidate.findFirst({
+            where: {
+                id: candidateId,
+                requisition: {
+                    status: "APROBADA",
+                },
+                OR: [
+                    {
+                        requisition: {
+                            candidateSubmissionStatus: "CERRADA",
+                        },
+                    },
+                    {
+                        validation: {
+                            isNot: null,
+                        },
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                requisitionId: true,
+                identificationNumber: true,
+                name: true,
+                identificationType: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                    },
+                },
+                requisition: {
+                    select: {
+                        id: true,
+                        candidateSubmissionStatus: true,
+                        positionRevisionId: true,
+                        department: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                        position: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+                        positionRevision: {
+                            select: {
+                                id: true,
+                                revisionNumber: true,
+                                status: true,
+                                requirementDescriptions: {
+                                    where: {
+                                        deletedAt: null,
+                                    },
+                                    select: {
+                                        id: true,
+                                        description: true,
+                                        requirement: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
+                                        },
+                                    },
+                                    orderBy: {
+                                        id: "asc",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                validation: {
+                    select: {
+                        id: true,
+                        applicationConcept: true,
+                        positionType: true,
+                        changeControlCode: true,
+                        isPositionProfileCurrent: true,
+                        isSuitable: true,
+                        completedStep: true,
+                        validatedAt: true,
+                        performedBy: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                        requirementValidations: {
+                            select: {
+                                id: true,
+                                requirementDescriptionId: true,
+                                complies: true,
+                                evidence: true,
+                                gapClosure: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+    if (!candidate) {
+        throw new Error(
+            "El candidato no existe o no está disponible para validación"
+        );
+    }
+
+    return {
+        candidate,
+        canManageValidation:
+            access.canManageValidation,
+    };
 };

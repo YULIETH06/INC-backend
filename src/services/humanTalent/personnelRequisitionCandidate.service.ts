@@ -74,9 +74,9 @@ export const createPersonnelRequisitionCandidateService = async (
         );
     }
 
-    if (requisition._count.candidates >= 5) {
+    if (requisition._count.candidates >= 10) {
         throw new Error(
-            "La requisición ya tiene el máximo de 5 candidatos"
+            "La requisición ya tiene el máximo de 10 candidatos"
         );
     }
 

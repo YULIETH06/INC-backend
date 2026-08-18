@@ -9,6 +9,8 @@ import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
 import {
     completePersonnelCandidateValidationService,
     createPersonnelCandidateValidationService,
+    getPersonnelCandidateValidationDetailService,
+    getPersonnelCandidateValidationsService,
     updatePersonnelCandidatePositionValidationService,
 } from "../../services/humanTalent/personnelCandidateValidation.service.js";
 
@@ -289,6 +291,82 @@ export const completePersonnelCandidateValidation = async (
                 error instanceof Error
                     ? error.message
                     : "Error al completar la validación del postulante",
+        });
+    }
+};
+
+// Obtiene los candidatos disponibles para validación.
+export const getPersonnelCandidateValidations = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        const result =
+            await getPersonnelCandidateValidationsService(
+                req.user
+            );
+
+        return res.status(200).json({
+            message:
+                "Candidatos para validación obtenidos correctamente",
+            ...result,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al obtener los candidatos para validación",
+        });
+    }
+};
+
+// Obtiene el detalle de la validación de un candidato.
+export const getPersonnelCandidateValidationDetail = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { candidateId } = req.params;
+
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        if (
+            Number.isNaN(Number(candidateId)) ||
+            Number(candidateId) <= 0
+        ) {
+            return res.status(400).json({
+                message: "El candidato no es válido",
+            });
+        }
+
+        const result =
+            await getPersonnelCandidateValidationDetailService(
+                Number(candidateId),
+                req.user
+            );
+
+        return res.status(200).json({
+            message:
+                "Detalle de la validación obtenido correctamente",
+            ...result,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al obtener el detalle de la validación",
         });
     }
 };
