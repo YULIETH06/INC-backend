@@ -9,6 +9,7 @@ import {
     closePersonnelRequisitionCandidatesService,
     createPersonnelRequisitionCandidateService,
     deletePersonnelRequisitionCandidateService,
+    getPersonnelCandidateSubmissionHistoryService,
     getPersonnelRequisitionCandidatesService,
     reopenPersonnelRequisitionCandidatesService,
     updatePersonnelRequisitionCandidateService,
@@ -278,6 +279,52 @@ export const getPersonnelRequisitionCandidates =
         }
     };
 
+// Obtiene el historial de reaperturas y cierres posteriores del cargue.
+export const getPersonnelCandidateSubmissionHistory =
+    async (
+        req: AuthRequest,
+        res: Response
+    ) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({
+                    message: "Usuario no autenticado",
+                });
+            }
+
+            const requisitionId = Number(req.params.id);
+
+            if (
+                !Number.isInteger(requisitionId) ||
+                requisitionId <= 0
+            ) {
+                return res.status(400).json({
+                    message:
+                        "El id de la requisición no es válido",
+                });
+            }
+
+            const history =
+                await getPersonnelCandidateSubmissionHistoryService(
+                    requisitionId,
+                    req.user
+                );
+
+            return res.status(200).json({
+                message:
+                    "Historial del cargue de candidatos obtenido correctamente",
+                history,
+            });
+        } catch (error) {
+            return res.status(400).json({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Error al obtener el historial del cargue de candidatos",
+            });
+        }
+    };
+
 // Cierra el proceso de cargue de candidatos de una requisición.
 export const closePersonnelRequisitionCandidates =
     async (
@@ -303,10 +350,18 @@ export const closePersonnelRequisitionCandidates =
                 });
             }
 
+            const body = req.body ?? {};
+
+            const lateReason =
+                typeof body.lateReason === "string"
+                    ? body.lateReason.trim()
+                    : undefined;
+
             const requisition =
                 await closePersonnelRequisitionCandidatesService(
                     requisitionId,
-                    req.user
+                    req.user,
+                    lateReason
                 );
 
             return res.status(200).json({
@@ -351,11 +406,19 @@ export const reopenPersonnelRequisitionCandidates =
                 });
             }
 
+            const body = req.body ?? {};
+
+            const reason =
+                typeof body.reason === "string"
+                    ? body.reason.trim()
+                    : "";
+
             // Reabre el cargue de candidatos de la requisición.
             const requisition =
                 await reopenPersonnelRequisitionCandidatesService(
                     requisitionId,
-                    req.user
+                    req.user,
+                    reason
                 );
 
             return res.status(200).json({

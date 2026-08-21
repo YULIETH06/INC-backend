@@ -5342,6 +5342,10 @@ El acceso real depende de la relación del usuario con la requisición o con el 
       "internContractType": null,
       "proposedSalary": "2500000",
       "status": "EN_APROBACION",
+      "candidateSubmissionStatus": "NO_INICIADA",
+      "candidateSubmissionDeadlineAt": null,
+      "candidateSubmissionClosedAt": null,
+      "candidateSubmissionLateReason": null,
       "createdById": 1,
       "createdAt": "2026-06-25T00:00:00.000Z",
       "updatedAt": "2026-06-25T00:00:00.000Z",
@@ -5449,6 +5453,7 @@ Este endpoint devuelve:
 * Firma del usuario que actuó, cuando aplica.
 * Confirmación de contratación, si existe.
 * Aprobaciones de Talento Humano, si existen.
+* Estado del cargue, fecha límite de presentación inicial, fecha del primer cierre y motivo de retraso cuando aplica.
 
 ---
 
@@ -6582,12 +6587,16 @@ Si ya no existen más pasos pendientes, la confirmación de contratación y la r
 APROBADA
 ```
 
-Al finalizar completamente la aprobación, el sistema también habilita el cargue de candidatos de la requisición:
+Al finalizar completamente la aprobación, el sistema también habilita el cargue inicial de candidatos y calcula el plazo de presentación:
 
 ```txt
 candidateSubmissionStatus: ABIERTA
+candidateSubmissionDeadlineAt: final del segundo día hábil
 candidateSubmissionClosedAt: null
+candidateSubmissionLateReason: null
 ```
+
+El plazo inicial corresponde a **2 días hábiles**, contando de lunes a viernes y sin incluir el día de la aprobación. La fecha límite se fija al final del segundo día hábil.
 
 Después de habilitar el cargue, el sistema busca un usuario con una asignación activa al cargo:
 
@@ -7000,7 +7009,7 @@ Al registrar un candidato, el sistema:
 * Valida la observación cuando es enviada.
 * Valida la hoja de vida.
 * Impide registrar dos candidatos con la misma combinación de tipo y número de identificación dentro de una misma requisición.
-* Impide registrar más de cinco candidatos en la misma requisición.
+* Impide registrar más de 10 candidatos en la misma requisición.
 * Guarda el usuario autenticado que realizó el cargue.
 * Elimina del servidor el archivo cargado cuando el registro no puede completarse.
 
@@ -7635,6 +7644,140 @@ Usuarios autenticados con permiso para consultar la requisición.
 
 ---
 
+# Obtener historial del cargue de candidatos
+
+## Endpoint protegido
+
+```http
+GET /api/human-talent/requisitions/:id/candidates/history
+```
+
+## Ejemplo
+
+```http
+GET /api/human-talent/requisitions/1/candidates/history
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener la trazabilidad de las reaperturas y cierres posteriores a la presentación inicial de candidatos.
+
+El **primer cierre no se devuelve en este historial**, porque permanece almacenado en `PersonnelRequisition.candidateSubmissionClosedAt`. Si la presentación inicial fue tardía, su justificación se conserva en `candidateSubmissionLateReason`.
+
+El historial comienza a partir de la primera reapertura y devuelve registros independientes en orden cronológico:
+
+```txt
+REAPERTURA
+CIERRE
+REAPERTURA
+CIERRE
+```
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+```
+
+## Acceso permitido
+
+Puede consultar el historial:
+
+* El usuario con asignación activa al cargo `DPC-TH-0080 — Auxiliar de Talento Humano`.
+* El `ADMIN`.
+* El usuario que creó la requisición.
+* Los usuarios que participan o participaron en las aprobaciones de la requisición.
+* Los usuarios que participan o participaron en la confirmación de contratación de Talento Humano.
+
+## Parámetros
+
+| Parámetro | Tipo   | Descripción                                 |
+| --------- | ------ | ------------------------------------------- |
+| id        | number | Identificador de la requisición de personal |
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Historial del cargue de candidatos obtenido correctamente",
+  "history": [
+    {
+      "id": 1,
+      "requisitionId": 1,
+      "action": "REAPERTURA",
+      "reason": "Se requiere corregir la información de un candidato",
+      "performedById": 22,
+      "performedAt": "2026-08-18T21:51:57.977Z",
+      "performedBy": {
+        "id": 22,
+        "name": "Auxiliar de Talento Humano",
+        "email": "auxiliar.talentohumano@incobra.com",
+        "role": "USER"
+      }
+    },
+    {
+      "id": 2,
+      "requisitionId": 1,
+      "action": "CIERRE",
+      "reason": null,
+      "performedById": 22,
+      "performedAt": "2026-08-18T21:52:43.746Z",
+      "performedBy": {
+        "id": 22,
+        "name": "Auxiliar de Talento Humano",
+        "email": "auxiliar.talentohumano@incobra.com",
+        "role": "USER"
+      }
+    }
+  ]
+}
+```
+
+## Respuesta sin movimientos posteriores
+
+Cuando la requisición tuvo su primer cierre pero nunca fue reabierta:
+
+```json
+{
+  "message": "Historial del cargue de candidatos obtenido correctamente",
+  "history": []
+}
+```
+
+## Respuesta si el cargue todavía no está habilitado
+
+```json
+{
+  "message": "El cargue de candidatos todavía no está habilitado"
+}
+```
+
+## Respuesta si la requisición no existe
+
+```json
+{
+  "message": "La requisición de personal no existe"
+}
+```
+
+## Respuesta si el usuario no tiene permiso
+
+```json
+{
+  "message": "No tienes permisos para ver esta requisición"
+}
+```
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Usuario no autenticado"
+}
+```
+
+---
+
 # Cerrar cargue de candidatos
 
 ## Endpoint protegido
@@ -7651,25 +7794,45 @@ PATCH /api/human-talent/requisitions/2/candidates/close
 
 ## Descripción
 
-Endpoint privado encargado de cerrar el proceso de cargue de candidatos de una requisición de personal.
+Endpoint privado encargado de cerrar el proceso de cargue de candidatos de una requisición aprobada.
 
-Cuando el proceso se cierra, la requisición conserva su estado general:
+El comportamiento depende de si corresponde al **primer cierre** o a un cierre posterior a una reapertura.
 
-```txt
-APROBADA
-```
+### Primer cierre
 
-El estado del cargue cambia a:
+El primer cierre representa la presentación inicial y se guarda directamente en `PersonnelRequisition`.
 
 ```txt
-CERRADA
+candidateSubmissionStatus: CERRADA
+candidateSubmissionClosedAt: fecha y hora del primer cierre
 ```
 
-Además, el sistema registra la fecha y hora del cierre en:
+El sistema compara la fecha del primer cierre con:
 
 ```txt
-candidateSubmissionClosedAt
+candidateSubmissionDeadlineAt
 ```
+
+Si el cierre se realiza dentro del plazo, `candidateSubmissionLateReason` permanece en `null`.
+
+Si el cierre se realiza después de la fecha límite, el Auxiliar de Talento Humano debe enviar `lateReason`. La justificación se guarda en:
+
+```txt
+candidateSubmissionLateReason
+```
+
+El primer cierre **no crea** un registro `CIERRE` en `PersonnelCandidateSubmissionHistory`.
+
+### Cierres posteriores a una reapertura
+
+Cuando el cargue fue reabierto y se cierra nuevamente:
+
+* `candidateSubmissionStatus` cambia a `CERRADA`.
+* `candidateSubmissionClosedAt` conserva la fecha del primer cierre.
+* `candidateSubmissionDeadlineAt` no cambia.
+* No se vuelve a evaluar el plazo inicial de 2 días hábiles.
+* No se solicita una nueva justificación de retraso.
+* Se crea un registro `CIERRE` en `PersonnelCandidateSubmissionHistory`.
 
 Una vez cerrado el cargue:
 
@@ -7677,7 +7840,7 @@ Una vez cerrado el cargue:
 * No se pueden actualizar candidatos.
 * No se pueden eliminar candidatos.
 * Los usuarios autorizados para visualizar la requisición pueden consultar los candidatos cargados.
-* El usuario creador de la requisición recibe una notificación indicando que los candidatos ya se encuentran disponibles.
+* El usuario creador de la requisición recibe una notificación indicando que los candidatos están disponibles.
 
 ---
 
@@ -7685,17 +7848,14 @@ Una vez cerrado el cargue:
 
 ```http
 Authorization: Bearer TOKEN
+Content-Type: application/json
 ```
-
----
 
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+DPC-TH-0080 — Auxiliar de Talento Humano
 ```
-
----
 
 ## Parámetros
 
@@ -7703,38 +7863,61 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 | --------- | ------ | ------------------------------------------- |
 | id        | number | Identificador de la requisición de personal |
 
----
-
 ## Body
 
-Este endpoint no requiere body.
+El body es opcional cuando el primer cierre se realiza dentro del plazo o cuando corresponde a un cierre posterior.
+
+```json
+{}
+```
+
+Si el **primer cierre está vencido**, debe enviarse:
+
+```json
+{
+  "lateReason": "Se presentaron dificultades para completar la búsqueda de candidatos."
+}
+```
+
+### Campo `lateReason`
+
+| Campo      | Tipo   | Obligatorio | Descripción |
+| ---------- | ------ | ----------- | ----------- |
+| lateReason | string | Condicional | Obligatorio únicamente cuando el primer cierre ocurre después de `candidateSubmissionDeadlineAt`. Debe tener entre 3 y 500 caracteres. |
 
 ---
 
 ## Notificación automática
 
-Cuando el cargue de candidatos se cierra correctamente, el sistema genera una notificación para el usuario que creó la requisición.
+Cuando el cargue se cierra correctamente, el sistema genera una notificación para el usuario que creó la requisición.
 
 | Destinatario                   | Tipo                          | Descripción                                                                     |
 | ------------------------------ | ----------------------------- | ------------------------------------------------------------------------------- |
 | Usuario creador de requisición | REQUISITION_CANDIDATES_CLOSED | Informa que los candidatos ya fueron cargados y están disponibles para consulta |
 
-Ejemplo del contenido de la notificación:
-
-```txt
-Título:
-Candidatos disponibles - Requisición #2
-
-Mensaje:
-Los candidatos para el cargo Jefe de Contabilidad ya fueron cargados.
-Puedes consultar las hojas de vida registradas en la requisición.
-```
-
-La notificación solo se genera cuando el cargue cambia correctamente de `ABIERTA` a `CERRADA`.
-
 ---
 
-## Respuesta exitosa
+## Respuesta exitosa — primer cierre dentro del plazo
+
+```json
+{
+  "message": "Cargue de candidatos cerrado correctamente",
+  "requisition": {
+    "id": 1,
+    "status": "APROBADA",
+    "candidateSubmissionStatus": "CERRADA",
+    "candidateSubmissionClosedAt": "2026-08-18T22:03:23.065Z",
+    "candidateSubmissionDeadlineAt": "2026-08-21T04:59:59.999Z",
+    "candidateSubmissionLateReason": null,
+    "updatedAt": "2026-08-18T22:03:23.069Z",
+    "_count": {
+      "candidates": 2
+    }
+  }
+}
+```
+
+## Respuesta exitosa — primer cierre fuera del plazo
 
 ```json
 {
@@ -7743,16 +7926,40 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
     "id": 2,
     "status": "APROBADA",
     "candidateSubmissionStatus": "CERRADA",
-    "candidateSubmissionClosedAt": "2026-07-30T20:30:00.000Z",
-    "updatedAt": "2026-07-30T20:30:00.000Z",
+    "candidateSubmissionClosedAt": "2026-08-18T22:13:23.460Z",
+    "candidateSubmissionDeadlineAt": "2026-08-18T04:59:59.999Z",
+    "candidateSubmissionLateReason": "Se presentaron dificultades para completar la búsqueda de candidatos.",
+    "updatedAt": "2026-08-18T22:13:23.468Z",
     "_count": {
-      "candidates": 3
+      "candidates": 1
     }
   }
 }
 ```
 
----
+## Respuesta si el primer cierre está vencido y no se envía motivo
+
+```json
+{
+  "message": "Debe indicar el motivo del retraso para cerrar el cargue de candidatos"
+}
+```
+
+## Respuesta si el motivo del retraso es demasiado corto
+
+```json
+{
+  "message": "El motivo del retraso debe tener mínimo 3 caracteres"
+}
+```
+
+## Respuesta si el motivo del retraso supera los 500 caracteres
+
+```json
+{
+  "message": "El motivo del retraso no puede superar los 500 caracteres"
+}
+```
 
 ## Respuesta si el id de la requisición no es válido
 
@@ -7762,8 +7969,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
 }
 ```
 
----
-
 ## Respuesta si el usuario no es Auxiliar de Talento Humano
 
 ```json
@@ -7771,8 +7976,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
   "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
 }
 ```
-
----
 
 ## Respuesta si la requisición no existe
 
@@ -7782,8 +7985,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
 }
 ```
 
----
-
 ## Respuesta si la requisición no está aprobada
 
 ```json
@@ -7791,8 +7992,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
   "message": "Solo se puede cerrar el cargue de una requisición aprobada"
 }
 ```
-
----
 
 ## Respuesta si el cargue todavía no está habilitado
 
@@ -7802,8 +8001,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
 }
 ```
 
----
-
 ## Respuesta si el cargue ya fue cerrado
 
 ```json
@@ -7811,8 +8008,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
   "message": "El cargue de candidatos ya fue cerrado"
 }
 ```
-
----
 
 ## Respuesta si no existen candidatos registrados
 
@@ -7822,9 +8017,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
 }
 ```
 
-----
-
-
 ## Respuesta si el usuario no está autenticado
 
 ```json
@@ -7832,8 +8024,6 @@ La notificación solo se genera cuando el cargue cambia correctamente de `ABIERT
   "message": "Usuario no autenticado"
 }
 ```
-
----
 
 ## Respuesta en caso de error
 
@@ -7861,30 +8051,31 @@ PATCH /api/human-talent/requisitions/2/candidates/reopen
 
 ## Descripción
 
-Endpoint privado encargado de reabrir el proceso de cargue de candidatos de una requisición de personal.
+Endpoint privado encargado de reabrir el cargue de candidatos cuando una requisición aprobada ya tuvo su presentación inicial y el cargue se encuentra cerrado.
 
-Este endpoint se utiliza cuando el cargue ya fue cerrado y Talento Humano necesita realizar ajustes sobre los candidatos registrados.
-
-Para reabrir el cargue, la requisición debe encontrarse en las siguientes condiciones:
+Para reabrir:
 
 ```txt
 status: APROBADA
 candidateSubmissionStatus: CERRADA
 ```
 
-Al reabrir el cargue:
+Cada reapertura requiere un motivo y genera un registro independiente en `PersonnelCandidateSubmissionHistory`.
 
-* La requisición conserva su estado general `APROBADA`.
-* `candidateSubmissionStatus` cambia nuevamente a `ABIERTA`.
-* `candidateSubmissionClosedAt` vuelve a `null`.
-* El Auxiliar de Talento Humano puede registrar nuevos candidatos.
+Al reabrir:
+
+* `candidateSubmissionStatus` cambia a `ABIERTA`.
+* `candidateSubmissionClosedAt` **conserva la fecha del primer cierre**.
+* `candidateSubmissionDeadlineAt` no cambia.
+* No se genera un nuevo plazo de 2 días hábiles.
+* `candidateSubmissionLateReason` conserva el resultado de la presentación inicial.
+* Se crea un registro `REAPERTURA` con motivo, usuario y fecha.
+* El Auxiliar de Talento Humano puede volver a registrar candidatos.
 * Los candidatos que todavía no hayan iniciado validación pueden actualizarse o eliminarse.
-* Los candidatos que ya tengan una validación iniciada permanecen protegidos y no pueden actualizarse ni eliminarse.
-* Los candidatos con validación iniciada continúan disponibles en el módulo de Validación de cargo y postulante, aunque el cargue esté reabierto.
-* Los candidatos sin validación iniciada dejan de estar disponibles temporalmente en ese módulo mientras el cargue permanezca abierto.
-* Mientras el cargue permanezca abierto, los demás usuarios relacionados con la requisición no pueden consultar las hojas de vida desde el proceso de cargue.
-* El usuario creador de la requisición recibe una notificación indicando que Talento Humano reabrió el cargue para realizar ajustes.
-* Cuando el Auxiliar finalice nuevamente la presentación, debe cerrar otra vez el cargue mediante el endpoint de cierre.
+* Los candidatos con validación iniciada permanecen protegidos.
+* El usuario creador recibe una notificación de reapertura.
+
+Cuando el Auxiliar finaliza los ajustes, debe cerrar nuevamente el cargue. Ese cierre posterior se registra como `CIERRE` en el historial y no modifica la fecha del primer cierre.
 
 ---
 
@@ -7892,23 +8083,14 @@ Al reabrir el cargue:
 
 ```http
 Authorization: Bearer TOKEN
+Content-Type: application/json
 ```
-
----
 
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+DPC-TH-0080 — Auxiliar de Talento Humano
 ```
-
-Código del cargo autorizado:
-
-```txt
-DPC-TH-0080
-```
-
----
 
 ## Parámetros
 
@@ -7916,32 +8098,29 @@ DPC-TH-0080
 | --------- | ------ | ------------------------------------------- |
 | id        | number | Identificador de la requisición de personal |
 
----
-
 ## Body
 
-Este endpoint no requiere body.
+```json
+{
+  "reason": "Se requiere corregir la información de un candidato"
+}
+```
+
+### Campo `reason`
+
+| Campo  | Tipo   | Obligatorio | Descripción                                      |
+| ------ | ------ | ----------- | ------------------------------------------------ |
+| reason | string | Sí          | Motivo de la reapertura. Entre 3 y 500 caracteres |
 
 ---
 
 ## Notificación automática
 
-Cuando el cargue de candidatos se reabre correctamente, el sistema genera una notificación para el mismo usuario creador que recibe la notificación cuando el cargue es cerrado.
+Cuando el cargue se reabre correctamente, el sistema genera una notificación para el usuario creador de la requisición.
 
 | Destinatario                   | Tipo                            | Descripción                                                        |
 | ------------------------------ | ------------------------------- | ------------------------------------------------------------------ |
 | Usuario creador de requisición | REQUISITION_CANDIDATES_REOPENED | Informa que Talento Humano reabrió el cargue para realizar ajustes |
-
-Ejemplo del contenido de la notificación:
-
-```txt
-Título:
-Cargue de candidatos reabierto - Requisición #2
-
-Mensaje:
-Talento Humano reabrió el cargue de candidatos para el cargo Jefe de Contabilidad para realizar ajustes.
-Te notificaremos cuando los candidatos estén disponibles nuevamente.
-```
 
 ---
 
@@ -7951,19 +8130,41 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
 {
   "message": "Cargue de candidatos reabierto correctamente",
   "requisition": {
-    "id": 2,
+    "id": 1,
     "status": "APROBADA",
     "candidateSubmissionStatus": "ABIERTA",
-    "candidateSubmissionClosedAt": null,
-    "updatedAt": "2026-08-11T15:30:00.000Z",
+    "candidateSubmissionClosedAt": "2026-08-18T22:03:23.065Z",
+    "updatedAt": "2026-08-18T22:03:52.260Z",
     "_count": {
-      "candidates": 3
+      "candidates": 2
     }
   }
 }
 ```
 
----
+## Respuesta si no se envía motivo
+
+```json
+{
+  "message": "Debe indicar el motivo para reabrir el cargue de candidatos"
+}
+```
+
+## Respuesta si el motivo tiene menos de 3 caracteres
+
+```json
+{
+  "message": "El motivo de reapertura debe tener mínimo 3 caracteres"
+}
+```
+
+## Respuesta si el motivo supera los 500 caracteres
+
+```json
+{
+  "message": "El motivo de reapertura no puede superar los 500 caracteres"
+}
+```
 
 ## Respuesta si el id de la requisición no es válido
 
@@ -7973,8 +8174,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
 }
 ```
 
----
-
 ## Respuesta si el usuario no es Auxiliar de Talento Humano
 
 ```json
@@ -7982,8 +8181,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
   "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
 }
 ```
-
----
 
 ## Respuesta si la requisición no existe
 
@@ -7993,8 +8190,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
 }
 ```
 
----
-
 ## Respuesta si la requisición no está aprobada
 
 ```json
@@ -8002,8 +8197,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
   "message": "Solo se puede reabrir el cargue de una requisición aprobada"
 }
 ```
-
----
 
 ## Respuesta si el cargue todavía no está habilitado
 
@@ -8013,8 +8206,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
 }
 ```
 
----
-
 ## Respuesta si el cargue ya está abierto
 
 ```json
@@ -8023,8 +8214,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
 }
 ```
 
----
-
 ## Respuesta si el usuario no está autenticado
 
 ```json
@@ -8032,8 +8221,6 @@ Te notificaremos cuando los candidatos estén disponibles nuevamente.
   "message": "Usuario no autenticado"
 }
 ```
-
----
 
 ## Respuesta en caso de error
 

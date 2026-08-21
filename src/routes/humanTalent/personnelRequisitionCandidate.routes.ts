@@ -4,6 +4,7 @@ import {
     closePersonnelRequisitionCandidates,
     createPersonnelRequisitionCandidate,
     deletePersonnelRequisitionCandidate,
+    getPersonnelCandidateSubmissionHistory,
     getPersonnelRequisitionCandidates,
     reopenPersonnelRequisitionCandidates,
     updatePersonnelRequisitionCandidate,
@@ -29,6 +30,13 @@ router.get(
     "/:id/candidates",
     authMiddleware,
     getPersonnelRequisitionCandidates
+);
+
+// Obtiene el historial de reaperturas y cierres posteriores.
+router.get(
+    "/:id/candidates/history",
+    authMiddleware,
+    getPersonnelCandidateSubmissionHistory
 );
 
 // Cierra el proceso de cargue de candidatos.

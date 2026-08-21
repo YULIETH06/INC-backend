@@ -21,6 +21,30 @@ import {
 // Código del cargo Auxiliar de Talento Humano.
 const HUMAN_TALENT_ASSISTANT_POSITION_CODE = "DPC-TH-0080";
 
+// Calcula la fecha límite de 2 días hábiles para el cargue inicial de candidatos.
+const calculateCandidateSubmissionDeadline = (
+    approvalDate: Date
+) => {
+    const deadline = new Date(approvalDate);
+    let businessDaysAdded = 0;
+
+    while (businessDaysAdded < 2) {
+        deadline.setDate(deadline.getDate() + 1);
+
+        const dayOfWeek = deadline.getDay();
+
+        // Domingo = 0 y sábado = 6.
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            businessDaysAdded++;
+        }
+    }
+
+    // El Auxiliar dispone de todo el segundo día hábil.
+    deadline.setHours(23, 59, 59, 999);
+
+    return deadline;
+};
+
 // Crea la confirmación final de contratación de una requisición.
 export const createPersonnelHiringConfirmationService = async ({
     requisitionId,
@@ -644,7 +668,13 @@ export const decidePersonnelHiringConfirmationService = async ({
                 },
             });
 
-            // Aprueba la requisición y habilita el cargue de candidatos.
+            // Calcula el plazo de 2 días hábiles desde la aprobación definitiva.
+            const candidateSubmissionDeadlineAt =
+                calculateCandidateSubmissionDeadline(
+                    new Date()
+                );
+
+            // Aprueba la requisición y habilita el cargue inicial de candidatos.
             await tx.personnelRequisition.update({
                 where: {
                     id:
@@ -655,8 +685,8 @@ export const decidePersonnelHiringConfirmationService = async ({
                     status: "APROBADA",
                     candidateSubmissionStatus:
                         "ABIERTA",
-                    candidateSubmissionClosedAt:
-                        null,
+                    candidateSubmissionDeadlineAt,
+                    candidateSubmissionLateReason: null,
                 },
             });
 

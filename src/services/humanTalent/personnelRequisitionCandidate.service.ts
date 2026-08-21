@@ -311,10 +311,103 @@ export const getPersonnelRequisitionCandidatesService = async (
     };
 };
 
+// Obtiene el historial de reaperturas y cierres posteriores del cargue.
+export const getPersonnelCandidateSubmissionHistoryService = async (
+    requisitionId: number,
+    authenticatedUser: PersonnelCandidateAuthenticatedUser
+) => {
+    const requisition =
+        await prisma.personnelRequisition.findUnique({
+            where: {
+                id: requisitionId,
+            },
+            select: {
+                id: true,
+                candidateSubmissionStatus: true,
+            },
+        });
+
+    if (!requisition) {
+        throw new Error(
+            "La requisición de personal no existe"
+        );
+    }
+
+    if (
+        requisition.candidateSubmissionStatus ===
+        "NO_INICIADA"
+    ) {
+        throw new Error(
+            "El cargue de candidatos todavía no está habilitado"
+        );
+    }
+
+    // Verifica si el usuario es el Auxiliar de Talento Humano activo.
+    const candidateManagerAssignment =
+        await prisma.userPositionAssignment.findFirst({
+            where: {
+                userId: authenticatedUser.id,
+                isActive: true,
+                position: {
+                    is: {
+                        code: "DPC-TH-0080",
+                        isActive: true,
+                    },
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    // Si no es el Auxiliar, valida los permisos generales de la requisición.
+    if (!candidateManagerAssignment) {
+        await getPersonnelRequisitionByIdService(
+            requisitionId,
+            authenticatedUser
+        );
+    }
+
+    const history =
+        await prisma.personnelCandidateSubmissionHistory.findMany({
+            where: {
+                requisitionId,
+            },
+            select: {
+                id: true,
+                requisitionId: true,
+                action: true,
+                reason: true,
+                performedById: true,
+                performedAt: true,
+
+                performedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+            },
+            orderBy: [
+                {
+                    performedAt: "asc",
+                },
+                {
+                    id: "asc",
+                },
+            ],
+        });
+
+    return history;
+};
+
 // Cierra el proceso de cargue de candidatos de una requisición.
 export const closePersonnelRequisitionCandidatesService = async (
     requisitionId: number,
-    authenticatedUser: PersonnelCandidateAuthenticatedUser
+    authenticatedUser: PersonnelCandidateAuthenticatedUser,
+    lateReason?: string
 ) => {
     // Solo el Auxiliar de Talento Humano activo puede cerrar el cargue.
     await validatePersonnelCandidateManager(
@@ -332,6 +425,9 @@ export const closePersonnelRequisitionCandidatesService = async (
                 status: true,
                 createdById: true,
                 candidateSubmissionStatus: true,
+                candidateSubmissionDeadlineAt: true,
+                candidateSubmissionClosedAt: true,
+                candidateSubmissionLateReason: true,
 
                 position: {
                     select: {
@@ -383,28 +479,99 @@ export const closePersonnelRequisitionCandidatesService = async (
         );
     }
 
-    const updatedRequisition =
-        await prisma.personnelRequisition.update({
-            where: {
-                id: requisitionId,
-            },
-            data: {
-                candidateSubmissionStatus: "CERRADA",
-                candidateSubmissionClosedAt: new Date(),
-            },
-            select: {
-                id: true,
-                status: true,
-                candidateSubmissionStatus: true,
-                candidateSubmissionClosedAt: true,
-                updatedAt: true,
+    const closedAt = new Date();
 
-                _count: {
-                    select: {
-                        candidates: true,
+    // Si todavía no existe fecha de cierre, esta es la primera entrega.
+    const isFirstClosure =
+        requisition.candidateSubmissionClosedAt === null;
+
+    const isLateFirstClosure =
+        isFirstClosure &&
+        requisition.candidateSubmissionDeadlineAt !== null &&
+        closedAt > requisition.candidateSubmissionDeadlineAt;
+
+    const cleanLateReason =
+        lateReason?.trim() || null;
+
+    if (
+        isLateFirstClosure &&
+        cleanLateReason &&
+        cleanLateReason.length < 3
+    ) {
+        throw new Error(
+            "El motivo del retraso debe tener mínimo 3 caracteres"
+        );
+    }
+
+    if (
+        isLateFirstClosure &&
+        cleanLateReason &&
+        cleanLateReason.length > 500
+    ) {
+        throw new Error(
+            "El motivo del retraso no puede superar los 500 caracteres"
+        );
+    }
+
+    // Si la primera entrega está vencida, exige justificación.
+    if (isLateFirstClosure && !cleanLateReason) {
+        throw new Error(
+            "Debe indicar el motivo del retraso para cerrar el cargue de candidatos"
+        );
+    }
+
+    const updatedRequisition =
+        await prisma.$transaction(async (tx) => {
+            const updated =
+                await tx.personnelRequisition.update({
+                    where: {
+                        id: requisitionId,
                     },
-                },
-            },
+                    data: {
+                        candidateSubmissionStatus: "CERRADA",
+
+                        // Conserva siempre la fecha del primer cierre.
+                        candidateSubmissionClosedAt:
+                            requisition.candidateSubmissionClosedAt ??
+                            closedAt,
+
+                        // Solo registra justificación si el primer cierre fue tardío.
+                        candidateSubmissionLateReason:
+                            isLateFirstClosure
+                                ? cleanLateReason
+                                : requisition.candidateSubmissionLateReason,
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        candidateSubmissionStatus: true,
+                        candidateSubmissionClosedAt: true,
+                        candidateSubmissionDeadlineAt: true,
+                        candidateSubmissionLateReason: true,
+                        updatedAt: true,
+
+                        _count: {
+                            select: {
+                                candidates: true,
+                            },
+                        },
+                    },
+                });
+
+            // Solo registra en el historial los cierres posteriores a una reapertura.
+            if (!isFirstClosure) {
+                await tx.personnelCandidateSubmissionHistory.create({
+                    data: {
+                        requisitionId,
+                        action: "CIERRE",
+                        reason: null,
+                        performedById: authenticatedUser.id,
+                        performedAt: closedAt,
+                    },
+                });
+            }
+
+            return updated;
         });
 
     // Notifica al usuario que creó la requisición.
@@ -420,7 +587,8 @@ export const closePersonnelRequisitionCandidatesService = async (
 // Reabre el proceso de cargue de candidatos de una requisición.
 export const reopenPersonnelRequisitionCandidatesService = async (
     requisitionId: number,
-    authenticatedUser: PersonnelCandidateAuthenticatedUser
+    authenticatedUser: PersonnelCandidateAuthenticatedUser,
+    reason: string
 ) => {
     // Solo el Auxiliar de Talento Humano activo puede reabrir el cargue.
     await validatePersonnelCandidateManager(
@@ -481,29 +649,65 @@ export const reopenPersonnelRequisitionCandidatesService = async (
         );
     }
 
-    // Reabre el cargue y elimina la fecha del cierre anterior.
-    const updatedRequisition =
-        await prisma.personnelRequisition.update({
-            where: {
-                id: requisitionId,
-            },
-            data: {
-                candidateSubmissionStatus: "ABIERTA",
-                candidateSubmissionClosedAt: null,
-            },
-            select: {
-                id: true,
-                status: true,
-                candidateSubmissionStatus: true,
-                candidateSubmissionClosedAt: true,
-                updatedAt: true,
+    const cleanReason = reason?.trim();
 
-                _count: {
-                    select: {
-                        candidates: true,
+    if (!cleanReason) {
+        throw new Error(
+            "Debe indicar el motivo para reabrir el cargue de candidatos"
+        );
+    }
+
+    if (cleanReason.length < 3) {
+        throw new Error(
+            "El motivo de reapertura debe tener mínimo 3 caracteres"
+        );
+    }
+
+    if (cleanReason.length > 500) {
+        throw new Error(
+            "El motivo de reapertura no puede superar los 500 caracteres"
+        );
+    }
+
+    const reopenedAt = new Date();
+
+    const updatedRequisition =
+        await prisma.$transaction(async (tx) => {
+            const updated =
+                await tx.personnelRequisition.update({
+                    where: {
+                        id: requisitionId,
                     },
+                    data: {
+                        candidateSubmissionStatus: "ABIERTA",
+                    },
+                    select: {
+                        id: true,
+                        status: true,
+                        candidateSubmissionStatus: true,
+                        candidateSubmissionClosedAt: true,
+                        updatedAt: true,
+
+                        _count: {
+                            select: {
+                                candidates: true,
+                            },
+                        },
+                    },
+                });
+
+            // Guarda esta reapertura como un registro independiente.
+            await tx.personnelCandidateSubmissionHistory.create({
+                data: {
+                    requisitionId,
+                    action: "REAPERTURA",
+                    reason: cleanReason,
+                    performedById: authenticatedUser.id,
+                    performedAt: reopenedAt,
                 },
-            },
+            });
+
+            return updated;
         });
 
     // Notifica al mismo usuario creador que recibe
@@ -516,6 +720,8 @@ export const reopenPersonnelRequisitionCandidatesService = async (
 
     return updatedRequisition;
 };
+
+
 
 // Elimina un candidato registrado en una requisición de personal.
 export const deletePersonnelRequisitionCandidateService =

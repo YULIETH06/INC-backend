@@ -54,6 +54,7 @@ Esto permite manejar:
 | assignedHiringConfirmationApprovals    | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación asignadas al usuario     |
 | decidedHiringConfirmationApprovals     | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación decididas por el usuario |
 | uploadedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]       | Candidatos y hojas de vida cargados por el usuario                    |
+| candidateSubmissionHistory             | PersonnelCandidateSubmissionHistory[]  | Acciones de reapertura y cierres posteriores realizadas por el usuario |
 | performedPersonnelCandidateValidations | PersonnelCandidateValidation[]          | Validaciones de candidatos finalizadas por el usuario                 |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
@@ -499,42 +500,45 @@ Una requisición pertenece a un departamento, solicita un cargo y queda asociada
 
 También contiene una ciudad, un motivo, la descripción obligatoria de ese motivo, las condiciones de contratación, un salario propuesto y un estado general.
 
-También controla el proceso de cargue y presentación de candidatos una vez la requisición ha sido aprobada completamente.
+Además, controla el proceso de presentación de candidatos una vez la requisición ha sido aprobada completamente. Para la presentación inicial se conserva la fecha límite, la fecha del primer cierre y, cuando aplica, el motivo del retraso. Las reaperturas y los cierres posteriores se almacenan por separado en `PersonnelCandidateSubmissionHistory`.
 
 El flujo de aprobación de la requisición se genera a partir del departamento seleccionado y su jerarquía organizacional.
 
 ## Campos principales
 
-| Campo                       | Tipo                            | Descripción                                                    |
-| --------------------------- | ------------------------------- | -------------------------------------------------------------- |
-| id                          | Int                             | Identificador único de la requisición                          |
-| requestDate                 | DateTime                        | Fecha de solicitud                                             |
-| departmentId                | Int                             | Departamento para el cual se crea la requisición               |
-| department                  | Department                      | Relación con el departamento                                   |
-| positionId                  | Int                             | Identificador del cargo solicitado                             |
-| position                    | PositionProfile                 | Relación con el cargo solicitado                               |
-| positionRevisionId          | Int                             | Identificador obligatorio de la revisión utilizada             |
-| positionRevision            | PositionProfileRevision         | Relación obligatoria con la revisión del perfil de cargo       |
-| reason                      | RequisitionReason               | Motivo seleccionado para crear la requisición                  |
-| otherReason                 | String                          | Descripción obligatoria correspondiente al motivo seleccionado |
-| cityId                      | Int                             | Ciudad de la requisición                                       |
-| city                        | City                            | Relación con la ciudad                                         |
-| contractType                | ContractType?                   | Tipo principal de contratación                                 |
-| directContractType          | DirectContractType?             | Tipo de contrato directo                                       |
-| contractDurationMonths      | Int?                            | Duración del contrato en meses cuando aplica                   |
-| internContractType          | InternContractType?             | Tipo de practicante cuando aplica                              |
-| proposedSalary              | Decimal                         | Salario propuesto                                              |
-| status                      | PersonnelRequisitionStatus      | Estado general de la requisición                               |
-| createdById                 | Int                             | Usuario que creó la requisición                                |
-| createdBy                   | User                            | Relación con el usuario creador                                |
-| approvals                   | PersonnelRequisitionApproval[]  | Pasos de aprobación de la requisición                          |
-| hiringConfirmation          | PersonnelHiringConfirmation?    | Confirmación de contratación asociada                          |
-| candidateSubmissionStatus   | CandidateSubmissionStatus       | Estado del proceso de cargue y presentación de candidatos      |
-| candidateSubmissionClosedAt | DateTime?                       | Fecha y hora del cierre actual; vuelve a `null` al reabrir     |
-| candidates                  | PersonnelRequisitionCandidate[] | Candidatos y hojas de vida asociados a la requisición          |
-| notifications               | Notification[]                  | Notificaciones relacionadas con la requisición                 |
-| createdAt                   | DateTime                        | Fecha de creación                                              |
-| updatedAt                   | DateTime                        | Fecha de actualización                                         |
+| Campo                          | Tipo                                   | Descripción                                                                 |
+| ------------------------------ | -------------------------------------- | --------------------------------------------------------------------------- |
+| id                             | Int                                    | Identificador único de la requisición                                       |
+| requestDate                    | DateTime                               | Fecha de solicitud                                                          |
+| departmentId                   | Int                                    | Departamento para el cual se crea la requisición                            |
+| department                     | Department                             | Relación con el departamento                                                |
+| positionId                     | Int                                    | Identificador del cargo solicitado                                          |
+| position                       | PositionProfile                        | Relación con el cargo solicitado                                            |
+| positionRevisionId             | Int                                    | Identificador obligatorio de la revisión utilizada                          |
+| positionRevision               | PositionProfileRevision                | Relación obligatoria con la revisión del perfil de cargo                    |
+| reason                         | RequisitionReason                      | Motivo seleccionado para crear la requisición                               |
+| otherReason                    | String                                 | Descripción obligatoria correspondiente al motivo seleccionado              |
+| cityId                         | Int                                    | Ciudad de la requisición                                                    |
+| city                           | City                                   | Relación con la ciudad                                                      |
+| contractType                   | ContractType?                          | Tipo principal de contratación                                              |
+| directContractType             | DirectContractType?                    | Tipo de contrato directo                                                    |
+| contractDurationMonths         | Int?                                   | Duración del contrato en meses cuando aplica                                |
+| internContractType             | InternContractType?                    | Tipo de practicante cuando aplica                                           |
+| proposedSalary                 | Decimal                                | Salario propuesto                                                           |
+| status                         | PersonnelRequisitionStatus             | Estado general de la requisición                                            |
+| createdById                    | Int                                    | Usuario que creó la requisición                                             |
+| createdBy                      | User                                   | Relación con el usuario creador                                             |
+| approvals                      | PersonnelRequisitionApproval[]         | Pasos de aprobación de la requisición                                       |
+| hiringConfirmation             | PersonnelHiringConfirmation?           | Confirmación de contratación asociada                                       |
+| candidateSubmissionStatus      | CandidateSubmissionStatus              | Estado del proceso de cargue y presentación de candidatos                   |
+| candidateSubmissionDeadlineAt  | DateTime?                              | Fecha y hora límite de la presentación inicial de candidatos                |
+| candidateSubmissionClosedAt    | DateTime?                              | Fecha y hora del primer cierre o presentación inicial; no cambia al reabrir |
+| candidateSubmissionLateReason  | String?                                | Justificación del retraso del primer cierre cuando se realiza fuera de plazo |
+| candidateSubmissionHistory     | PersonnelCandidateSubmissionHistory[] | Historial de reaperturas y cierres posteriores al primer cierre             |
+| candidates                     | PersonnelRequisitionCandidate[]        | Candidatos y hojas de vida asociados a la requisición                       |
+| notifications                  | Notification[]                         | Notificaciones relacionadas con la requisición                              |
+| createdAt                      | DateTime                               | Fecha de creación                                                           |
+| updatedAt                      | DateTime                               | Fecha de actualización                                                      |
 
 ## Estados principales de la requisición
 
@@ -557,6 +561,76 @@ El cargue de candidatos se controla por separado del estado general de la requis
 | NO_INICIADA | La requisición todavía no está habilitada para recibir candidatos                   |
 | ABIERTA     | El Auxiliar de Talento Humano puede registrar o modificar candidatos                |
 | CERRADA     | La presentación fue finalizada y los candidatos quedan bloqueados para modificación |
+
+## Regla de presentación inicial
+
+Cuando la requisición queda completamente `APROBADA`, el sistema habilita el cargue y calcula `candidateSubmissionDeadlineAt` con un plazo de **2 días hábiles**, contando de lunes a viernes y sin incluir el día de la aprobación.
+
+La fecha límite corresponde al final del segundo día hábil.
+
+El primer cierre se guarda únicamente en `PersonnelRequisition`:
+
+```txt
+candidateSubmissionClosedAt
+candidateSubmissionLateReason
+```
+
+Si el primer cierre se realiza después de `candidateSubmissionDeadlineAt`, `candidateSubmissionLateReason` es obligatorio.
+
+Una reapertura posterior no modifica `candidateSubmissionDeadlineAt`, no borra `candidateSubmissionClosedAt` y no genera un nuevo plazo de 2 días.
+
+# Modelo PersonnelCandidateSubmissionHistory
+
+## Descripción
+
+El modelo `PersonnelCandidateSubmissionHistory` conserva las acciones realizadas después de la presentación inicial de candidatos.
+
+El primer cierre no se duplica en esta tabla, porque su fecha y su posible justificación de retraso quedan almacenadas directamente en `PersonnelRequisition`.
+
+El historial comienza cuando el cargue se reabre por primera vez. Cada acción se almacena como un registro independiente.
+
+## Acciones permitidas
+
+```txt
+REAPERTURA
+CIERRE
+```
+
+Estas acciones corresponden al enum:
+
+```prisma
+CandidateSubmissionHistoryAction
+```
+
+## Campos principales
+
+| Campo         | Tipo                             | Descripción                                                        |
+| ------------- | -------------------------------- | ------------------------------------------------------------------ |
+| id            | Int                              | Identificador único del registro                                   |
+| requisitionId | Int                              | Identificador de la requisición relacionada                        |
+| requisition   | PersonnelRequisition             | Relación con la requisición                                        |
+| action        | CandidateSubmissionHistoryAction | Acción registrada: `REAPERTURA` o `CIERRE`                         |
+| reason        | String?                          | Motivo de la reapertura; es `null` para los registros de `CIERRE`  |
+| performedById | Int                              | Usuario que realizó la acción                                      |
+| performedBy   | User                             | Relación con el usuario que realizó la acción                      |
+| performedAt   | DateTime                         | Fecha y hora en que se realizó la acción                           |
+
+## Reglas principales
+
+* `REAPERTURA` requiere un motivo entre 3 y 500 caracteres.
+* `CIERRE` se registra en el historial únicamente cuando corresponde a un cierre posterior a una reapertura.
+* El primer cierre no genera un registro `CIERRE` en esta tabla.
+* Cada reapertura y cada cierre posterior generan registros separados.
+* Los registros se utilizan para conservar la trazabilidad sin modificar la fecha de la presentación inicial.
+
+## Índices
+
+```prisma
+@@index([requisitionId])
+@@index([performedById])
+@@index([action])
+@@index([performedAt])
+```
 
 ---
 
@@ -954,163 +1028,3 @@ En el flujo actual:
 ```
 
 Esta restricción evita que una misma confirmación tenga dos pasos con el mismo orden.
-
----
-
-# Relación general del flujo de requisiciones
-
-## 1. Creación de requisición
-
-Cuando un usuario crea una requisición, selecciona o registra:
-
-```txt
-Departamento
-Cargo solicitado
-Ciudad
-Motivo
-Descripción del motivo
-Tipo de contrato
-Salario propuesto
-```
-
-Al seleccionar el cargo, el sistema consulta su revisión vigente y guarda obligatoriamente su identificador en:
-
-```txt
-positionRevisionId
-```
-
-La descripción del motivo también es obligatoria para cualquiera de los motivos disponibles y se almacena en:
-
-```txt
-otherReason
-```
-
-Se crea un registro en:
-
-```txt
-PersonnelRequisition
-```
-
----
-
-## 2. Generación del flujo de aprobación
-
-El sistema toma el departamento de la requisición y sube por su jerarquía.
-
-Ejemplo:
-
-```txt
-Producción
-↓
-Dirección de Operaciones
-↓
-Gerencia
-```
-
-Por cada nivel crea un registro en:
-
-```txt
-PersonnelRequisitionApproval
-```
-
----
-
-## 3. Resolución del usuario aprobador
-
-Cada paso tiene un cargo aprobador.
-
-Ejemplo:
-
-```txt
-Jefe de Producción
-```
-
-El sistema busca en:
-
-```txt
-UserPositionAssignment
-```
-
-qué usuario tiene activo ese cargo.
-
-Así puede enviar la notificación al usuario correcto.
-
----
-
-## 4. Confirmación de Talento Humano
-
-Cuando termina la aprobación jerárquica, la requisición pasa a:
-
-```txt
-PENDIENTE_CONFIRMACION_TALENTO_HUMANO
-```
-
-Después el sistema consulta:
-
-```txt
-HumanTalentWorkflowConfig
-```
-
-y genera el flujo final de Talento Humano:
-
-```txt
-Auxiliar de Talento Humano
-↓
-Jefe de Talento Humano
-```
-
-Este flujo se guarda en:
-
-```txt
-PersonnelHiringConfirmationApproval
-```
-
----
-
-## 5. Aprobación final y cargue de candidatos
-
-Cuando el Jefe de Talento Humano aprueba el último paso, la confirmación y la requisición pasan a estado:
-
-```txt
-APROBADA
-```
-
-Al mismo tiempo, el sistema habilita el cargue de candidatos:
-
-```txt
-candidateSubmissionStatus: ABIERTA
-candidateSubmissionClosedAt: null
-```
-
-El sistema busca un usuario con una asignación activa al cargo:
-
-```txt
-DPC-TH-0080
-Auxiliar de Talento Humano
-```
-
-Si existe un auxiliar activo, se le notifica que tiene un cargue de candidatos pendiente.
-
-Si no existe un auxiliar activo, se notifica al Jefe de Talento Humano que realizó la aprobación final.
-
-Mientras el cargue permanezca abierto, el Auxiliar de Talento Humano puede registrar hasta cinco candidatos en:
-
-```txt
-PersonnelRequisitionCandidate
-```
-
-Cuando el Auxiliar finaliza la presentación:
-
-```txt
-candidateSubmissionStatus: CERRADA
-candidateSubmissionClosedAt: fecha y hora del cierre
-```
-
-Si posteriormente necesita realizar ajustes, puede reabrir el cargue:
-
-```txt
-candidateSubmissionStatus: ABIERTA
-candidateSubmissionClosedAt: null
-```
-
-Cuando el cargue se cierre nuevamente, `candidateSubmissionClosedAt` almacenará la fecha del cierre actual. Este campo no representa un historial de cierres.

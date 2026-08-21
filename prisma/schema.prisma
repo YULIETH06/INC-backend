@@ -122,6 +122,11 @@ enum CandidateSubmissionStatus {
   CERRADA
 }
 
+enum CandidateSubmissionHistoryAction {
+  REAPERTURA
+  CIERRE
+}
+
 enum PositionProfileRevisionStatus {
   BORRADOR
   VIGENTE
@@ -191,6 +196,8 @@ model User {
   decidedHiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("DecidedHiringApprovals")
 
   uploadedPersonnelRequisitionCandidates PersonnelRequisitionCandidate[] @relation("UploadedPersonnelRequisitionCandidates")
+
+  candidateSubmissionHistory PersonnelCandidateSubmissionHistory[] @relation("CandidateSubmissionHistoryPerformedBy")
 
   performedPersonnelCandidateValidations PersonnelCandidateValidation[] @relation("PerformedPersonnelCandidateValidations")
 
@@ -456,10 +463,13 @@ model PersonnelRequisition {
   approvals          PersonnelRequisitionApproval[]
   hiringConfirmation PersonnelHiringConfirmation?
 
-  candidateSubmissionStatus   CandidateSubmissionStatus @default(NO_INICIADA)
-  candidateSubmissionClosedAt DateTime?
+  candidateSubmissionStatus     CandidateSubmissionStatus @default(NO_INICIADA)
+  candidateSubmissionDeadlineAt DateTime?
+  candidateSubmissionClosedAt   DateTime?
+  candidateSubmissionLateReason String?                   @db.VarChar(500)
 
-  candidates PersonnelRequisitionCandidate[]
+  candidateSubmissionHistory PersonnelCandidateSubmissionHistory[]
+  candidates                 PersonnelRequisitionCandidate[]
 
   notifications Notification[]
 
@@ -473,6 +483,26 @@ model PersonnelRequisition {
   @@index([createdById])
   @@index([status])
   @@index([candidateSubmissionStatus])
+}
+
+model PersonnelCandidateSubmissionHistory {
+  id Int @id @default(autoincrement())
+
+  requisitionId Int
+  requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  action CandidateSubmissionHistoryAction
+  reason String?                          @db.VarChar(500)
+
+  performedById Int
+  performedBy   User @relation("CandidateSubmissionHistoryPerformedBy", fields: [performedById], references: [id], onDelete: Restrict)
+
+  performedAt DateTime @default(now())
+
+  @@index([requisitionId])
+  @@index([performedById])
+  @@index([action])
+  @@index([performedAt])
 }
 
 model PersonnelRequisitionCandidate {
