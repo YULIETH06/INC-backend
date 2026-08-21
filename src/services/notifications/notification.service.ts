@@ -1,5 +1,5 @@
 import { getIo } from "../../config/socket.js";
-import { emitNotificationToUser } from "../../sockets/notification.socket.js";
+import { emitNotificationToUser } from "../../sockets/notifications/notification.socket.js";
 import { NotificationType, Role } from "@prisma/client";
 import prisma from "../../config/client.js";
 import type { CreateNotificationData } from "../../interfaces/notifications/notification.interface.js";

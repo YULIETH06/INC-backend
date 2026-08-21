@@ -72,11 +72,14 @@ src/
 │   │   └── identificationType.controller.ts
 │   │
 │   ├── humanTalent/
-│   │   ├── department.controller.ts
-│   │   ├── personnelCandidateValidation.controller.ts
-│   │   ├── personnelHiringConfirmation.controller.ts
-│   │   ├── personnelRequisition.controller.ts
-│   │   └── personnelRequisitionCandidate.controller.ts
+│   │   ├── candidateSubmission/
+│   │   │   └── personnelRequisitionCandidate.controller.ts
+│   │   ├── candidateValidation/
+│   │   │   └── personnelCandidateValidation.controller.ts
+│   │   └── requisitions/
+│   │       ├── department.controller.ts
+│   │       ├── personnelHiringConfirmation.controller.ts
+│   │       └── personnelRequisition.controller.ts
 │   │
 │   ├── notifications/
 │   │   └── notification.controller.ts
@@ -99,10 +102,13 @@ src/
 │   │   └── auth.interface.ts
 │   │
 │   ├── humanTalent/
-│   │   ├── personnelCandidateValidation.interface.ts
-│   │   ├── personnelHiringConfirmation.interface.ts
-│   │   ├── personnelRequisition.interface.ts
-│   │   └── personnelRequisitionCandidate.interface.ts
+│   │   ├── candidateSubmission/
+│   │   │   └── personnelRequisitionCandidate.interface.ts
+│   │   ├── candidateValidation/
+│   │   │   └── personnelCandidateValidation.interface.ts
+│   │   └── requisitions/
+│   │       ├── personnelHiringConfirmation.interface.ts
+│   │       └── personnelRequisition.interface.ts
 │   │
 │   ├── notifications/
 │   │   └── notification.interface.ts
@@ -126,9 +132,12 @@ src/
 │   ├── errors/
 │   │
 │   ├── uploads/
-│   │   ├── pqrAttachmentUpload.middleware.ts
-│   │   ├── uploadPersonnelCandidate.middleware.ts
-│   │   └── userSignatureUpload.middleware.ts
+│   │   ├── humanTalent/
+│   │   │   └── uploadPersonnelCandidate.middleware.ts
+│   │   ├── pqrs/
+│   │   │   └── pqrAttachmentUpload.middleware.ts
+│   │   └── users/
+│   │       └── userSignatureUpload.middleware.ts
 │   │
 │   ├── validation/
 │   │
@@ -143,11 +152,14 @@ src/
 │   │   └── identificationType.routes.ts
 │   │
 │   ├── humanTalent/
-│   │   ├── department.routes.ts
-│   │   ├── personnelCandidateValidation.routes.ts
-│   │   ├── personnelHiringConfirmation.routes.ts
-│   │   ├── personnelRequisition.routes.ts
-│   │   └── personnelRequisitionCandidate.routes.ts
+│   │   ├── candidateSubmission/
+│   │   │   └── personnelRequisitionCandidate.routes.ts
+│   │   ├── candidateValidation/
+│   │   │   └── personnelCandidateValidation.routes.ts
+│   │   └── requisitions/
+│   │       ├── department.routes.ts
+│   │       ├── personnelHiringConfirmation.routes.ts
+│   │       └── personnelRequisition.routes.ts
 │   │
 │   ├── notifications/
 │   │   └── notification.routes.ts
@@ -176,16 +188,21 @@ src/
 │   │   └── identificationType.service.ts
 │   │
 │   ├── humanTalent/
-│   │   ├── department.service.ts
-│   │   ├── personnelCandidateValidation.service.ts
-│   │   ├── personnelHiringConfirmation.service.ts
-│   │   ├── personnelRequisition.service.ts
-│   │   └── personnelRequisitionCandidate.service.ts
+│   │   ├── candidateSubmission/
+│   │   │   └── personnelRequisitionCandidate.service.ts
+│   │   ├── candidateValidation/
+│   │   │   └── personnelCandidateValidation.service.ts
+│   │   └── requisitions/
+│   │       ├── department.service.ts
+│   │       ├── personnelHiringConfirmation.service.ts
+│   │       └── personnelRequisition.service.ts
 │   │
 │   ├── notifications/
-│   │   ├── humanTalentNotification.service.ts
-│   │   ├── notification.service.ts
-│   │   └── pqrNotification.service.ts
+│   │   ├── humanTalent/
+│   │   │   └── humanTalentNotification.service.ts
+│   │   ├── pqrs/
+│   │   │   └── pqrNotification.service.ts
+│   │   └── notification.service.ts
 │   │
 │   ├── positionManagement/
 │   │   ├── positionProfile.service.ts
@@ -200,19 +217,25 @@ src/
 │       └── user.service.ts
 │
 ├── sockets/
-│   ├── index.socket.ts
-│   ├── notification.socket.ts
-│   └── pqr.socket.ts
+│   ├── notifications/
+│   │   └── notification.socket.ts
+│   ├── pqrs/
+│   │   └── pqr.socket.ts
+│   └── index.socket.ts
+│
+├── helpers/
+│   └── humanTalent/
+│       ├── candidateSubmission/
+│       │   └── personnelCandidateManager.helper.ts
+│       ├── candidateValidation/
+│       │   └── personnelCandidateValidationAccess.helper.ts
+│       └── requisitions/
+│           ├── departmentHierarchy.helper.ts
+│           ├── hiringConfirmationApprovalFlow.helper.ts
+│           ├── requisitionApprovalFlow.helper.ts
+│           └── requisitionCreator.helper.ts
 │
 └── utils/
-    │
-    ├── humanTalent/
-    │   ├── departmentHierarchy.helper.ts
-    │   ├── hiringConfirmationApprovalFlow.helper.ts
-    │   ├── personnelCandidateManager.helper.ts
-    │   ├── requisitionApprovalFlow.helper.ts
-    │   └── requisitionCreator.helper.ts
-    │
     └── validators.ts
 ```
 
@@ -223,13 +246,14 @@ src/
 | Carpeta     | Descripción                                                                         |
 | ----------- | ----------------------------------------------------------------------------------- |
 | config      | Configuraciones generales del proyecto, cliente Prisma y configuración de Socket.IO |
-| controllers | Controladores de las peticiones HTTP                                                |
+| controllers | Controladores de las peticiones HTTP, organizados por módulo y proceso              |
+| helpers     | Funciones auxiliares de negocio específicas de cada proceso                         |
 | interfaces  | Interfaces y tipados TypeScript reutilizables                                       |
-| middlewares | Middlewares personalizados para autenticación y validaciones                        |
-| routes      | Definición y agrupación de rutas de la API                                          |
+| middlewares | Middlewares personalizados para autenticación, validaciones y cargas de archivos    |
+| routes      | Definición y agrupación de rutas de la API por módulo y proceso                     |
 | services    | Lógica de negocio y conexión con Prisma                                             |
-| sockets     | Eventos de Socket.IO para funcionalidades en tiempo real                            |
-| utils       | Funciones reutilizables                                                             |
+| sockets     | Eventos de Socket.IO organizados por funcionalidad                                  |
+| utils       | Utilidades generales reutilizables                                                  |
 
 ---
 
@@ -289,7 +313,7 @@ Funciones principales:
 * Crear la instancia de Socket.IO.
 * Configurar CORS para permitir conexión desde el frontend.
 * Aplicar el middleware de autenticación por JWT para sockets.
-* Registrar los eventos del chat de PQR.
+* Registrar los eventos de Socket.IO del sistema, incluyendo chat de PQR y notificaciones.
 
 ---
 

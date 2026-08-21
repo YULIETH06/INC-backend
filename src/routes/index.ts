@@ -10,11 +10,11 @@ import notificationRoutes from "./notifications/notification.routes.js";
 import cityRoutes from "./common/city.routes.js";
 import identificationTypeRoutes from "./common/identificationType.routes.js";
 
-import departmentRoutes from "./humanTalent/department.routes.js";
-import personnelRequisitionRoutes from "./humanTalent/personnelRequisition.routes.js";
-import personnelHiringConfirmationRoutes from "./humanTalent/personnelHiringConfirmation.routes.js";
-import personnelRequisitionCandidateRoutes from "./humanTalent/personnelRequisitionCandidate.routes.js";
-import personnelCandidateValidationRoutes from "./humanTalent/personnelCandidateValidation.routes.js";
+import departmentRoutes from "./humanTalent/requisitions/department.routes.js";
+import personnelRequisitionRoutes from "./humanTalent/requisitions/personnelRequisition.routes.js";
+import personnelHiringConfirmationRoutes from "./humanTalent/requisitions/personnelHiringConfirmation.routes.js";
+import personnelRequisitionCandidateRoutes from "./humanTalent/candidateSubmission/personnelRequisitionCandidate.routes.js";
+import personnelCandidateValidationRoutes from "./humanTalent/candidateValidation/personnelCandidateValidation.routes.js";
 
 import positionProfileRoutes from "./positionManagement/positionProfile.routes.js";
 import positionProfileRevisionRoutes from "./positionManagement/positionProfileRevision.routes.js";
@@ -43,8 +43,8 @@ router.use("/notifications", notificationRoutes);
 router.use("/common/cities", cityRoutes);
 
 router.use(
-    "/common/identification-types",
-    identificationTypeRoutes
+  "/common/identification-types",
+  identificationTypeRoutes
 );
 
 // Talento Humano.

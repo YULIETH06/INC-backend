@@ -1,6 +1,6 @@
 import type { Server } from "socket.io";
 import type { AuthSocket } from "../interfaces/sockets/socket.interface.js";
-import { registerPqrSocketEvents } from "./pqr.socket.js";
+import { registerPqrSocketEvents } from "./pqrs/pqr.socket.js";
 
 // Registra la conexión general de Socket.IO
 export const registerSockets = (io: Server) => {

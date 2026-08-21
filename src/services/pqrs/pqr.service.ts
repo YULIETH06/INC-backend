@@ -10,7 +10,7 @@ import {
   notifyAboutRatedPqrService,
   notifyAgentAboutAssignedPqrService,
   notifyAgentAboutUnassignedPqrService,
-} from "../notifications/pqrNotification.service.js";
+} from "../notifications/pqrs/pqrNotification.service.js";
 
 // Cuenta los mensajes no revisados de una PQR para un usuario específico.
 const getUnreadMessagesCount = async (

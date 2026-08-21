@@ -3,7 +3,7 @@ import prisma from "../../config/client.js";
 import {
     getDepartmentWithChildrenIds,
     removeDuplicatedIds,
-} from "../../utils/humanTalent/departmentHierarchy.helper.js";
+} from "../../helpers/humanTalent/requisitions/departmentHierarchy.helper.js";
 
 // Obtiene cargos activos según el departamento seleccionado y permisos del usuario.
 export const getActivePositionProfilesService = async (
