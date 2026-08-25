@@ -199,6 +199,10 @@ model User {
 
   candidateSubmissionHistory PersonnelCandidateSubmissionHistory[] @relation("CandidateSubmissionHistoryPerformedBy")
 
+  preselectedPersonnelRequisitionCandidates PersonnelRequisitionCandidate[] @relation("PreselectedPersonnelRequisitionCandidates")
+
+  closedCandidateSubmissionBatches PersonnelCandidateSubmissionBatch[] @relation("CandidateSubmissionBatchClosedBy")
+
   performedPersonnelCandidateValidations PersonnelCandidateValidation[] @relation("PerformedPersonnelCandidateValidations")
 
   createdAt DateTime @default(now())
@@ -469,7 +473,10 @@ model PersonnelRequisition {
   candidateSubmissionLateReason String?                   @db.VarChar(500)
 
   candidateSubmissionHistory PersonnelCandidateSubmissionHistory[]
-  candidates                 PersonnelRequisitionCandidate[]
+
+  candidates PersonnelRequisitionCandidate[]
+
+  candidateSubmissionBatches PersonnelCandidateSubmissionBatch[]
 
   notifications Notification[]
 
@@ -505,6 +512,49 @@ model PersonnelCandidateSubmissionHistory {
   @@index([performedAt])
 }
 
+model PersonnelCandidateSubmissionBatch {
+  id Int @id @default(autoincrement())
+
+  requisitionId Int
+  requisition   PersonnelRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+
+  submissionNumber Int
+
+  closedById Int
+  closedBy   User @relation("CandidateSubmissionBatchClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+
+  closedAt DateTime @default(now())
+
+  candidates PersonnelCandidateSubmissionBatchItem[]
+
+  @@unique([requisitionId, submissionNumber])
+  @@index([requisitionId])
+  @@index([closedById])
+  @@index([closedAt])
+}
+
+model PersonnelCandidateSubmissionBatchItem {
+  id Int @id @default(autoincrement())
+
+  submissionBatchId Int
+  submissionBatch   PersonnelCandidateSubmissionBatch @relation(fields: [submissionBatchId], references: [id], onDelete: Cascade)
+
+  itemNumber Int
+
+  candidateId Int?
+  candidate   PersonnelRequisitionCandidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+
+  candidateName String @db.VarChar(150)
+
+  identificationTypeCode String @db.VarChar(20)
+
+  identificationNumber String @db.VarChar(50)
+
+  @@unique([submissionBatchId, itemNumber])
+  @@index([submissionBatchId])
+  @@index([candidateId])
+}
+
 model PersonnelRequisitionCandidate {
   id Int @id @default(autoincrement())
 
@@ -528,6 +578,15 @@ model PersonnelRequisitionCandidate {
   uploadedById Int
   uploadedBy   User @relation("UploadedPersonnelRequisitionCandidates", fields: [uploadedById], references: [id])
 
+  isPreselected Boolean @default(false)
+
+  preselectedAt DateTime?
+
+  preselectedById Int?
+  preselectedBy   User? @relation("PreselectedPersonnelRequisitionCandidates", fields: [preselectedById], references: [id], onDelete: Restrict)
+
+  submissionBatchItems PersonnelCandidateSubmissionBatchItem[]
+
   validation PersonnelCandidateValidation?
 
   createdAt DateTime @default(now())
@@ -537,6 +596,8 @@ model PersonnelRequisitionCandidate {
   @@index([requisitionId])
   @@index([identificationTypeId])
   @@index([uploadedById])
+  @@index([isPreselected])
+  @@index([preselectedById])
 }
 
 model PersonnelCandidateValidation {
@@ -569,32 +630,24 @@ model PersonnelCandidateValidation {
   @@index([completedStep])
 }
 
-// Almacena la evaluación individual de cada requisito del postulante.
 model PersonnelCandidateRequirementValidation {
   id Int @id @default(autoincrement())
 
-  // Validación general a la que pertenece este resultado.
   candidateValidationId Int
   candidateValidation   PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
 
-  // Descripción exacta del requisito que se está evaluando.
   requirementDescriptionId Int
   requirementDescription   PositionRequirementDescription @relation(fields: [requirementDescriptionId], references: [id], onDelete: Restrict)
 
-  // Indica si el candidato cumple o no con esta descripción.
   complies Boolean
 
-  // Se diligencia cuando el candidato cumple.
   evidence String? @db.VarChar(1000)
 
-  // Se diligencia cuando el candidato no cumple.
   gapClosure String? @db.VarChar(1000)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Una misma descripción solo puede evaluarse una vez
-  // dentro de la misma validación.
   @@unique([candidateValidationId, requirementDescriptionId])
   @@index([candidateValidationId])
   @@index([requirementDescriptionId])

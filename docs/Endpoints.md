@@ -7489,6 +7489,17 @@ Entre estos usuarios se encuentran:
 
 Los candidatos se devuelven ordenados desde el primero hasta el último registrado.
 
+La respuesta también incluye el estado de preselección de cada candidato:
+
+```txt
+isPreselected
+preselectedAt
+preselectedById
+preselectedBy
+```
+
+Estos campos permiten identificar si el candidato ya fue preseleccionado, cuándo se confirmó la preselección y qué usuario realizó la acción.
+
 ---
 
 ## Header requerido
@@ -7547,13 +7558,21 @@ Usuarios autenticados con permiso para consultar la requisición.
       "mimeType": "application/pdf",
       "fileSize": 245000,
       "uploadedById": 8,
+      "isPreselected": true,
+      "preselectedAt": "2026-08-24T17:05:00.000Z",
+      "preselectedById": 5,
       "createdAt": "2026-07-30T18:30:00.000Z",
-      "updatedAt": "2026-07-30T18:30:00.000Z",
+      "updatedAt": "2026-08-24T17:05:00.000Z",
       "uploadedBy": {
         "id": 8,
         "name": "Auxiliar de Talento Humano",
         "email": "auxiliar.th@gmail.com",
         "role": "USER"
+      },
+      "preselectedBy": {
+        "id": 5,
+        "name": "Usuario creador de la requisición",
+        "email": "creador@incobra.com"
       }
     }
   ],
@@ -7778,6 +7797,208 @@ Cuando la requisición tuvo su primer cierre pero nunca fue reabierta:
 
 ---
 
+# Obtener fotografías históricas de los cargues de candidatos
+
+## Endpoint protegido
+
+```http
+GET /api/human-talent/requisitions/:id/candidates/batches
+```
+
+## Ejemplo
+
+```http
+GET /api/human-talent/requisitions/1/candidates/batches
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener las fotografías históricas generadas cada vez que el cargue de candidatos es cerrado.
+
+Cada cierre genera un registro independiente en `PersonnelCandidateSubmissionBatch` con un número consecutivo:
+
+```txt
+Cargue 1
+Cargue 2
+Cargue 3
+...
+```
+
+Cada cargue conserva:
+
+* Número consecutivo del cargue.
+* Fecha y hora del cierre.
+* Usuario que realizó el cierre.
+* Lista completa de candidatos existentes al momento del cierre.
+* Nombre del candidato.
+* Código del tipo de identificación.
+* Número de identificación.
+
+Los candidatos de cada cargue se devuelven en el mismo orden en que quedaron registrados en la fotografía histórica.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+```
+
+## Acceso permitido
+
+Puede consultar las fotografías históricas:
+
+* El usuario con asignación activa al cargo `DPC-TH-0080 — Auxiliar de Talento Humano`.
+* Los usuarios que tengan permiso para consultar el detalle de la requisición.
+
+Entre los usuarios relacionados con la requisición pueden encontrarse:
+
+* El `ADMIN`.
+* El usuario creador.
+* Usuarios que participan o participaron en las aprobaciones.
+* Usuarios que participan o participaron en la confirmación de contratación de Talento Humano.
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo   | Descripción                                 |
+| --------- | ------ | ------------------------------------------- |
+| id        | number | Identificador de la requisición de personal |
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Historial de cargues obtenido correctamente",
+  "batches": [
+    {
+      "id": 1,
+      "requisitionId": 1,
+      "submissionNumber": 1,
+      "closedById": 22,
+      "closedAt": "2026-08-24T16:55:44.697Z",
+      "closedBy": {
+        "id": 22,
+        "name": "Auxiliar de Talento Humano",
+        "email": "auxiliar.talentohumano@incobra.com"
+      },
+      "candidates": [
+        {
+          "id": 1,
+          "itemNumber": 1,
+          "candidateId": 4,
+          "candidateName": "Yulieth Devia",
+          "identificationTypeCode": "CC",
+          "identificationNumber": "123456789"
+        },
+        {
+          "id": 2,
+          "itemNumber": 2,
+          "candidateId": 5,
+          "candidateName": "Yesid Devia",
+          "identificationTypeCode": "CC",
+          "identificationNumber": "987654321"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "requisitionId": 1,
+      "submissionNumber": 2,
+      "closedById": 22,
+      "closedAt": "2026-08-24T18:17:29.881Z",
+      "closedBy": {
+        "id": 22,
+        "name": "Auxiliar de Talento Humano",
+        "email": "auxiliar.talentohumano@incobra.com"
+      },
+      "candidates": [
+        {
+          "id": 3,
+          "itemNumber": 1,
+          "candidateId": 4,
+          "candidateName": "Yulieth Devia",
+          "identificationTypeCode": "CC",
+          "identificationNumber": "123456789"
+        },
+        {
+          "id": 4,
+          "itemNumber": 2,
+          "candidateId": 5,
+          "candidateName": "Yesid Deviaa",
+          "identificationTypeCode": "CC",
+          "identificationNumber": "987654321"
+        },
+        {
+          "id": 5,
+          "itemNumber": 3,
+          "candidateId": 6,
+          "candidateName": "Jean ramos",
+          "identificationTypeCode": "CC",
+          "identificationNumber": "45612387"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta cuando todavía no existen cargues históricos
+
+```json
+{
+  "message": "Historial de cargues obtenido correctamente",
+  "batches": []
+}
+```
+
+---
+
+## Respuesta si el cargue todavía no está habilitado
+
+```json
+{
+  "message": "El cargue de candidatos todavía no está habilitado"
+}
+```
+
+---
+
+## Respuesta si la requisición no existe
+
+```json
+{
+  "message": "La requisición de personal no existe"
+}
+```
+
+---
+
+## Respuesta si el usuario no tiene permiso
+
+```json
+{
+  "message": "No tienes permisos para ver esta requisición"
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Usuario no autenticado"
+}
+```
+
+---
+
 # Cerrar cargue de candidatos
 
 ## Endpoint protegido
@@ -7789,41 +8010,69 @@ PATCH /api/human-talent/requisitions/:id/candidates/close
 ## Ejemplo
 
 ```http
-PATCH /api/human-talent/requisitions/2/candidates/close
+PATCH /api/human-talent/requisitions/1/candidates/close
 ```
 
 ## Descripción
 
-Endpoint privado encargado de cerrar el proceso de cargue de candidatos de una requisición aprobada.
+Endpoint privado encargado de cerrar el proceso de cargue de candidatos de una requisición de personal aprobada.
 
-El comportamiento depende de si corresponde al **primer cierre** o a un cierre posterior a una reapertura.
+Para realizar el cierre, la requisición debe encontrarse en:
 
-### Primer cierre
+```txt
+status: APROBADA
+candidateSubmissionStatus: ABIERTA
+```
 
-El primer cierre representa la presentación inicial y se guarda directamente en `PersonnelRequisition`.
+Cada vez que el cargue se cierra, el sistema:
+
+* Cambia `candidateSubmissionStatus` a `CERRADA`.
+* Genera una fotografía histórica completa de los candidatos existentes en ese momento.
+* Asigna un número consecutivo al cargue: `Cargue 1`, `Cargue 2`, `Cargue 3`, etc.
+* Notifica al usuario creador de la requisición que los candidatos están disponibles.
+
+---
+
+## Primer cierre
+
+El primer cierre corresponde a la presentación inicial de candidatos.
+
+En este momento el sistema registra:
 
 ```txt
 candidateSubmissionStatus: CERRADA
 candidateSubmissionClosedAt: fecha y hora del primer cierre
 ```
 
-El sistema compara la fecha del primer cierre con:
+### Validación del plazo inicial
+
+En el primer cierre, el sistema compara la fecha del cierre con:
 
 ```txt
 candidateSubmissionDeadlineAt
 ```
 
-Si el cierre se realiza dentro del plazo, `candidateSubmissionLateReason` permanece en `null`.
+Si el cierre se realiza dentro del plazo:
 
-Si el cierre se realiza después de la fecha límite, el Auxiliar de Talento Humano debe enviar `lateReason`. La justificación se guarda en:
+```txt
+candidateSubmissionLateReason: null
+```
+
+Si se realiza después de la fecha límite, el Auxiliar de Talento Humano debe enviar el motivo del retraso mediante `lateReason`.
+
+La justificación queda almacenada en:
 
 ```txt
 candidateSubmissionLateReason
 ```
 
-El primer cierre **no crea** un registro `CIERRE` en `PersonnelCandidateSubmissionHistory`.
+El primer cierre no genera un registro `CIERRE` en `PersonnelCandidateSubmissionHistory`, debido a que su fecha queda registrada directamente en `PersonnelRequisition.candidateSubmissionClosedAt`.
 
-### Cierres posteriores a una reapertura
+Sin embargo, sí genera la fotografía histórica correspondiente a `Cargue 1`.
+
+---
+
+## Cierres posteriores a una reapertura
 
 Cuando el cargue fue reabierto y se cierra nuevamente:
 
@@ -7833,6 +8082,7 @@ Cuando el cargue fue reabierto y se cierra nuevamente:
 * No se vuelve a evaluar el plazo inicial de 2 días hábiles.
 * No se solicita una nueva justificación de retraso.
 * Se crea un registro `CIERRE` en `PersonnelCandidateSubmissionHistory`.
+* Genera una nueva fotografía histórica en `PersonnelCandidateSubmissionBatch`.
 
 Una vez cerrado el cargue:
 
@@ -7937,7 +8187,7 @@ Cuando el cargue se cierra correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el primer cierre está vencido y no se envía motivo
+## Respuesta si el primer cierre está fuera del plazo y no se envía motivo
 
 ```json
 {
@@ -7945,7 +8195,7 @@ Cuando el cargue se cierra correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el motivo del retraso es demasiado corto
+## Respuesta si el motivo tiene menos de 3 caracteres
 
 ```json
 {
@@ -7953,7 +8203,7 @@ Cuando el cargue se cierra correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el motivo del retraso supera los 500 caracteres
+## Respuesta si el motivo supera los 500 caracteres
 
 ```json
 {
@@ -8001,7 +8251,7 @@ Cuando el cargue se cierra correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el cargue ya fue cerrado
+## Respuesta si el cargue ya está cerrado
 
 ```json
 {
@@ -8070,9 +8320,9 @@ Al reabrir:
 * No se genera un nuevo plazo de 2 días hábiles.
 * `candidateSubmissionLateReason` conserva el resultado de la presentación inicial.
 * Se crea un registro `REAPERTURA` con motivo, usuario y fecha.
-* El Auxiliar de Talento Humano puede volver a registrar candidatos.
-* Los candidatos que todavía no hayan iniciado validación pueden actualizarse o eliminarse.
-* Los candidatos con validación iniciada permanecen protegidos.
+* Los candidatos que todavía no hayan sido preseleccionados pueden actualizarse o eliminarse.
+* Los candidatos preseleccionados permanecen protegidos y no pueden editarse ni eliminarse.
+* El Auxiliar de Talento Humano puede registrar nuevos candidatos mientras el cargue permanezca abierto.
 * El usuario creador recibe una notificación de reapertura.
 
 Cuando el Auxiliar finaliza los ajustes, debe cerrar nuevamente el cargue. Ese cierre posterior se registra como `CIERRE` en el historial y no modifica la fecha del primer cierre.
@@ -8232,6 +8482,225 @@ Cuando el cargue se reabre correctamente, el sistema genera una notificación pa
 
 ---
 
+# Preseleccionar candidatos de una requisición
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/requisitions/:id/candidates/preselect
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/requisitions/1/candidates/preselect
+```
+
+## Descripción
+
+Endpoint privado encargado de confirmar la preselección de uno o varios candidatos de una requisición.
+
+Para permitir la preselección, la requisición debe cumplir:
+
+```txt
+status: APROBADA
+candidateSubmissionStatus: CERRADA
+```
+
+Cuando la preselección se confirma, el sistema actualiza cada candidato seleccionado con:
+
+```txt
+isPreselected: true
+preselectedAt: fecha y hora de confirmación
+preselectedById: id del usuario creador de la requisición
+```
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+## Acceso permitido
+
+```txt
+Usuario autenticado que creó la requisición.
+```
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo   | Descripción                                 |
+| --------- | ------ | ------------------------------------------- |
+| id        | number | Identificador de la requisición de personal |
+
+---
+
+## Body
+
+```json
+{
+  "candidateIds": [4, 5]
+}
+```
+
+## Campos del body
+
+| Campo        | Tipo     | Obligatorio | Descripción                                               |
+| ------------ | -------- | ----------- | --------------------------------------------------------- |
+| candidateIds | number[] | Sí          | Identificadores de los candidatos que se preseleccionarán |
+
+El arreglo debe contener por lo menos un candidato.
+
+Los identificadores repetidos enviados en la misma solicitud se normalizan antes de procesar la preselección.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Candidatos preseleccionados correctamente",
+  "candidates": [
+    {
+      "id": 4,
+      "requisitionId": 1,
+      "name": "Yulieth Devia",
+      "identificationNumber": "123456789",
+      "isPreselected": true,
+      "preselectedAt": "2026-08-24T17:05:00.000Z",
+      "preselectedById": 5,
+      "identificationType": {
+        "id": 1,
+        "code": "CC",
+        "name": "Cédula de ciudadanía"
+      },
+      "preselectedBy": {
+        "id": 5,
+        "name": "Usuario creador de la requisición",
+        "email": "creador@incobra.com"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta si no se envía una lista de candidatos
+
+```json
+{
+  "message": "Debe enviar una lista de candidatos para preseleccionar"
+}
+```
+
+---
+
+## Respuesta si la lista está vacía
+
+```json
+{
+  "message": "Debe seleccionar por lo menos un candidato"
+}
+```
+
+---
+
+## Respuesta si uno o más ids no son válidos
+
+```json
+{
+  "message": "Uno o más ids de candidatos no son válidos"
+}
+```
+
+---
+
+## Respuesta si la requisición no existe
+
+```json
+{
+  "message": "La requisición de personal no existe"
+}
+```
+
+---
+
+## Respuesta si la requisición no está aprobada
+
+```json
+{
+  "message": "Solo se pueden preseleccionar candidatos de una requisición aprobada"
+}
+```
+
+---
+
+## Respuesta si el cargue no está cerrado
+
+```json
+{
+  "message": "La preselección solo puede realizarse cuando el cargue de candidatos está cerrado"
+}
+```
+
+---
+
+## Respuesta si el usuario no es el creador de la requisición
+
+```json
+{
+  "message": "Solo el creador de la requisición puede preseleccionar candidatos"
+}
+```
+
+---
+
+## Respuesta si uno o más candidatos no pertenecen a la requisición
+
+```json
+{
+  "message": "Uno o más candidatos no existen o no pertenecen a esta requisición"
+}
+```
+
+---
+
+## Respuesta si uno o más candidatos ya fueron preseleccionados
+
+```json
+{
+  "message": "Uno o más candidatos ya fueron preseleccionados"
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Usuario no autenticado"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al preseleccionar candidatos"
+}
+```
+
+---
+
 # Actualizar candidato de una requisición de personal
 
 ## Endpoint protegido
@@ -8266,7 +8735,7 @@ Si se envía una nueva hoja de vida, el sistema actualiza la información del ar
 
 La actualización solo se permite mientras la requisición esté aprobada y el cargue de candidatos permanezca abierto.
 
-Además, un candidato que ya tenga una validación iniciada no puede ser modificado.
+Además, un candidato que ya fue preseleccionado no puede ser modificado.
 
 ---
 
@@ -8611,11 +9080,11 @@ form-data
 
 ---
 
-## Respuesta si el candidato ya inició validación
+## Respuesta si el candidato ya fue preseleccionado
 
 ```json
 {
-  "message": "No se puede actualizar el candidato porque ya inició el proceso de validación"
+  "message": "No se puede actualizar el candidato porque ya fue preseleccionado"
 }
 ```
 
@@ -8658,7 +9127,7 @@ Hoja de vida almacenada en el servidor
 
 La eliminación solo se permite mientras la requisición esté aprobada y el cargue de candidatos permanezca abierto.
 
-Además, un candidato que ya tenga una validación iniciada no puede ser eliminado.
+Además, un candidato que ya fue preseleccionado no puede ser eliminado.
 
 ---
 
@@ -8801,11 +9270,11 @@ Este endpoint no requiere body.
 
 ---
 
-## Respuesta si el candidato ya inició validación
+## Respuesta si el candidato ya fue preseleccionado
 
 ```json
 {
-  "message": "No se puede eliminar el candidato porque ya inició el proceso de validación"
+  "message": "No se puede eliminar el candidato porque ya fue preseleccionado"
 }
 ```
 
@@ -9531,9 +10000,12 @@ ADMIN
 | POST   | /api/human-talent/requisitions/:id/hiring-confirmation                                                                                      | Crea la confirmación final de contratación                 | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/hiring-confirmations/:id/decision                                                                                         | Aprueba, rechaza o cancela la confirmación de contratación | Aprobador actual TH                                             |
 | POST   | /api/human-talent/requisitions/:id/candidates                                                                                               | Registra un candidato y carga su hoja de vida              | Auxiliar de Talento Humano                                      |
-| GET    | /api/human-talent/requisitions/:id/candidates                                                                                               | Obtiene los candidatos registrados en una requisición      | Auxiliar TH / Usuario relacionado cuando el cargue esté cerrado |
-| PATCH  | /api/human-talent/requisitions/:id/candidates/close                                                                                         | Cierra el proceso de cargue de candidatos                  | Auxiliar de Talento Humano                                      |
+| GET    | /api/human-talent/requisitions/:id/candidates                                                                                               | Obtiene los candidatos registrados en una requisición e información de preselección           | Auxiliar TH / Usuario relacionado cuando el cargue esté cerrado |
+| GET    | /api/human-talent/requisitions/:id/candidates/history                                                                                       | Obtiene reaperturas y cierres posteriores del cargue       | Auxiliar TH / Usuario relacionado                               |
+| GET    | /api/human-talent/requisitions/:id/candidates/batches                                                                                       | Obtiene las fotografías históricas de cada cierre          | Auxiliar TH / Usuario relacionado                               |
+| PATCH  | /api/human-talent/requisitions/:id/candidates/close                                                                                         | Cierra el cargue y genera una fotografía histórica         | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/reopen                                                                                        | Reabre el proceso de cargue de candidatos                  | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/requisitions/:id/candidates/preselect                                                                                     | Confirma la preselección de uno o varios candidatos        | Usuario creador de la requisición                               |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Auxiliar de Talento Humano                                      |
 | DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Auxiliar de Talento Humano                                      |
 | GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Auxiliar TH / Jefe TH / ADMIN                                   |

@@ -10,7 +10,7 @@ El sistema está dividido en dos módulos principales:
    - Gestión de solicitudes, mensajes, adjuntos, notificaciones y lectura de chats.
 
 2. **Módulo Talento Humano**
-   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos y validación de cargo y postulante.
+   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos, historial de cargues, preselección de candidatos y validación de cargo y postulante.
 
 ---
 
@@ -54,11 +54,12 @@ Esto permite manejar:
 | assignedHiringConfirmationApprovals    | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación asignadas al usuario     |
 | decidedHiringConfirmationApprovals     | PersonnelHiringConfirmationApproval[] | Aprobaciones de confirmación de contratación decididas por el usuario |
 | uploadedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]       | Candidatos y hojas de vida cargados por el usuario                    |
-| candidateSubmissionHistory             | PersonnelCandidateSubmissionHistory[]  | Acciones de reapertura y cierres posteriores realizadas por el usuario |
-| performedPersonnelCandidateValidations | PersonnelCandidateValidation[]          | Validaciones de candidatos finalizadas por el usuario                 |
+| candidateSubmissionHistory             | PersonnelCandidateSubmissionHistory[] | Acciones de reapertura y cierres posteriores realizadas por el usuario |
+| preselectedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]     | Candidatos cuya preselección fue confirmada por el usuario            |
+| closedCandidateSubmissionBatches       | PersonnelCandidateSubmissionBatch[]   | Cargues de candidatos cerrados por el usuario                         |
+| performedPersonnelCandidateValidations | PersonnelCandidateValidation[]        | Validaciones de candidatos finalizadas por el usuario                 |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
-
 
 ---
 
@@ -193,7 +194,6 @@ Puede relacionarse con una PQR o con una requisición de personal, dependiendo d
 | user                   | User                  | Relación con el usuario destinatario              |
 | pqr                    | PQR?                  | Relación opcional con una PQR                     |
 | personnelRequisition   | PersonnelRequisition? | Relación opcional con una requisición de personal |
-
 
 ## Tipos de notificación de Talento Humano
 
@@ -456,7 +456,6 @@ Esta tabla permite controlar desde la base de datos qué ciudades se muestran en
 
 ---
 
-
 # Modelo IdentificationType
 
 ## Descripción
@@ -502,43 +501,48 @@ También contiene una ciudad, un motivo, la descripción obligatoria de ese moti
 
 Además, controla el proceso de presentación de candidatos una vez la requisición ha sido aprobada completamente. Para la presentación inicial se conserva la fecha límite, la fecha del primer cierre y, cuando aplica, el motivo del retraso. Las reaperturas y los cierres posteriores se almacenan por separado en `PersonnelCandidateSubmissionHistory`.
 
+Cada vez que el cargue de candidatos es cerrado, el sistema conserva una fotografía completa de los candidatos existentes en ese momento mediante `PersonnelCandidateSubmissionBatch`. Esto permite mantener un historial independiente de `Cargue 1`, `Cargue 2`, `Cargue 3`, etc., aunque posteriormente el cargue sea reabierto y algunos candidatos sean modificados o eliminados.
+
+Después del cierre del cargue, el creador de la requisición puede realizar la preselección de uno o varios candidatos.
+
 El flujo de aprobación de la requisición se genera a partir del departamento seleccionado y su jerarquía organizacional.
 
 ## Campos principales
 
-| Campo                          | Tipo                                   | Descripción                                                                 |
-| ------------------------------ | -------------------------------------- | --------------------------------------------------------------------------- |
-| id                             | Int                                    | Identificador único de la requisición                                       |
-| requestDate                    | DateTime                               | Fecha de solicitud                                                          |
-| departmentId                   | Int                                    | Departamento para el cual se crea la requisición                            |
-| department                     | Department                             | Relación con el departamento                                                |
-| positionId                     | Int                                    | Identificador del cargo solicitado                                          |
-| position                       | PositionProfile                        | Relación con el cargo solicitado                                            |
-| positionRevisionId             | Int                                    | Identificador obligatorio de la revisión utilizada                          |
-| positionRevision               | PositionProfileRevision                | Relación obligatoria con la revisión del perfil de cargo                    |
-| reason                         | RequisitionReason                      | Motivo seleccionado para crear la requisición                               |
-| otherReason                    | String                                 | Descripción obligatoria correspondiente al motivo seleccionado              |
-| cityId                         | Int                                    | Ciudad de la requisición                                                    |
-| city                           | City                                   | Relación con la ciudad                                                      |
-| contractType                   | ContractType?                          | Tipo principal de contratación                                              |
-| directContractType             | DirectContractType?                    | Tipo de contrato directo                                                    |
-| contractDurationMonths         | Int?                                   | Duración del contrato en meses cuando aplica                                |
-| internContractType             | InternContractType?                    | Tipo de practicante cuando aplica                                           |
-| proposedSalary                 | Decimal                                | Salario propuesto                                                           |
-| status                         | PersonnelRequisitionStatus             | Estado general de la requisición                                            |
-| createdById                    | Int                                    | Usuario que creó la requisición                                             |
-| createdBy                      | User                                   | Relación con el usuario creador                                             |
-| approvals                      | PersonnelRequisitionApproval[]         | Pasos de aprobación de la requisición                                       |
-| hiringConfirmation             | PersonnelHiringConfirmation?           | Confirmación de contratación asociada                                       |
-| candidateSubmissionStatus      | CandidateSubmissionStatus              | Estado del proceso de cargue y presentación de candidatos                   |
-| candidateSubmissionDeadlineAt  | DateTime?                              | Fecha y hora límite de la presentación inicial de candidatos                |
-| candidateSubmissionClosedAt    | DateTime?                              | Fecha y hora del primer cierre o presentación inicial; no cambia al reabrir |
+| Campo                          | Tipo                                   | Descripción                                                                  |
+| ------------------------------ | -------------------------------------- | ---------------------------------------------------------------------------- |
+| id                             | Int                                    | Identificador único de la requisición                                        |
+| requestDate                    | DateTime                               | Fecha de solicitud                                                           |
+| departmentId                   | Int                                    | Departamento para el cual se crea la requisición                             |
+| department                     | Department                             | Relación con el departamento                                                 |
+| positionId                     | Int                                    | Identificador del cargo solicitado                                           |
+| position                       | PositionProfile                        | Relación con el cargo solicitado                                             |
+| positionRevisionId             | Int                                    | Identificador obligatorio de la revisión utilizada                           |
+| positionRevision               | PositionProfileRevision                | Relación obligatoria con la revisión del perfil de cargo                     |
+| reason                         | RequisitionReason                      | Motivo seleccionado para crear la requisición                                |
+| otherReason                    | String                                 | Descripción obligatoria correspondiente al motivo seleccionado               |
+| cityId                         | Int                                    | Ciudad de la requisición                                                     |
+| city                           | City                                   | Relación con la ciudad                                                       |
+| contractType                   | ContractType?                          | Tipo principal de contratación                                               |
+| directContractType             | DirectContractType?                    | Tipo de contrato directo                                                     |
+| contractDurationMonths         | Int?                                   | Duración del contrato en meses cuando aplica                                 |
+| internContractType             | InternContractType?                    | Tipo de practicante cuando aplica                                            |
+| proposedSalary                 | Decimal                                | Salario propuesto                                                            |
+| status                         | PersonnelRequisitionStatus             | Estado general de la requisición                                             |
+| createdById                    | Int                                    | Usuario que creó la requisición                                              |
+| createdBy                      | User                                   | Relación con el usuario creador                                              |
+| approvals                      | PersonnelRequisitionApproval[]         | Pasos de aprobación de la requisición                                        |
+| hiringConfirmation             | PersonnelHiringConfirmation?           | Confirmación de contratación asociada                                        |
+| candidateSubmissionStatus      | CandidateSubmissionStatus              | Estado del proceso de cargue y presentación de candidatos                    |
+| candidateSubmissionDeadlineAt  | DateTime?                              | Fecha y hora límite de la presentación inicial de candidatos                 |
+| candidateSubmissionClosedAt    | DateTime?                              | Fecha y hora del primer cierre o presentación inicial; no cambia al reabrir  |
 | candidateSubmissionLateReason  | String?                                | Justificación del retraso del primer cierre cuando se realiza fuera de plazo |
-| candidateSubmissionHistory     | PersonnelCandidateSubmissionHistory[] | Historial de reaperturas y cierres posteriores al primer cierre             |
-| candidates                     | PersonnelRequisitionCandidate[]        | Candidatos y hojas de vida asociados a la requisición                       |
-| notifications                  | Notification[]                         | Notificaciones relacionadas con la requisición                              |
-| createdAt                      | DateTime                               | Fecha de creación                                                           |
-| updatedAt                      | DateTime                               | Fecha de actualización                                                      |
+| candidateSubmissionHistory     | PersonnelCandidateSubmissionHistory[] | Historial de reaperturas y cierres posteriores al primer cierre              |
+| candidates                     | PersonnelRequisitionCandidate[]        | Candidatos y hojas de vida asociados a la requisición                        |
+| candidateSubmissionBatches     | PersonnelCandidateSubmissionBatch[]   | Historial de cargues cerrados asociados con la requisición                   |
+| notifications                  | Notification[]                         | Notificaciones relacionadas con la requisición                               |
+| createdAt                      | DateTime                               | Fecha de creación                                                            |
+| updatedAt                      | DateTime                               | Fecha de actualización                                                       |
 
 ## Estados principales de la requisición
 
@@ -579,6 +583,8 @@ Si el primer cierre se realiza después de `candidateSubmissionDeadlineAt`, `can
 
 Una reapertura posterior no modifica `candidateSubmissionDeadlineAt`, no borra `candidateSubmissionClosedAt` y no genera un nuevo plazo de 2 días.
 
+---
+
 # Modelo PersonnelCandidateSubmissionHistory
 
 ## Descripción
@@ -604,24 +610,24 @@ CandidateSubmissionHistoryAction
 
 ## Campos principales
 
-| Campo         | Tipo                             | Descripción                                                        |
-| ------------- | -------------------------------- | ------------------------------------------------------------------ |
-| id            | Int                              | Identificador único del registro                                   |
-| requisitionId | Int                              | Identificador de la requisición relacionada                        |
-| requisition   | PersonnelRequisition             | Relación con la requisición                                        |
-| action        | CandidateSubmissionHistoryAction | Acción registrada: `REAPERTURA` o `CIERRE`                         |
-| reason        | String?                          | Motivo de la reapertura; es `null` para los registros de `CIERRE`  |
-| performedById | Int                              | Usuario que realizó la acción                                      |
-| performedBy   | User                             | Relación con el usuario que realizó la acción                      |
-| performedAt   | DateTime                         | Fecha y hora en que se realizó la acción                           |
+| Campo         | Tipo                             | Descripción                                                       |
+| ------------- | -------------------------------- | ----------------------------------------------------------------- |
+| id            | Int                              | Identificador único del registro                                  |
+| requisitionId | Int                              | Identificador de la requisición relacionada                       |
+| requisition   | PersonnelRequisition             | Relación con la requisición                                       |
+| action        | CandidateSubmissionHistoryAction | Acción registrada: `REAPERTURA` o `CIERRE`                        |
+| reason        | String?                          | Motivo de la reapertura; es `null` para los registros de `CIERRE` |
+| performedById | Int                              | Usuario que realizó la acción                                     |
+| performedBy   | User                             | Relación con el usuario que realizó la acción                     |
+| performedAt   | DateTime                         | Fecha y hora en que se realizó la acción                          |
 
 ## Reglas principales
 
-* `REAPERTURA` requiere un motivo entre 3 y 500 caracteres.
-* `CIERRE` se registra en el historial únicamente cuando corresponde a un cierre posterior a una reapertura.
-* El primer cierre no genera un registro `CIERRE` en esta tabla.
-* Cada reapertura y cada cierre posterior generan registros separados.
-* Los registros se utilizan para conservar la trazabilidad sin modificar la fecha de la presentación inicial.
+- `REAPERTURA` requiere un motivo entre 3 y 500 caracteres.
+- `CIERRE` se registra en el historial únicamente cuando corresponde a un cierre posterior a una reapertura.
+- El primer cierre no genera un registro `CIERRE` en esta tabla.
+- Cada reapertura y cada cierre posterior generan registros separados.
+- Los registros se utilizan para conservar la trazabilidad sin modificar la fecha de la presentación inicial.
 
 ## Índices
 
@@ -634,6 +640,123 @@ CandidateSubmissionHistoryAction
 
 ---
 
+# Modelo PersonnelCandidateSubmissionBatch
+
+## Descripción
+
+El modelo `PersonnelCandidateSubmissionBatch` representa cada cierre histórico del cargue de candidatos de una requisición.
+
+Cada vez que el cargue pasa de estado `ABIERTA` a `CERRADA`, se genera un nuevo cargue numerado consecutivamente.
+
+Ejemplo:
+
+```txt
+Cargue 1
+Cargue 2
+Cargue 3
+```
+
+Cada cargue conserva la fecha y hora del cierre, el usuario que realizó la acción y la fotografía completa de los candidatos existentes en ese momento.
+
+Este historial es independiente de `PersonnelCandidateSubmissionHistory`, ya que este último conserva las acciones de reapertura y cierre del proceso, mientras que `PersonnelCandidateSubmissionBatch` conserva el contenido completo presentado en cada cierre.
+
+## Campos principales
+
+| Campo            | Tipo                                     | Descripción                                           |
+| ---------------- | ---------------------------------------- | ----------------------------------------------------- |
+| id               | Int                                      | Identificador único del cargue histórico              |
+| requisitionId    | Int                                      | Identificador de la requisición relacionada           |
+| requisition      | PersonnelRequisition                     | Relación con la requisición                           |
+| submissionNumber | Int                                      | Número consecutivo del cargue                         |
+| closedById       | Int                                      | Identificador del usuario que realizó el cierre       |
+| closedBy         | User                                     | Usuario que realizó el cierre                         |
+| closedAt         | DateTime                                 | Fecha y hora en que fue cerrado el cargue             |
+| candidates       | PersonnelCandidateSubmissionBatchItem[] | Candidatos que formaban parte de ese cargue histórico |
+
+## Restricción única
+
+```prisma
+@@unique([requisitionId, submissionNumber])
+```
+
+Esta restricción evita que una misma requisición tenga dos cargues con el mismo número.
+
+Ejemplo:
+
+```txt
+Requisición 25
+├── Cargue 1
+├── Cargue 2
+└── Cargue 3
+```
+
+## Índices
+
+```prisma
+@@index([requisitionId])
+@@index([closedById])
+@@index([closedAt])
+```
+
+---
+
+# Modelo PersonnelCandidateSubmissionBatchItem
+
+## Descripción
+
+El modelo `PersonnelCandidateSubmissionBatchItem` representa un candidato dentro de la fotografía histórica de un cargue.
+
+Cada registro conserva los principales datos identificadores del candidato tal como se encontraban al momento del cierre.
+
+Esto permite mantener la trazabilidad histórica aunque posteriormente el candidato sea eliminado de la lista actual de candidatos de la requisición.
+
+## Campos principales
+
+| Campo                  | Tipo                                  | Descripción                                                 |
+| ---------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| id                     | Int                                   | Identificador único del registro                            |
+| submissionBatchId      | Int                                   | Identificador del cargue histórico                          |
+| submissionBatch        | PersonnelCandidateSubmissionBatch    | Relación con el cargue histórico                            |
+| itemNumber             | Int                                   | Número u orden del candidato dentro del cargue              |
+| candidateId            | Int?                                  | Identificador del candidato actual, si todavía existe       |
+| candidate              | PersonnelRequisitionCandidate?       | Relación opcional con el candidato actual                   |
+| candidateName          | String                                | Nombre del candidato conservado históricamente              |
+| identificationTypeCode | String                                | Código del tipo de identificación conservado históricamente |
+| identificationNumber   | String                                | Número de identificación conservado históricamente          |
+
+## Conservación histórica
+
+La relación con `PersonnelRequisitionCandidate` utiliza:
+
+```prisma
+onDelete: SetNull
+```
+
+Si posteriormente un candidato es eliminado, el campo `candidateId` del registro histórico pasa a `null`, pero permanecen almacenados:
+
+```txt
+candidateName
+identificationTypeCode
+identificationNumber
+```
+
+## Restricción única
+
+```prisma
+@@unique([submissionBatchId, itemNumber])
+```
+
+Esta restricción evita repetir una misma posición dentro de un cargue.
+
+## Índices
+
+```prisma
+@@index([submissionBatchId])
+@@index([candidateId])
+```
+
+---
+
 # Modelo PersonnelRequisitionCandidate
 
 ## Descripción
@@ -642,29 +765,37 @@ El modelo `PersonnelRequisitionCandidate` representa un candidato registrado par
 
 Cada candidato queda identificado mediante un tipo de identificación y un número de identificación. También almacena el nombre, una observación opcional y la información de la hoja de vida cargada.
 
+Además, conserva el estado definitivo de preselección del candidato. La preselección se realiza después del cierre del cargue y únicamente puede ser confirmada por el usuario que creó la requisición.
+
+Una vez confirmada, la condición de preseleccionado se conserva permanentemente dentro de este proceso junto con la fecha y el usuario que realizó la acción.
 
 ## Campos principales
 
-| Campo                | Tipo                 | Descripción                                              |
-| -------------------- | -------------------- | -------------------------------------------------------- |
-| id                   | Int                  | Identificador único del candidato                        |
-| requisitionId        | Int                  | Identificador de la requisición relacionada              |
-| requisition          | PersonnelRequisition | Relación con la requisición de personal                  |
-| identificationTypeId | Int                  | Identificador del tipo de identificación                 |
-| identificationType   | IdentificationType   | Relación con el tipo de identificación                   |
-| identificationNumber | String               | Número de identificación del candidato                   |
-| name                 | String               | Nombre completo del candidato                            |
-| observation          | String?              | Observación opcional registrada por Talento Humano       |
-| originalName         | String               | Nombre original de la hoja de vida cargada               |
-| fileName             | String               | Nombre generado por el backend para almacenar el archivo |
-| fileUrl              | String               | Ruta donde se encuentra almacenada la hoja de vida       |
-| mimeType             | String               | Tipo MIME del archivo                                    |
-| fileSize             | Int                  | Tamaño del archivo expresado en bytes                    |
-| uploadedById         | Int                  | Identificador del usuario que realizó el cargue          |
-| uploadedBy           | User                 | Relación con el usuario que registró al candidato        |
-| validation | PersonnelCandidateValidation? | Relación opcional con la validación de cargo y postulante. Es `null` mientras el candidato no haya iniciado el proceso y contiene una única validación después de guardar la Fase 1. |
-| createdAt            | DateTime             | Fecha y hora en que se registró el candidato             |
-| updatedAt            | DateTime             | Fecha y hora de la última modificación                   |
+| Campo                | Tipo                                     | Descripción                                                               |
+| -------------------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| id                   | Int                                      | Identificador único del candidato                                         |
+| requisitionId        | Int                                      | Identificador de la requisición relacionada                               |
+| requisition          | PersonnelRequisition                     | Relación con la requisición de personal                                   |
+| identificationTypeId | Int                                      | Identificador del tipo de identificación                                  |
+| identificationType   | IdentificationType                       | Relación con el tipo de identificación                                    |
+| identificationNumber | String                                   | Número de identificación del candidato                                    |
+| name                 | String                                   | Nombre completo del candidato                                             |
+| observation          | String?                                  | Observación opcional registrada por Talento Humano                        |
+| originalName         | String                                   | Nombre original de la hoja de vida cargada                                |
+| fileName             | String                                   | Nombre generado por el backend para almacenar el archivo                  |
+| fileUrl              | String                                   | Ruta donde se encuentra almacenada la hoja de vida                        |
+| mimeType             | String                                   | Tipo MIME del archivo                                                     |
+| fileSize             | Int                                      | Tamaño del archivo expresado en bytes                                     |
+| uploadedById         | Int                                      | Identificador del usuario que realizó el cargue                           |
+| uploadedBy           | User                                     | Relación con el usuario que registró al candidato                         |
+| isPreselected        | Boolean                                  | Indica si el candidato fue confirmado como preseleccionado                |
+| preselectedAt        | DateTime?                                | Fecha y hora en que se confirmó la preselección                           |
+| preselectedById      | Int?                                     | Identificador del usuario que confirmó la preselección                    |
+| preselectedBy        | User?                                    | Usuario que confirmó la preselección                                      |
+| submissionBatchItems | PersonnelCandidateSubmissionBatchItem[] | Cargues históricos en los que apareció el candidato                      |
+| validation           | PersonnelCandidateValidation?            | Relación opcional con la validación de cargo y postulante                 |
+| createdAt            | DateTime                                 | Fecha y hora en que se registró el candidato                              |
+| updatedAt            | DateTime                                 | Fecha y hora de la última modificación                                    |
 
 ## Información ingresada por el usuario
 
@@ -706,7 +837,21 @@ createdAt
 updatedAt
 ```
 
-El usuario no debe enviar manualmente estos datos.
+## Preselección del candidato
+
+La preselección se realiza después de que el cargue de candidatos se encuentra en estado `CERRADA`.
+
+Las reglas principales son:
+
+- La preselección únicamente puede realizarla el usuario que creó la requisición.
+- La requisición debe encontrarse completamente `APROBADA`.
+- El creador puede seleccionar uno o varios candidatos y confirmar la preselección conjuntamente.
+- Puede realizar nuevas preselecciones posteriores sobre candidatos que todavía no hayan sido preseleccionados.
+- Los usuarios autorizados que participan en el flujo de la requisición pueden visualizar qué candidatos están preseleccionados.
+- Si el cargue se reabre, los candidatos previamente preseleccionados no puede ser editado ni eliminado durante una reapertura.
+- Los candidatos no preseleccionados pueden modificarse o eliminarse mientras el cargue permanezca `ABIERTA`.
+- Durante una reapertura pueden agregarse nuevos candidatos.
+- Cuando el cargue vuelve a cerrarse, el creador puede realizar nuevas preselecciones.
 
 ## Restricción única de identificación por requisición
 
@@ -724,9 +869,12 @@ El mismo número puede existir con otro tipo de identificación o dentro de otra
 @@index([requisitionId])
 @@index([identificationTypeId])
 @@index([uploadedById])
+@@index([isPreselected])
+@@index([preselectedById])
 ```
 
-Estos índices facilitan las consultas por requisición, tipo de identificación y usuario que realizó el cargue.
+Estos índices facilitan las consultas por requisición, tipo de identificación, usuario que realizó el cargue, candidatos preseleccionados y usuario que confirmó la preselección.
+
 ---
 
 # Modelo PersonnelCandidateValidation
@@ -747,23 +895,23 @@ Cada candidato puede tener como máximo una validación. El registro se crea ún
 
 ## Campos principales
 
-| Campo                    | Tipo                                  | Descripción                                                                 |
-| ------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
-| id                       | Int                                   | Identificador único de la validación                                        |
-| candidateId              | Int                                   | Identificador único del candidato asociado                                  |
-| candidate                | PersonnelRequisitionCandidate         | Relación con el candidato                                                   |
-| applicationConcept       | CandidateApplicationConcept           | Concepto de aplicación seleccionado en la Fase 1                            |
-| positionType             | CandidatePositionType?                | Tipo de cargo seleccionado en la Fase 2                                     |
-| changeControlCode        | String?                               | Código de control de cambio cuando se selecciona `NUEVO_CARGO`              |
-| isPositionProfileCurrent | Boolean?                              | Indica si la revisión del perfil de cargo usada en la requisición coincide con la revisión VIGENTE al momento de guardar la Fase 2 |
-| isSuitable               | Boolean?                              | Resultado final que indica si el postulante es apto                         |
-| performedById            | Int?                                  | Usuario que completó la validación                                          |
-| performedBy              | User?                                 | Relación con el usuario que completó la validación                          |
-| completedStep            | Int                                   | Indica la última fase completada de la validación                                     |
-| validatedAt              | DateTime?                             | Fecha y hora en que se completó la Fase 3                                   |
-| requirementValidations   | PersonnelCandidateRequirementValidation[] | Evaluaciones individuales de las descripciones de requisitos           |
-| createdAt                | DateTime                              | Fecha de creación                                                           |
-| updatedAt                | DateTime                              | Fecha de última actualización                                               |
+| Campo                    | Tipo                                      | Descripción                                                                 |
+| ------------------------ | ----------------------------------------- | --------------------------------------------------------------------------- |
+| id                       | Int                                       | Identificador único de la validación                                        |
+| candidateId              | Int                                       | Identificador único del candidato asociado                                  |
+| candidate                | PersonnelRequisitionCandidate             | Relación con el candidato                                                   |
+| applicationConcept       | CandidateApplicationConcept               | Concepto de aplicación seleccionado en la Fase 1                            |
+| positionType             | CandidatePositionType?                    | Tipo de cargo seleccionado en la Fase 2                                     |
+| changeControlCode        | String?                                   | Código de control de cambio cuando se selecciona `NUEVO_CARGO`              |
+| isPositionProfileCurrent | Boolean?                                  | Indica si la revisión usada en la requisición coincide con la revisión VIGENTE al guardar la Fase 2 |
+| isSuitable               | Boolean?                                  | Resultado final que indica si el postulante es apto                         |
+| performedById            | Int?                                      | Usuario que completó la validación                                          |
+| performedBy              | User?                                     | Relación con el usuario que completó la validación                          |
+| completedStep            | Int                                       | Indica la última fase completada de la validación                           |
+| validatedAt              | DateTime?                                 | Fecha y hora en que se completó la Fase 3                                   |
+| requirementValidations   | PersonnelCandidateRequirementValidation[] | Evaluaciones individuales de las descripciones de requisitos                |
+| createdAt                | DateTime                                  | Fecha de creación                                                           |
+| updatedAt                | DateTime                                  | Fecha de última actualización                                               |
 
 ## Restricción única
 
@@ -785,18 +933,18 @@ Cada registro pertenece a una validación general y a una `PositionRequirementDe
 
 ## Campos principales
 
-| Campo                    | Tipo                                   | Descripción                                                       |
-| ------------------------ | -------------------------------------- | ----------------------------------------------------------------- |
-| id                       | Int                                    | Identificador único del resultado                                 |
-| candidateValidationId    | Int                                    | Identificador de la validación general                            |
-| candidateValidation      | PersonnelCandidateValidation           | Relación con la validación general                                |
-| requirementDescriptionId | Int                                    | Descripción exacta del requisito evaluado                         |
-| requirementDescription   | PositionRequirementDescription         | Relación con la descripción del requisito                         |
-| complies                 | Boolean                                | Indica si el candidato cumple la descripción                      |
-| evidence                 | String?                                | Evidencia obligatoria cuando `complies` es `true`                 |
-| gapClosure               | String?                                | Cierre de brecha obligatorio cuando `complies` es `false`         |
-| createdAt                | DateTime                               | Fecha de creación                                                 |
-| updatedAt                | DateTime                               | Fecha de actualización                                            |
+| Campo                    | Tipo                                   | Descripción                                               |
+| ------------------------ | -------------------------------------- | --------------------------------------------------------- |
+| id                       | Int                                    | Identificador único del resultado                         |
+| candidateValidationId    | Int                                    | Identificador de la validación general                    |
+| candidateValidation      | PersonnelCandidateValidation           | Relación con la validación general                        |
+| requirementDescriptionId | Int                                    | Descripción exacta del requisito evaluado                 |
+| requirementDescription   | PositionRequirementDescription         | Relación con la descripción del requisito                 |
+| complies                 | Boolean                                | Indica si el candidato cumple la descripción              |
+| evidence                 | String?                                | Evidencia obligatoria cuando `complies` es `true`         |
+| gapClosure               | String?                                | Cierre de brecha obligatorio cuando `complies` es `false` |
+| createdAt                | DateTime                               | Fecha de creación                                         |
+| updatedAt                | DateTime                               | Fecha de actualización                                    |
 
 ## Restricción única
 
@@ -959,7 +1107,7 @@ Aquí se registran los datos finales o confirmados de contratación, como tipo d
 | id                     | Int                                   | Identificador único de la confirmación       |
 | requisitionId          | Int                                   | Requisición relacionada                      |
 | requisition            | PersonnelRequisition                  | Relación con la requisición                  |
-| contractType           | ContractType                          | Tipo principal de contratación confirmado    |
+| contractType           | ContractType                          | Tipo principal de contratación confirmado   |
 | directContractType     | DirectContractType?                   | Tipo de contrato directo confirmado          |
 | contractDurationMonths | Int?                                  | Duración del contrato en meses cuando aplica |
 | internContractType     | InternContractType?                   | Tipo de practicante cuando aplica            |

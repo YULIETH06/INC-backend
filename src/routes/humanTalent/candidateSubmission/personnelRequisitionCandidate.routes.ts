@@ -4,8 +4,10 @@ import {
     closePersonnelRequisitionCandidates,
     createPersonnelRequisitionCandidate,
     deletePersonnelRequisitionCandidate,
+    getPersonnelCandidateSubmissionBatches,
     getPersonnelCandidateSubmissionHistory,
     getPersonnelRequisitionCandidates,
+    preselectPersonnelRequisitionCandidates,
     reopenPersonnelRequisitionCandidates,
     updatePersonnelRequisitionCandidate,
 } from "../../../controllers/humanTalent/candidateSubmission/personnelRequisitionCandidate.controller.js";
@@ -39,6 +41,13 @@ router.get(
     getPersonnelCandidateSubmissionHistory
 );
 
+// Obtiene las fotografías históricas de los diferentes cargues.
+router.get(
+    "/:id/candidates/batches",
+    authMiddleware,
+    getPersonnelCandidateSubmissionBatches
+);
+
 // Cierra el proceso de cargue de candidatos.
 router.patch(
     "/:id/candidates/close",
@@ -51,6 +60,13 @@ router.patch(
     "/:id/candidates/reopen",
     authMiddleware,
     reopenPersonnelRequisitionCandidates
+);
+
+// Confirma la preselección de uno o varios candidatos.
+router.patch(
+    "/:id/candidates/preselect",
+    authMiddleware,
+    preselectPersonnelRequisitionCandidates
 );
 
 // Actualiza los datos o la hoja de vida de un candidato.

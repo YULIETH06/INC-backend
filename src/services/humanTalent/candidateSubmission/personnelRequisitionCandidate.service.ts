@@ -288,6 +288,11 @@ export const getPersonnelRequisitionCandidatesService = async (
                 mimeType: true,
                 fileSize: true,
                 uploadedById: true,
+
+                isPreselected: true,
+                preselectedAt: true,
+                preselectedById: true,
+
                 createdAt: true,
                 updatedAt: true,
 
@@ -299,6 +304,15 @@ export const getPersonnelRequisitionCandidatesService = async (
                         role: true,
                     },
                 },
+
+                preselectedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+
             },
             orderBy: {
                 createdAt: "asc",
@@ -402,6 +416,110 @@ export const getPersonnelCandidateSubmissionHistoryService = async (
 
     return history;
 };
+
+// Obtiene las fotografías históricas de los diferentes cargues.
+export const getPersonnelCandidateSubmissionBatchesService =
+    async (
+        requisitionId: number,
+        authenticatedUser: PersonnelCandidateAuthenticatedUser
+    ) => {
+        const requisition =
+            await prisma.personnelRequisition.findUnique({
+                where: {
+                    id: requisitionId,
+                },
+                select: {
+                    id: true,
+                    candidateSubmissionStatus: true,
+                },
+            });
+
+        if (!requisition) {
+            throw new Error(
+                "La requisición de personal no existe"
+            );
+        }
+
+        if (
+            requisition.candidateSubmissionStatus ===
+            "NO_INICIADA"
+        ) {
+            throw new Error(
+                "El cargue de candidatos todavía no está habilitado"
+            );
+        }
+
+        const candidateManagerAssignment =
+            await prisma.userPositionAssignment.findFirst({
+                where: {
+                    userId: authenticatedUser.id,
+                    isActive: true,
+
+                    position: {
+                        is: {
+                            code: "DPC-TH-0080",
+                            isActive: true,
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                },
+            });
+
+        // Si no es Auxiliar de Talento Humano,
+        // valida los permisos generales de la requisición.
+        if (!candidateManagerAssignment) {
+            await getPersonnelRequisitionByIdService(
+                requisitionId,
+                authenticatedUser
+            );
+        }
+
+        const batches =
+            await prisma.personnelCandidateSubmissionBatch.findMany({
+                where: {
+                    requisitionId,
+                },
+
+                select: {
+                    id: true,
+                    requisitionId: true,
+                    submissionNumber: true,
+                    closedById: true,
+                    closedAt: true,
+
+                    closedBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
+                    },
+
+                    candidates: {
+                        select: {
+                            id: true,
+                            itemNumber: true,
+                            candidateId: true,
+                            candidateName: true,
+                            identificationTypeCode: true,
+                            identificationNumber: true,
+                        },
+
+                        orderBy: {
+                            itemNumber: "asc",
+                        },
+                    },
+                },
+
+                orderBy: {
+                    submissionNumber: "asc",
+                },
+            });
+
+        return batches;
+    };
 
 // Cierra el proceso de cargue de candidatos de una requisición.
 export const closePersonnelRequisitionCandidatesService = async (
@@ -522,6 +640,58 @@ export const closePersonnelRequisitionCandidatesService = async (
 
     const updatedRequisition =
         await prisma.$transaction(async (tx) => {
+            // Obtiene la fotografía completa de los candidatos
+            // existentes al momento exacto del cierre.
+            const candidatesAtClosure =
+                await tx.personnelRequisitionCandidate.findMany({
+                    where: {
+                        requisitionId,
+                    },
+                    select: {
+                        id: true,
+                        name: true,
+                        identificationNumber: true,
+
+                        identificationType: {
+                            select: {
+                                code: true,
+                            },
+                        },
+                    },
+                    orderBy: [
+                        {
+                            createdAt: "asc",
+                        },
+                        {
+                            id: "asc",
+                        },
+                    ],
+                });
+
+            if (candidatesAtClosure.length === 0) {
+                throw new Error(
+                    "Debe registrar por lo menos un candidato antes de cerrar el cargue"
+                );
+            }
+
+            // Obtiene el último número de cargue registrado
+            // para generar el siguiente consecutivo.
+            const lastSubmissionBatch =
+                await tx.personnelCandidateSubmissionBatch.findFirst({
+                    where: {
+                        requisitionId,
+                    },
+                    select: {
+                        submissionNumber: true,
+                    },
+                    orderBy: {
+                        submissionNumber: "desc",
+                    },
+                });
+
+            const submissionNumber =
+                (lastSubmissionBatch?.submissionNumber ?? 0) + 1;
+
             const updated =
                 await tx.personnelRequisition.update({
                     where: {
@@ -558,7 +728,8 @@ export const closePersonnelRequisitionCandidatesService = async (
                     },
                 });
 
-            // Solo registra en el historial los cierres posteriores a una reapertura.
+            // Solo registra en el historial de movimientos
+            // los cierres posteriores a una reapertura.
             if (!isFirstClosure) {
                 await tx.personnelCandidateSubmissionHistory.create({
                     data: {
@@ -570,6 +741,36 @@ export const closePersonnelRequisitionCandidatesService = async (
                     },
                 });
             }
+
+            // Crea la fotografía histórica correspondiente
+            // a este cierre: Cargue 1, Cargue 2, Cargue 3...
+            await tx.personnelCandidateSubmissionBatch.create({
+                data: {
+                    requisitionId,
+                    submissionNumber,
+                    closedById: authenticatedUser.id,
+                    closedAt,
+
+                    candidates: {
+                        create: candidatesAtClosure.map(
+                            (candidate, index) => ({
+                                itemNumber: index + 1,
+
+                                candidateId: candidate.id,
+
+                                candidateName:
+                                    candidate.name,
+
+                                identificationTypeCode:
+                                    candidate.identificationType.code,
+
+                                identificationNumber:
+                                    candidate.identificationNumber,
+                            })
+                        ),
+                    },
+                },
+            });
 
             return updated;
         });
@@ -791,12 +992,7 @@ export const deletePersonnelRequisitionCandidateService =
                     originalName: true,
                     fileName: true,
                     fileUrl: true,
-
-                    validation: {
-                        select: {
-                            id: true,
-                        },
-                    },
+                    isPreselected: true,
                 },
             });
 
@@ -806,9 +1002,9 @@ export const deletePersonnelRequisitionCandidateService =
             );
         }
 
-        if (candidate.validation) {
+        if (candidate.isPreselected) {
             throw new Error(
-                "No se puede eliminar el candidato porque ya inició el proceso de validación"
+                "No se puede eliminar el candidato porque ya fue preseleccionado"
             );
         }
 
@@ -886,12 +1082,7 @@ export const updatePersonnelRequisitionCandidateService =
                     fileName: true,
                     identificationTypeId: true,
                     identificationNumber: true,
-
-                    validation: {
-                        select: {
-                            id: true,
-                        },
-                    },
+                    isPreselected: true,
                 },
             });
 
@@ -901,9 +1092,9 @@ export const updatePersonnelRequisitionCandidateService =
             );
         }
 
-        if (currentCandidate.validation) {
+        if (currentCandidate.isPreselected) {
             throw new Error(
-                "No se puede actualizar el candidato porque ya inició el proceso de validación"
+                "No se puede actualizar el candidato porque ya fue preseleccionado"
             );
         }
 
@@ -1097,4 +1288,161 @@ export const updatePersonnelRequisitionCandidateService =
                     ? currentCandidate.fileName
                     : null,
         };
+    };
+
+// Confirma la preselección de uno o varios candidatos.
+export const preselectPersonnelRequisitionCandidatesService =
+    async (
+        requisitionId: number,
+        candidateIds: number[],
+        authenticatedUser: PersonnelCandidateAuthenticatedUser
+    ) => {
+        const uniqueCandidateIds = [
+            ...new Set(candidateIds),
+        ];
+
+        if (uniqueCandidateIds.length === 0) {
+            throw new Error(
+                "Debe seleccionar por lo menos un candidato"
+            );
+        }
+
+        const requisition =
+            await prisma.personnelRequisition.findUnique({
+                where: {
+                    id: requisitionId,
+                },
+                select: {
+                    id: true,
+                    status: true,
+                    createdById: true,
+                    candidateSubmissionStatus: true,
+                },
+            });
+
+        if (!requisition) {
+            throw new Error(
+                "La requisición de personal no existe"
+            );
+        }
+
+        if (requisition.status !== "APROBADA") {
+            throw new Error(
+                "Solo se pueden preseleccionar candidatos de una requisición aprobada"
+            );
+        }
+
+        if (
+            requisition.candidateSubmissionStatus !==
+            "CERRADA"
+        ) {
+            throw new Error(
+                "La preselección solo puede realizarse cuando el cargue de candidatos está cerrado"
+            );
+        }
+
+        // Solo el usuario que creó la requisición
+        // puede confirmar la preselección.
+        if (
+            requisition.createdById !==
+            authenticatedUser.id
+        ) {
+            throw new Error(
+                "Solo el creador de la requisición puede preseleccionar candidatos"
+            );
+        }
+
+        const candidates =
+            await prisma.personnelRequisitionCandidate.findMany({
+                where: {
+                    requisitionId,
+                    id: {
+                        in: uniqueCandidateIds,
+                    },
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    isPreselected: true,
+                },
+            });
+
+        if (
+            candidates.length !==
+            uniqueCandidateIds.length
+        ) {
+            throw new Error(
+                "Uno o más candidatos no existen o no pertenecen a esta requisición"
+            );
+        }
+
+        const alreadyPreselected =
+            candidates.filter(
+                (candidate) =>
+                    candidate.isPreselected
+            );
+
+        if (alreadyPreselected.length > 0) {
+            throw new Error(
+                "Uno o más candidatos ya fueron preseleccionados"
+            );
+        }
+
+        const preselectedAt = new Date();
+
+        await prisma.personnelRequisitionCandidate.updateMany({
+            where: {
+                requisitionId,
+                id: {
+                    in: uniqueCandidateIds,
+                },
+                isPreselected: false,
+            },
+            data: {
+                isPreselected: true,
+                preselectedAt,
+                preselectedById:
+                    authenticatedUser.id,
+            },
+        });
+
+        const preselectedCandidates =
+            await prisma.personnelRequisitionCandidate.findMany({
+                where: {
+                    requisitionId,
+                    id: {
+                        in: uniqueCandidateIds,
+                    },
+                },
+                select: {
+                    id: true,
+                    requisitionId: true,
+                    name: true,
+                    identificationNumber: true,
+                    isPreselected: true,
+                    preselectedAt: true,
+                    preselectedById: true,
+
+                    identificationType: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+
+                    preselectedBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    createdAt: "asc",
+                },
+            });
+
+        return preselectedCandidates;
     };

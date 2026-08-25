@@ -9,8 +9,10 @@ import {
     closePersonnelRequisitionCandidatesService,
     createPersonnelRequisitionCandidateService,
     deletePersonnelRequisitionCandidateService,
+    getPersonnelCandidateSubmissionBatchesService,
     getPersonnelCandidateSubmissionHistoryService,
     getPersonnelRequisitionCandidatesService,
+    preselectPersonnelRequisitionCandidatesService,
     reopenPersonnelRequisitionCandidatesService,
     updatePersonnelRequisitionCandidateService,
 } from "../../../services/humanTalent/candidateSubmission/personnelRequisitionCandidate.service.js";
@@ -325,6 +327,52 @@ export const getPersonnelCandidateSubmissionHistory =
         }
     };
 
+// Obtiene las fotografías históricas de los diferentes cargues.
+export const getPersonnelCandidateSubmissionBatches =
+    async (
+        req: AuthRequest,
+        res: Response
+    ) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({
+                    message: "Usuario no autenticado",
+                });
+            }
+
+            const requisitionId = Number(req.params.id);
+
+            if (
+                !Number.isInteger(requisitionId) ||
+                requisitionId <= 0
+            ) {
+                return res.status(400).json({
+                    message:
+                        "El id de la requisición no es válido",
+                });
+            }
+
+            const batches =
+                await getPersonnelCandidateSubmissionBatchesService(
+                    requisitionId,
+                    req.user
+                );
+
+            return res.status(200).json({
+                message:
+                    "Historial de cargues obtenido correctamente",
+                batches,
+            });
+        } catch (error) {
+            return res.status(400).json({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Error al obtener el historial de cargues",
+            });
+        }
+    };
+
 // Cierra el proceso de cargue de candidatos de una requisición.
 export const closePersonnelRequisitionCandidates =
     async (
@@ -432,6 +480,90 @@ export const reopenPersonnelRequisitionCandidates =
                     error instanceof Error
                         ? error.message
                         : "Error al reabrir el cargue de candidatos",
+            });
+        }
+    };
+
+// Confirma la preselección de uno o varios candidatos.
+export const preselectPersonnelRequisitionCandidates =
+    async (
+        req: AuthRequest,
+        res: Response
+    ) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({
+                    message: "Usuario no autenticado",
+                });
+            }
+
+            const requisitionId = Number(req.params.id);
+
+            if (
+                !Number.isInteger(requisitionId) ||
+                requisitionId <= 0
+            ) {
+                return res.status(400).json({
+                    message:
+                        "El id de la requisición no es válido",
+                });
+            }
+
+            const body = req.body ?? {};
+
+            const candidateIds = body.candidateIds;
+
+            if (!Array.isArray(candidateIds)) {
+                return res.status(400).json({
+                    message:
+                        "Debe enviar una lista de candidatos para preseleccionar",
+                });
+            }
+
+            if (candidateIds.length === 0) {
+                return res.status(400).json({
+                    message:
+                        "Debe seleccionar por lo menos un candidato",
+                });
+            }
+
+            const normalizedCandidateIds =
+                candidateIds.map((candidateId) =>
+                    Number(candidateId)
+                );
+
+            const hasInvalidCandidateId =
+                normalizedCandidateIds.some(
+                    (candidateId) =>
+                        !Number.isInteger(candidateId) ||
+                        candidateId <= 0
+                );
+
+            if (hasInvalidCandidateId) {
+                return res.status(400).json({
+                    message:
+                        "Uno o más ids de candidatos no son válidos",
+                });
+            }
+
+            const candidates =
+                await preselectPersonnelRequisitionCandidatesService(
+                    requisitionId,
+                    normalizedCandidateIds,
+                    req.user
+                );
+
+            return res.status(200).json({
+                message:
+                    "Candidatos preseleccionados correctamente",
+                candidates,
+            });
+        } catch (error) {
+            return res.status(400).json({
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "Error al preseleccionar candidatos",
             });
         }
     };
