@@ -354,3 +354,59 @@ export const registerUsersBulkService = async (fileBuffer: Buffer) => {
     message: "Todos los usuarios fueron registrados correctamente.",
   };
 };
+
+// Cambia la contraseña del usuario autenticado.
+export const changePasswordService = async (
+  userId: number,
+  currentPassword: string,
+  newPassword: string
+) => {
+  // Busca el usuario autenticado y obtiene la contraseña encriptada.
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+    select: {
+      id: true,
+      password: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error("El usuario no existe");
+  }
+
+  // Verifica que la contraseña actual ingresada sea correcta.
+  const isCurrentPasswordValid = await bcrypt.compare(
+    currentPassword,
+    user.password
+  );
+
+  if (!isCurrentPasswordValid) {
+    throw new Error("La contraseña actual es incorrecta");
+  }
+
+  // Evita utilizar nuevamente la misma contraseña.
+  const isSamePassword = await bcrypt.compare(
+    newPassword,
+    user.password
+  );
+
+  if (isSamePassword) {
+    throw new Error(
+      "La nueva contraseña debe ser diferente a la contraseña actual"
+    );
+  }
+
+  // Encripta la nueva contraseña antes de almacenarla.
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  await prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data: {
+      password: hashedPassword,
+    },
+  });
+};

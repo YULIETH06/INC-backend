@@ -1,12 +1,15 @@
 import { Router } from "express";
+
 import {
+  changePassword,
   registerUser,
   registerUsersBulk,
 } from "../../controllers/auth/auth.controller.js";
+
 import {
   authMiddleware,
   roleMiddleware,
-  uploadExcel
+  uploadExcel,
 } from "../../middlewares/index.js";
 
 const router = Router();
@@ -20,6 +23,13 @@ router.post(
   roleMiddleware(["ADMIN"]),
   uploadExcel.single("file"),
   registerUsersBulk
+);
+
+// Cambia la contraseña del usuario autenticado.
+router.patch(
+  "/password",
+  authMiddleware,
+  changePassword
 );
 
 export default router;

@@ -861,6 +861,182 @@ Funciones implementadas:
 
 ---
 
+
+# Cambiar contraseña del usuario autenticado
+
+## Endpoint protegido
+
+```http
+PATCH /api/auth/password
+```
+
+## Descripción
+
+Endpoint privado encargado de permitir que el usuario autenticado cambie su propia contraseña de acceso al sistema.
+
+La funcionalidad solicita la contraseña actual y una nueva contraseña. Antes de realizar el cambio, el sistema verifica que la contraseña actual corresponda con la contraseña almacenada para el usuario autenticado.
+
+El usuario se identifica mediante el token JWT, por lo tanto, no es necesario enviar el identificador del usuario en el body.
+
+La nueva contraseña se almacena de forma segura mediante `bcryptjs`.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+USER
+ADMIN
+AGENT
+```
+
+Cualquier usuario autenticado puede cambiar únicamente su propia contraseña.
+
+---
+
+## Body
+
+```json
+{
+  "currentPassword": "123456",
+  "newPassword": "654321"
+}
+```
+
+---
+
+## Campos del body
+
+| Campo           | Tipo   | Obligatorio | Descripción                             |
+| --------------- | ------ | ----------- | --------------------------------------- |
+| currentPassword | string | Sí          | Contraseña actual del usuario           |
+| newPassword     | string | Sí          | Nueva contraseña que se desea registrar |
+
+---
+
+## Validaciones implementadas
+
+### Contraseña actual
+
+* Es obligatoria.
+* Debe corresponder con la contraseña actual del usuario autenticado.
+* Se compara de forma segura mediante `bcryptjs`.
+
+### Nueva contraseña
+
+* Es obligatoria.
+* Debe tener mínimo 6 caracteres.
+* Debe ser diferente de la contraseña actual.
+* Se almacena encriptada mediante `bcryptjs`.
+
+### Seguridad
+
+* La ruta requiere autenticación mediante JWT.
+* El identificador del usuario se obtiene desde el token.
+* Un usuario no puede cambiar la contraseña de otro usuario mediante este endpoint.
+* La contraseña ni su hash se devuelven en la respuesta.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Contraseña actualizada correctamente"
+}
+```
+
+---
+
+## Respuesta si faltan campos
+
+```json
+{
+  "message": "La contraseña actual y la nueva contraseña son obligatorias"
+}
+```
+
+---
+
+## Respuesta si la nueva contraseña tiene menos de 6 caracteres
+
+```json
+{
+  "message": "La nueva contraseña debe tener mínimo 6 caracteres"
+}
+```
+
+---
+
+## Respuesta si la contraseña actual es incorrecta
+
+```json
+{
+  "message": "La contraseña actual es incorrecta"
+}
+```
+
+---
+
+## Respuesta si la nueva contraseña es igual a la actual
+
+```json
+{
+  "message": "La nueva contraseña debe ser diferente a la contraseña actual"
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Token no proporcionado"
+}
+```
+
+---
+
+## Respuesta token inválido
+
+```json
+{
+  "message": "Token inválido o expirado."
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al cambiar la contraseña"
+}
+```
+
+---
+
 # Perfil autenticado
 
 ## Endpoint protegido
@@ -9948,6 +10124,45 @@ ADMIN
 ---
 
 
+
+# Notas técnicas pendientes
+
+## Separación de responsabilidades entre `auth` y `users`
+
+Actualmente `registerUsersBulkService` se encuentra en:
+
+```txt
+src/services/auth/auth.service.ts
+```
+
+Sin embargo, la carga masiva corresponde funcionalmente a la administración de usuarios y no directamente al proceso de autenticación.
+
+Como mejora futura, se recomienda revisar esta responsabilidad y considerar trasladar la carga masiva a un servicio específico del módulo `users`, por ejemplo:
+
+```txt
+src/services/users/userBulk.service.ts
+```
+
+Esta refactorización queda pendiente para una tarea independiente, con el fin de no modificar durante la implementación del cambio de contraseña una funcionalidad que actualmente se encuentra operativa.
+
+---
+
+## Consulta de usuario por identificador
+
+Actualmente `getUserByIdService` consulta el usuario mediante `findUnique` sin un `select` explícito.
+
+Como mejora de seguridad y claridad, se recomienda limitar posteriormente los campos recuperados para evitar que el hash de `password` forme parte innecesariamente del objeto retornado por el servicio.
+
+La corrección debe realizarse en:
+
+```txt
+src/services/users/user.service.ts
+```
+
+Esta mejora queda pendiente para una refactorización posterior y no afecta el funcionamiento actual del cambio de contraseña.
+
+---
+
 # Resumen actualizado de endpoints funcionales
 
 | Método | Endpoint                                                                                                                                    | Descripción                                                | Acceso                                                          |
@@ -9959,6 +10174,7 @@ ADMIN
 | PATCH  | /api/users/signature                                                                                                                        | Sube la firma del usuario autenticado                      | Usuario autenticado                                             |
 | POST   | /api/auth/register                                                                                                                          | Registra un nuevo usuario                                  | Público                                                         |
 | POST   | /api/auth/register/bulk                                                                                                                     | Registra usuarios mediante carga masiva desde Excel        | ADMIN                                                           |
+| PATCH  | /api/auth/password                                                                                                                          | Cambia la contraseña del usuario autenticado                    | USER / ADMIN / AGENT                                              |
 | POST   | /api/users/login                                                                                                                            | Inicia sesión y genera token JWT                           | Público                                                         |
 | GET    | /api/profile                                                                                                                                | Obtiene el perfil del usuario autenticado                  | Usuario autenticado                                             |
 | GET    | /api/common/cities                                                                                                                          | Obtiene las ciudades activas del sistema                   | Usuario autenticado                                             |
