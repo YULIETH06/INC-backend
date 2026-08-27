@@ -1,23 +1,32 @@
+import type {
+  Request,
+  Response,
+} from "express";
+
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import fs from "fs";
+import path from "path";
+
+import prisma from "../../config/client.js";
+
 import {
   getAllUsersService,
   getUserByIdService,
   updateUserRoleService,
   getAgentsService,
+  resetUserPasswordService,
   updateUserSignatureService,
 } from "../../services/users/user.service.js";
-import type { Request, Response } from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import prisma from "../../config/client.js";
-import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
-import fs from "fs";
-import path from "path";
+
+import type {
+  AuthRequest,
+} from "../../interfaces/auth/auth.interface.js";
 
 export const getUsers = async (
   req: Request,
   res: Response
 ) => {
-
   try {
     const users = await getAllUsersService();
 
@@ -30,7 +39,6 @@ export const getUsers = async (
       message: "Error al obtener los usuarios",
     });
   }
-
 };
 
 export const getAgents = async (
@@ -56,7 +64,10 @@ export const loginUser = async (
   res: Response
 ) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -116,9 +127,12 @@ export const loginUser = async (
       }
     );
 
-    const positions = user.positionAssignments.map((assignment) => {
-      return assignment.position;
-    });
+    const positions =
+      user.positionAssignments.map(
+        (assignment) => {
+          return assignment.position;
+        }
+      );
 
     return res.json({
       message: "Login exitoso",
@@ -146,12 +160,20 @@ export const updateUserRole = async (
   res: Response
 ) => {
   try {
-    const { id } = req.params;
-    const { role } = req.body;
+    const {
+      id,
+    } = req.params;
+
+    const {
+      role,
+    } = req.body;
 
     const userId = Number(id);
 
-    if (isNaN(userId)) {
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
       return res.status(400).json({
         message: "El id del usuario no es válido",
       });
@@ -163,7 +185,11 @@ export const updateUserRole = async (
       });
     }
 
-    const allowedRoles = ["USER", "ADMIN", "AGENT"];
+    const allowedRoles = [
+      "USER",
+      "ADMIN",
+      "AGENT",
+    ];
 
     if (!allowedRoles.includes(role)) {
       return res.status(400).json({
@@ -172,7 +198,8 @@ export const updateUserRole = async (
       });
     }
 
-    const userExists = await getUserByIdService(userId);
+    const userExists =
+      await getUserByIdService(userId);
 
     if (!userExists) {
       return res.status(404).json({
@@ -180,16 +207,100 @@ export const updateUserRole = async (
       });
     }
 
-    const updatedUser = await updateUserRoleService(userId, role);
+    const updatedUser =
+      await updateUserRoleService(
+        userId,
+        role
+      );
 
     return res.status(200).json({
-      message: "Rol del usuario actualizado correctamente",
+      message:
+        "Rol del usuario actualizado correctamente",
       user: updatedUser,
     });
   } catch (error) {
     return res.status(500).json({
-      message: "Error al actualizar el rol del usuario",
+      message:
+        "Error al actualizar el rol del usuario",
       error,
+    });
+  }
+};
+
+// Permite al administrador restablecer la contraseña de un usuario.
+export const resetUserPassword = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const {
+      id,
+    } = req.params;
+
+    const {
+      newPassword,
+    } = req.body;
+
+    const userId = Number(id);
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          "El id del usuario no es válido",
+      });
+    }
+
+    if (
+      typeof newPassword !== "string" ||
+      !newPassword.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          "La nueva contraseña es obligatoria",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message:
+          "La nueva contraseña debe tener mínimo 6 caracteres",
+      });
+    }
+
+    const updatedUser =
+      await resetUserPasswordService(
+        userId,
+        newPassword
+      );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: "El usuario no existe",
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        "Contraseña del usuario actualizada correctamente",
+      user: updatedUser,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message ===
+      "La nueva contraseña debe ser diferente a la contraseña actual"
+    ) {
+      return res.status(400).json({
+        message: error.message,
+      });
+    }
+
+    return res.status(500).json({
+      message:
+        "Error al actualizar la contraseña del usuario",
     });
   }
 };
@@ -208,33 +319,39 @@ export const uploadUserSignatureController = async (
 
     if (!req.file) {
       return res.status(400).json({
-        message: "Debes seleccionar una imagen para la firma",
+        message:
+          "Debes seleccionar una imagen para la firma",
       });
     }
 
-    const signatureUrl = `/uploads/signatures/${req.file.filename}`;
+    const signatureUrl =
+      `/uploads/signatures/${req.file.filename}`;
 
-    const user = await updateUserSignatureService(
-      req.user.id,
-      signatureUrl
-    );
+    const user =
+      await updateUserSignatureService(
+        req.user.id,
+        signatureUrl
+      );
 
     return res.status(200).json({
       message: "Firma registrada correctamente",
       user,
     });
   } catch (error) {
-     /*
+    /*
      * Si multer ya guardó el archivo, pero luego falla la validación
      * porque el usuario ya tenía firma, se elimina el archivo nuevo.
      */
     if (req.file) {
-      const filePath = path.resolve(req.file.path);
+      const filePath = path.resolve(
+        req.file.path
+      );
 
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
     }
+
     const message =
       error instanceof Error
         ? error.message

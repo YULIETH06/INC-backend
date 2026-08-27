@@ -790,6 +790,194 @@ AGENT
 
 ---
 
+# Restablecer contraseña de un usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+PATCH /api/users/:id/password
+```
+
+## Ejemplo
+
+```http
+PATCH /api/users/5/password
+```
+
+## Descripción
+
+Endpoint privado encargado de permitir que un usuario con rol `ADMIN` restablezca la contraseña de otro usuario registrado en el sistema.
+
+A diferencia del cambio de contraseña del usuario autenticado, esta operación no requiere conocer ni enviar la contraseña actual del usuario. El administrador únicamente define la nueva contraseña.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo   | Descripción                                                     |
+| --------- | ------ | --------------------------------------------------------------- |
+| id        | number | Identificador del usuario al que se le restablecerá la contraseña |
+
+---
+
+## Body
+
+```json
+{
+  "newPassword": "654321"
+}
+```
+
+---
+
+## Campos del body
+
+| Campo       | Tipo   | Obligatorio | Descripción                                      |
+| ----------- | ------ | ----------- | ------------------------------------------------ |
+| newPassword | string | Sí          | Nueva contraseña que se asignará al usuario      |
+
+---
+
+## Validaciones implementadas
+
+### Identificador del usuario
+
+* Debe ser un número entero válido.
+* Debe ser mayor que cero.
+* El usuario debe existir en la base de datos.
+
+### Nueva contraseña
+
+* Es obligatoria.
+* Debe contener mínimo 6 caracteres.
+* Debe ser diferente de la contraseña actual del usuario.
+* Se compara de forma segura con la contraseña actual mediante `bcryptjs`.
+* Se almacena encriptada mediante `bcryptjs`.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Contraseña del usuario actualizada correctamente",
+  "user": {
+    "id": 5,
+    "name": "Juan Pérez",
+    "email": "juan@gmail.com",
+    "role": "USER"
+  }
+}
+```
+
+---
+
+## Respuesta si el id no es válido
+
+```json
+{
+  "message": "El id del usuario no es válido"
+}
+```
+
+---
+
+## Respuesta si no se envía la nueva contraseña
+
+```json
+{
+  "message": "La nueva contraseña es obligatoria"
+}
+```
+
+---
+
+## Respuesta si la nueva contraseña tiene menos de 6 caracteres
+
+```json
+{
+  "message": "La nueva contraseña debe tener mínimo 6 caracteres"
+}
+```
+
+---
+
+## Respuesta si la nueva contraseña es igual a la actual
+
+```json
+{
+  "message": "La nueva contraseña debe ser diferente a la contraseña actual"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta si el usuario autenticado no es ADMIN
+
+```json
+{
+  "message": "No tienes permisos para acceder a esta ruta"
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Token no proporcionado"
+}
+```
+
+---
+
+## Respuesta token inválido
+
+```json
+{
+  "message": "Token inválido o expirado."
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al actualizar la contraseña del usuario"
+}
+```
+
+---
+
+
 # Login de usuario JWT
 
 ## Endpoint
@@ -1753,7 +1941,7 @@ Cuando un ADMIN asigna o reasigna una PQR, el sistema genera notificaciones seg�
 
 ---
 
-# Desasignar una PQR
+# Desasignar una PQR (Sin usar)
 
 ## Endpoint protegido para ADMIN
 
@@ -10171,10 +10359,11 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | GET    | /api/users                                                                                                                                  | Obtiene todos los usuarios registrados                     | ADMIN                                                           |
 | GET    | /api/users/agents                                                                                                                           | Obtiene únicamente los usuarios con rol AGENT              | ADMIN                                                           |
 | PATCH  | /api/users/:id/role                                                                                                                         | Cambia el rol de un usuario                                | ADMIN                                                           |
+| PATCH  | /api/users/:id/password                                                                                                                     | Restablece la contraseña de un usuario                     | ADMIN                                                           |
 | PATCH  | /api/users/signature                                                                                                                        | Sube la firma del usuario autenticado                      | Usuario autenticado                                             |
 | POST   | /api/auth/register                                                                                                                          | Registra un nuevo usuario                                  | Público                                                         |
 | POST   | /api/auth/register/bulk                                                                                                                     | Registra usuarios mediante carga masiva desde Excel        | ADMIN                                                           |
-| PATCH  | /api/auth/password                                                                                                                          | Cambia la contraseña del usuario autenticado                    | USER / ADMIN / AGENT                                              |
+| PATCH  | /api/auth/password                                                                                                                          | Cambia la contraseña del usuario autenticado               | USER / ADMIN / AGENT                                            |
 | POST   | /api/users/login                                                                                                                            | Inicia sesión y genera token JWT                           | Público                                                         |
 | GET    | /api/profile                                                                                                                                | Obtiene el perfil del usuario autenticado                  | Usuario autenticado                                             |
 | GET    | /api/common/cities                                                                                                                          | Obtiene las ciudades activas del sistema                   | Usuario autenticado                                             |
