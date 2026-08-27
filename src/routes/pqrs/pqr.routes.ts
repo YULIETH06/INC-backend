@@ -23,7 +23,7 @@ const router = Router();
 router.post(
   "/",
   authMiddleware,
-  roleMiddleware(["USER"]),
+  roleMiddleware(["USER", "AGENT"]),
   uploadPqrAttachment.single("file"),
   createPqr
 );
@@ -31,7 +31,7 @@ router.post(
 router.get(
   "/my",
   authMiddleware,
-  roleMiddleware(["USER"]),
+  roleMiddleware(["USER", "AGENT"]),
   getMyPqrs);
 
 router.get(
