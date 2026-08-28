@@ -178,10 +178,10 @@ Funciones implementadas:
 
 # Carga masiva de usuarios
 
-## Endpoint
+## Endpoint protegido para ADMIN
 
 ```http
-POST /api/auth/register/bulk
+POST /api/users/bulk
 ```
 
 ## Descripción
@@ -190,7 +190,23 @@ Endpoint encargado de registrar usuarios mediante carga masiva desde un archivo 
 
 Esta funcionalidad permite subir un archivo con varios usuarios y procesarlos de forma automática. El sistema lee el archivo, valida la información de cada fila y registra los usuarios en la base de datos.
 
-En esta carga masiva, el administrador puede definir el rol de cada usuario mediante la columna `role`.
+En esta carga masiva, el administrador puede definir el rol de cada usuario mediante la columna `rol`.
+
+La operación pertenece al módulo de usuarios y requiere que el usuario autenticado tenga rol `ADMIN`.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
 
 ---
 
@@ -216,7 +232,7 @@ nombre | correo | contraseña | rol
 
 ### Ejemplo
 
-| name       | email                                   | contraseña | rol   |
+| nombre     | correo                                  | contraseña | rol   |
 | ---------- | --------------------------------------- | ---------- | ----- |
 | Juan Pérez | [juan@gmail.com](mailto:juan@gmail.com) | 123456     | USER  |
 | Ana María  | [ana@gmail.com](mailto:ana@gmail.com)   | 123456     | AGENT |
@@ -236,7 +252,7 @@ nombre | correo | contraseña | rol
 
 ```txt
 Método: POST
-URL: http://localhost:4000/api/auth/register/bulk
+URL: http://localhost:4000/api/users/bulk
 Body: form-data
 Key: file
 Type: File
@@ -358,7 +374,7 @@ AGENT
 
 ```json
 {
-  "message": "El archivo Excel no tiene las columnas requeridas: role. Las columnas obligatorias son: name, email, password y role."
+  "message": "El archivo Excel no tiene las columnas requeridas: rol. Las columnas obligatorias son: nombre, correo, contraseña y rol."
 }
 ```
 
@@ -405,7 +421,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "name",
+    "column": "nombre",
     "message": "El nombre solo puede contener letras"
   }
 ]
@@ -420,7 +436,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "email",
+    "column": "correo",
     "message": "El correo electrónico no tiene un formato válido"
   }
 ]
@@ -435,7 +451,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "role",
+    "column": "rol",
     "message": "Rol no válido. Los roles permitidos son USER, ADMIN y AGENT"
   }
 ]
@@ -450,7 +466,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "email",
+    "column": "correo",
     "message": "Correo duplicado dentro del archivo"
   }
 ]
@@ -465,7 +481,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "email",
+    "column": "correo",
     "message": "El usuario ya existe"
   }
 ]
@@ -480,7 +496,7 @@ AGENT
 "totalErrors": 1,
 "errors": [
   {
-    "column": "password",
+    "column": "contraseña",
     "message": "La contraseña debe tener mínimo 6 caracteres"
   }
 ]
@@ -983,7 +999,7 @@ Content-Type: application/json
 ## Endpoint
 
 ```http
-POST /api/users/login
+POST /api/auth/login
 ```
 
 ## Descripción

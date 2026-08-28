@@ -5,15 +5,19 @@ import {
 import {
   getUsers,
   getAgents,
-  loginUser,
   updateUserRole,
   resetUserPassword,
   uploadUserSignatureController,
 } from "../../controllers/users/user.controller.js";
 
 import {
+  registerUsersBulk,
+} from "../../controllers/users/userBulk.controller.js";
+
+import {
   authMiddleware,
   roleMiddleware,
+  uploadExcel,
   uploadUserSignature,
 } from "../../middlewares/index.js";
 
@@ -31,6 +35,16 @@ router.get(
   authMiddleware,
   roleMiddleware(["ADMIN"]),
   getAgents
+);
+
+// Registra usuarios mediante carga masiva desde archivo Excel.
+// Esta operación pertenece a la administración de usuarios.
+router.post(
+  "/bulk",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  uploadExcel.single("file"),
+  registerUsersBulk
 );
 
 router.patch(
@@ -53,11 +67,6 @@ router.patch(
   authMiddleware,
   uploadUserSignature.single("signature"),
   uploadUserSignatureController
-);
-
-router.post(
-  "/login",
-  loginUser
 );
 
 export default router;

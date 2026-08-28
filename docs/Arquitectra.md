@@ -94,7 +94,8 @@ src/
 │   │
 │   └── users/
 │       ├── profile.controller.ts
-│       └── user.controller.ts
+│       ├── user.controller.ts
+│       └── userBulk.controller.ts
 │
 ├── interfaces/
 │   │
@@ -119,6 +120,9 @@ src/
 │   ├── pqrs/
 │   │   ├── pqr.interface.ts
 │   │   └── pqrMessage.interface.ts
+│   │
+│   ├── users/
+│   │   └── userBulk.interface.ts
 │   │
 │   └── sockets/
 │       └── socket.interface.ts
@@ -214,7 +218,8 @@ src/
 │   │   └── pqrMessage.service.ts
 │   │
 │   └── users/
-│       └── user.service.ts
+│       ├── user.service.ts
+│       └── userBulk.service.ts
 │
 ├── sockets/
 │   ├── notifications/

@@ -23,12 +23,16 @@ export const getAllUsersService = async () => {
     return users;
 };
 
+// Consulta la existencia de un usuario mediante su identificador.
 export const getUserByIdService = async (
     id: number
 ) => {
     const user = await prisma.user.findUnique({
         where: {
             id,
+        },
+        select: {
+            id: true,
         },
     });
 

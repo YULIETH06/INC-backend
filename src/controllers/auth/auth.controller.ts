@@ -1,4 +1,7 @@
-import type { Request, Response } from "express";
+import type {
+  Request,
+  Response,
+} from "express";
 
 import type {
   AuthRequest,
@@ -6,19 +9,24 @@ import type {
 
 import {
   changePasswordService,
-  registerUsersBulkService,
+  loginUserService,
   registerUserService,
 } from "../../services/auth/auth.service.js";
 
+// Registra un usuario individual.
 export const registerUser = async (
   req: Request,
   res: Response
 ) => {
   try {
-    const user = await registerUserService(req.body);
+    const user =
+      await registerUserService(
+        req.body
+      );
 
     return res.status(201).json({
-      message: "Usuario registrado correctamente",
+      message:
+        "Usuario registrado correctamente",
       user,
     });
   } catch (error) {
@@ -29,41 +37,60 @@ export const registerUser = async (
     }
 
     return res.status(500).json({
-      message: "Error al registrar usuario",
+      message:
+        "Error al registrar usuario",
     });
   }
 };
 
-// Permite registrar usuarios mediante carga masiva.
-export const registerUsersBulk = async (
+// Autentica un usuario y genera su token de acceso.
+export const loginUser = async (
   req: Request,
   res: Response
 ) => {
   try {
-    if (!req.file) {
+    const {
+      email,
+      password,
+    } = req.body;
+
+    // Valida los campos obligatorios.
+    if (!email || !password) {
       return res.status(400).json({
-        message: "Debe subir un archivo Excel",
+        message:
+          "Email y contraseña son obligatorios",
       });
     }
 
-    const result = await registerUsersBulkService(req.file.buffer);
+    const {
+      token,
+      user,
+    } = await loginUserService(
+      email,
+      password
+    );
 
-    return res.status(201).json({
-      message: "Carga masiva procesada correctamente",
-      result,
+    return res.status(200).json({
+      message: "Login exitoso",
+      token,
+      user,
     });
   } catch (error) {
-    // Muestra el error real en consola.
-    console.log("Error carga masiva:", error);
-
-    if (error instanceof Error) {
+    // Las credenciales incorrectas corresponden
+    // a un error de autenticación del usuario.
+    if (
+      error instanceof Error &&
+      error.message ===
+      "Credenciales inválidas"
+    ) {
       return res.status(400).json({
         message: error.message,
       });
     }
 
     return res.status(500).json({
-      message: "Error al procesar la carga masiva de usuarios",
+      message:
+        "Error en el login",
     });
   }
 };
@@ -77,22 +104,28 @@ export const changePassword = async (
     // Valida que exista un usuario autenticado.
     if (!req.user) {
       return res.status(401).json({
-        message: "Usuario no autenticado",
+        message:
+          "Usuario no autenticado",
       });
     }
 
     const currentPassword =
-      typeof req.body.currentPassword === "string"
+      typeof req.body.currentPassword ===
+        "string"
         ? req.body.currentPassword.trim()
         : "";
 
     const newPassword =
-      typeof req.body.newPassword === "string"
+      typeof req.body.newPassword ===
+        "string"
         ? req.body.newPassword.trim()
         : "";
 
     // Valida los campos obligatorios.
-    if (!currentPassword || !newPassword) {
+    if (
+      !currentPassword ||
+      !newPassword
+    ) {
       return res.status(400).json({
         message:
           "La contraseña actual y la nueva contraseña son obligatorias",
@@ -115,7 +148,8 @@ export const changePassword = async (
     );
 
     return res.status(200).json({
-      message: "Contraseña actualizada correctamente",
+      message:
+        "Contraseña actualizada correctamente",
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -125,7 +159,8 @@ export const changePassword = async (
     }
 
     return res.status(500).json({
-      message: "Error al cambiar la contraseña",
+      message:
+        "Error al cambiar la contraseña",
     });
   }
 };
