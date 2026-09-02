@@ -58,7 +58,7 @@ router.patch(
 router.patch(
   "/:id/rate",
   authMiddleware,
-  roleMiddleware(["USER"]),
+  roleMiddleware(["USER", "AGENT"]),
   ratePqrController
 );
 

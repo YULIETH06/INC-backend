@@ -1299,6 +1299,13 @@ Si el usuario adjunta una imagen o documento al momento de crear la PQR, ese arc
 
 ---
 
+## Acceso permitido
+
+* USER
+* AGENT
+
+---
+
 ## Tipos de envío permitidos
 
 Este endpoint puede recibir la información de dos formas:
@@ -1341,7 +1348,7 @@ multipart/form-data
 
 ---
 
-# Tipos de caso disponibles
+## Tipos de caso disponibles
 
 ```txt
 SAP
@@ -1389,7 +1396,7 @@ Tamaño máximo permitido:
 
 ## Notificación automática
 
-Cuando un usuario crea una nueva PQR, el sistema genera automáticamente una notificación para los usuarios con rol `ADMIN` y `AGENT`.
+Cuando un usuario con rol `USER` o `AGENT` crea una nueva PQR, el sistema genera automáticamente una notificación para los usuarios con rol `ADMIN` y `AGENT`.
 
 | Destinatario | Tipo    | Mensaje                                             |
 | ------------ | ------- | --------------------------------------------------- |
@@ -1533,6 +1540,13 @@ GET /api/pqrs/my
 ## Descripción
 
 Endpoint privado encargado de obtener las PQR registradas por el usuario autenticado.
+
+---
+
+## Acceso permitido
+
+* USER
+* AGENT
 
 ---
 
@@ -1738,7 +1752,7 @@ Cuando un agente toma una PQR disponible, el sistema genera automáticamente dos
 | Destinatario         | Tipo      | Mensaje                                                                                  |
 | -------------------- | --------- | ---------------------------------------------------------------------------------------- |
 | ADMIN                | PQR_TAKEN | Carlos Agente (carlos@gmail.com) tomó la PQR #10 creada por Juan Pérez (juan@gmail.com). |
-| USER dueño de la PQR | PQR_TAKEN | Tu solicitud #10 ya fue tomada por un agente.                                            |
+| creador de la PQR | PQR_TAKEN | Tu solicitud #10 ya fue tomada por un agente.                                            |
 
 Tomar una PQR no cambia automáticamente el estado de la solicitud. Solo se actualiza el campo `assignedToId`.
 
@@ -1844,7 +1858,7 @@ Cuando un ADMIN asigna o reasigna una PQR, el sistema genera notificaciones seg�
 | Destinatario         | Tipo         | Mensaje                                       |
 | -------------------- | ------------ | --------------------------------------------- |
 | AGENT asignado       | PQR_ASSIGNED | Se te asignó la PQR #10.                      |
-| USER dueño de la PQR | PQR_TAKEN    | Tu solicitud #10 ya fue tomada por un agente. |
+| creador de la PQR | PQR_TAKEN    | Tu solicitud #10 ya fue tomada por un agente. |
 
 ### Reasignación a otro agente
 
@@ -2221,7 +2235,7 @@ Cuando una PQR cambia a estado `CERRADA`, el sistema genera automáticamente una
 
 | Destinatario         | Tipo       | Mensaje                                                                |
 | -------------------- | ---------- | ---------------------------------------------------------------------- |
-| USER dueño de la PQR | PQR_CLOSED | Tu solicitud #10 fue cerrada. Por favor califica la atención recibida. |
+| creador de la PQR | PQR_CLOSED | Tu solicitud #10 fue cerrada. Por favor califica la atención recibida. |
 
 La notificación solo se genera cuando la PQR pasa a estado `CERRADA`.
 
@@ -2486,9 +2500,12 @@ Authorization: Bearer TOKEN
 
 ## Acceso permitido
 
-* USER dueño de la PQR.
+* USER creador de la PQR.
+* AGENT creador de la PQR.
 * AGENT asignado a la PQR.
-* ADMIN según reglas del sistema.
+* ADMIN.
+
+La autorización se basa en la relación del usuario con la PQR. Un `AGENT` puede acceder tanto a una PQR creada por él como a una PQR que tenga asignada.
 
 ---
 
@@ -2609,21 +2626,11 @@ Si el mensaje tiene un archivo, se devuelve dentro del arreglo `attachments`.
 
 ---
 
-## Respuesta si el USER no es dueño de la PQR
+## Respuesta si el usuario no tiene acceso a la PQR
 
 ```json
 {
-  "message": "Solo puedes ver los mensajes de tus PQR"
-}
-```
-
----
-
-## Respuesta si el AGENT no tiene asignada la PQR
-
-```json
-{
-  "message": "Solo puedes ver los mensajes de las PQR asignadas a ti"
+  "message": "No tienes permiso para ver los mensajes de esta PQR"
 }
 ```
 
@@ -2648,16 +2655,19 @@ Este endpoint se utiliza cuando el usuario o agente abre el chat de una PQR. El 
 ## Header requerido
 
 ```http
-Authorization: Bearer TOKEN_ADMIN
+Authorization: Bearer TOKEN
 ```
 
 ---
 
 ## Acceso permitido
 
-* USER dueño de la PQR.
+* USER creador de la PQR.
+* AGENT creador de la PQR.
 * AGENT asignado a la PQR.
-* ADMIN según reglas del sistema.
+* ADMIN.
+
+La autorización se basa en la relación del usuario con la PQR. Un `AGENT` puede acceder tanto a una PQR creada por él como a una PQR que tenga asignada.
 
 ---
 
@@ -2709,21 +2719,11 @@ Authorization: Bearer TOKEN_ADMIN
 
 ---
 
-##  Respuesta si el USER no es dueño de la PQR
+## Respuesta si el usuario no tiene acceso a la PQR
 
 ```json
 {
-   "message":  "Solo puedes marcar como leído el chat de tus PQR"
-}
-```
-
-----
-
-##  Respuesta si el AGENT no tiene asignada la PQR
-
-```json
-{
-   "message": "Solo puedes marcar como leído el chat de las PQR asignadas a ti"
+   "message": "No tienes permiso para marcar como leído el chat de esta PQR"
 }
 ```
 
@@ -2779,9 +2779,12 @@ No se debe agregar manualmente el header `Content-Type`, ya que Postman o el fro
 
 ## Acceso permitido
 
-* USER dueño de la PQR.
+* USER creador de la PQR.
+* AGENT creador de la PQR.
 * AGENT asignado a la PQR.
-* ADMIN según reglas del sistema.
+* ADMIN.
+
+La autorización se basa en la relación del usuario con la PQR. Un `AGENT` puede acceder tanto a una PQR creada por él como a una PQR que tenga asignada.
 
 ---
 
@@ -2982,21 +2985,11 @@ form-data
 
 ---
 
-## Respuesta si el USER no es dueño de la PQR
+## Respuesta si el usuario no tiene acceso a la PQR
 
 ```json
 {
-  "message": "Solo puedes enviar mensajes en las PQR creadas por ti"
-}
-```
-
----
-
-## Respuesta si el AGENT no tiene asignada la PQR
-
-```json
-{
-  "message": "Solo puedes enviar mensajes en las PQR asignadas a ti"
+  "message": "No tienes permiso para enviar mensajes en esta PQR"
 }
 ```
 
@@ -3004,7 +2997,7 @@ form-data
 
 # Calificar una PQR cerrada
 
-## Endpoint protegido para USER
+## Endpoint protegido para USER / AGENT
 
 ```http
 PATCH /api/pqrs/:id/rate
@@ -3018,7 +3011,9 @@ PATCH /api/pqrs/1/rate
 
 ## Descripción
 
-Endpoint privado encargado de permitir que un usuario califique una PQR creada por él, siempre que la PQR se encuentre en estado `CERRADA`.
+Endpoint privado encargado de permitir que el creador de una PQR la califique, siempre que la PQR se encuentre en estado `CERRADA`.
+
+La autorización se valida por propiedad (`pqr.userId === usuarioAutenticado.id`) y no únicamente por rol. Por esta razón, tanto un `USER` como un `AGENT` pueden calificar una PQR creada por ellos. Un `AGENT` asignado a una PQR ajena no puede calificarla por el solo hecho de estar asignado.
 
 Esta ruta permite registrar una calificación del servicio recibido y, de manera opcional, un comentario sobre la atención brindada.
 
@@ -3027,7 +3022,7 @@ Esta ruta permite registrar una calificación del servicio recibido y, de manera
 ## Header requerido
 
 ```http
-Authorization: Bearer TOKEN_USER
+Authorization: Bearer TOKEN
 Content-Type: application/json
 ```
 
@@ -3035,8 +3030,15 @@ Content-Type: application/json
 
 ## Acceso permitido
 
-* USER
-  
+* USER creador de la PQR.
+* AGENT creador de la PQR.
+
+No tienen permiso para calificar:
+
+* AGENT asignado que no sea el creador.
+* ADMIN que no sea el creador.
+* Cualquier otro usuario que no sea propietario de la PQR.
+
 ---
 
 ## Parámetros
@@ -10384,8 +10386,8 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | GET    | /api/profile                                                                                                                                | Obtiene el perfil del usuario autenticado                  | Usuario autenticado                                             |
 | GET    | /api/common/cities                                                                                                                          | Obtiene las ciudades activas del sistema                   | Usuario autenticado                                             |
 | GET    | /api/common/identification-types                                                                                                            | Obtiene los tipos de identificación activos                | Usuario autenticado                                             |
-| POST   | /api/pqrs                                                                                                                                   | Crea una nueva PQR                                         | USER / ADMIN                                                    |
-| GET    | /api/pqrs/my                                                                                                                                | Obtiene las PQR del usuario autenticado                    | USER / ADMIN                                                    |
+| POST   | /api/pqrs                                                                                                                                   | Crea una nueva PQR                                         | USER / AGENT                                                    |
+| GET    | /api/pqrs/my                                                                                                                                | Obtiene las PQR creadas por el usuario autenticado         | USER / AGENT                                                    |
 | GET    | /api/pqrs                                                                                                                                   | Obtiene todas las PQR del sistema                          | ADMIN                                                           |
 | GET    | /api/pqrs/available                                                                                                                         | Obtiene las PQR pendientes sin responsable                 | ADMIN / AGENT                                                   |
 | GET    | /api/pqrs/assigned/my                                                                                                                       | Obtiene las PQR asignadas al AGENT autenticado             | ADMIN / AGENT                                                   |
@@ -10397,7 +10399,7 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | GET    | /api/pqrs/:id/messages                                                                                                                      | Obtiene el historial de mensajes de una PQR                | USER / AGENT / ADMIN                                            |
 | PATCH  | /api/pqrs/:id/messages/read                                                                                                                 | Marca como leído el chat de una PQR                        | USER / AGENT / ADMIN                                            |
 | POST   | /api/pqrs/:id/messages/attachment                                                                                                           | Envía un mensaje con imagen o documento adjunto en una PQR | USER / AGENT / ADMIN                                            |
-| PATCH  | /api/pqrs/:id/rate                                                                                                                          | Permite calificar una PQR cerrada                          | USER                                                            |
+| PATCH  | /api/pqrs/:id/rate                                                                                                                          | Permite al creador calificar una PQR cerrada               | USER / AGENT                                                            |
 | GET    | /api/notifications                                                                                                                          | Obtiene las notificaciones del usuario autenticado         | USER / ADMIN / AGENT                                            |
 | GET    | /api/notifications/unread-count                                                                                                             | Obtiene la cantidad de notificaciones no leídas            | USER / ADMIN / AGENT                                            |
 | PATCH  | /api/notifications/:id/read                                                                                                                 | Marca una notificación como leída                          | USER / ADMIN / AGENT                                            |
@@ -10443,9 +10445,9 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | Evento           | Descripción                                                           | Uso     |
 | ---------------- | --------------------------------------------------------------------- | ------- |
 | connection       | Conecta un usuario autenticado al socket                              | Backend |
-| join_pqr         | Une al usuario a la sala de una PQR                                   | Cliente |
+| join_pqr         | Une al usuario a la sala si es creador, AGENT asignado o ADMIN         | Cliente |
 | joined_pqr       | Confirma que el usuario ingresó al chat                               | Backend |
-| send_pqr_message | Envía un mensaje dentro de una PQR                                    | Cliente |
+| send_pqr_message | Envía un mensaje si el usuario tiene acceso y la PQR no está cerrada  | Cliente |
 | new_pqr_message  | Recibe un nuevo mensaje de texto o con archivo adjunto en tiempo real | Backend |
 | socket_error     | Informa errores de autenticación, permisos o validación               | Backend |
 | disconnect       | Detecta la desconexión del usuario                                    | Backend |
@@ -10458,11 +10460,11 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 
 | Acción                          | Quién ejecuta | Quién recibe                          | Tipo de notificación          |
 | ------------------------------- | ------------- | ------------------------------------- | ----------------------------- |
-| Crear una PQR                   | USER          | ADMIN y AGENT                         | NEW_PQR                       |
-| Tomar una PQR                   | AGENT         | ADMIN y USER dueño de la PQR          | PQR_TAKEN                     |
-| Cerrar una PQR                  | ADMIN o AGENT | USER dueño de la PQR                  | PQR_CLOSED                    |
-| Calificar una PQR               | USER          | ADMIN y AGENT asignado                | PQR_RATED                     |
-| Asignar una PQR por primera vez | ADMIN         | AGENT asignado y USER dueño de la PQR | PQR_ASSIGNED / PQR_TAKEN      |
+| Crear una PQR                   | USER o AGENT  | ADMIN y AGENT                         | NEW_PQR                       |
+| Tomar una PQR                   | AGENT         | ADMIN y creador de la PQR             | PQR_TAKEN                     |
+| Cerrar una PQR                  | ADMIN o AGENT | Creador de la PQR                     | PQR_CLOSED                    |
+| Calificar una PQR               | USER o AGENT  | ADMIN y AGENT asignado                | PQR_RATED                     |
+| Asignar una PQR por primera vez | ADMIN         | AGENT asignado y creador de la PQR    | PQR_ASSIGNED / PQR_TAKEN      |
 | Reasignar una PQR               | ADMIN         | Nuevo AGENT y AGENT anterior          | PQR_ASSIGNED / PQR_UNASSIGNED |
 | Desasignar una PQR              | ADMIN         | AGENT retirado                        | PQR_UNASSIGNED                |
 

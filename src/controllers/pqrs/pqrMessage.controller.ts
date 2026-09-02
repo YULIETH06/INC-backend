@@ -148,10 +148,15 @@ export const createPqrMessageWithAttachmentController = async (
             });
 
             if (pqr) {
-                const receiverIds = [pqr.userId, pqr.assignedToId].filter(
-                    (receiverId): receiverId is number =>
-                        Boolean(receiverId) && receiverId !== req.user!.id
-                );
+                const receiverIds = [
+                    ...new Set(
+                        [pqr.userId, pqr.assignedToId].filter(
+                            (receiverId): receiverId is number =>
+                                Boolean(receiverId) &&
+                                receiverId !== req.user!.id
+                        )
+                    ),
+                ];
 
                 await Promise.all(
                     receiverIds.map((receiverId) =>

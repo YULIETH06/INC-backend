@@ -26,15 +26,38 @@ const validatePqrAccess = async (
         throw new Error("No se pueden enviar mensajes en una PQR cerrada");
     }
 
-    if (userRole === "USER" && pqr.userId !== userId) {
-        throw new Error("Solo puedes enviar mensajes en las PQR creadas por ti");
-    }
-
-    if (userRole === "AGENT" && pqr.assignedToId !== userId) {
-        throw new Error("Solo puedes enviar mensajes en las PQR asignadas a ti");
+    if (!canAccessPqrChat(pqr, userId, userRole)) {
+        throw new Error("No tienes permiso para enviar mensajes en esta PQR");
     }
 
     return pqr;
+};
+
+// Valida si el usuario tiene acceso al chat de una PQR.
+const canAccessPqrChat = (
+    pqr: {
+        userId: number;
+        assignedToId: number | null;
+    },
+    userId: number,
+    userRole: Role
+) => {
+    // ADMIN tiene acceso administrativo.
+    if (userRole === "ADMIN") {
+        return true;
+    }
+
+    // Cualquier usuario autenticado puede acceder a una PQR creada por él.
+    if (pqr.userId === userId) {
+        return true;
+    }
+
+    // Un AGENT también puede acceder si la PQR está asignada a él.
+    if (userRole === "AGENT" && pqr.assignedToId === userId) {
+        return true;
+    }
+
+    return false;
 };
 
 // Crea un mensaje de texto dentro de una PQR.
@@ -139,12 +162,8 @@ export const getPqrMessagesService = async (
         throw new Error("La PQR no existe");
     }
 
-    if (userRole === "USER" && pqr.userId !== userId) {
-        throw new Error("Solo puedes ver los mensajes de tus PQR");
-    }
-
-    if (userRole === "AGENT" && pqr.assignedToId !== userId) {
-        throw new Error("Solo puedes ver los mensajes de las PQR asignadas a ti");
+    if (!canAccessPqrChat(pqr, userId, userRole)) {
+        throw new Error("No tienes permiso para ver los mensajes de esta PQR");
     }
 
     const messages = await prisma.pqrMessage.findMany({
@@ -186,12 +205,10 @@ export const markPqrChatAsReadService = async (
         throw new Error("La PQR no existe");
     }
 
-    if (userRole === "USER" && pqr.userId !== userId) {
-        throw new Error("Solo puedes marcar como leído el chat de tus PQR");
-    }
-
-    if (userRole === "AGENT" && pqr.assignedToId !== userId) {
-        throw new Error("Solo puedes marcar como leído el chat de las PQR asignadas a ti");
+    if (!canAccessPqrChat(pqr, userId, userRole)) {
+        throw new Error(
+            "No tienes permiso para marcar como leído el chat de esta PQR"
+        );
     }
 
     const chatRead = await prisma.pqrChatRead.upsert({
