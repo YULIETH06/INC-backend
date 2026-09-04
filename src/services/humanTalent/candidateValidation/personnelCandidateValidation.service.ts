@@ -13,14 +13,16 @@ import type {
 import {
     validatePersonnelCandidateManager,
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
-import { validatePersonnelCandidateValidationAccess } from "../../../helpers/humanTalent/candidateValidation/personnelCandidateValidationAccess.helper.js";
+
+import {
+    validatePersonnelCandidateValidationAccess,
+} from "../../../helpers/humanTalent/candidateValidation/personnelCandidateValidationAccess.helper.js";
 
 // Inicia la validación de cargo y postulante.
 export const createPersonnelCandidateValidationService = async (
     data: CreatePersonnelCandidateValidationData,
     authenticatedUser: PersonnelCandidateAuthenticatedUser
 ) => {
-
     await validatePersonnelCandidateManager(
         prisma,
         authenticatedUser.id
@@ -30,10 +32,9 @@ export const createPersonnelCandidateValidationService = async (
         await prisma.personnelRequisitionCandidate.findFirst({
             where: {
                 id: data.candidateId,
-
+                isPreselected: true,
                 requisition: {
                     status: "APROBADA",
-                    candidateSubmissionStatus: "CERRADA",
                 },
             },
             select: {
@@ -51,7 +52,7 @@ export const createPersonnelCandidateValidationService = async (
 
     if (!candidate) {
         throw new Error(
-            "El candidato no existe o todavía no está disponible para validación"
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
         );
     }
 
@@ -96,6 +97,7 @@ export const updatePersonnelCandidatePositionValidationService = async (
         await prisma.personnelRequisitionCandidate.findFirst({
             where: {
                 id: data.candidateId,
+                isPreselected: true,
                 requisition: {
                     status: "APROBADA",
                 },
@@ -123,7 +125,7 @@ export const updatePersonnelCandidatePositionValidationService = async (
 
     if (!candidate) {
         throw new Error(
-            "El candidato no existe o no está disponible para validación"
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
         );
     }
 
@@ -208,6 +210,7 @@ export const completePersonnelCandidateValidationService = async (
         await prisma.personnelRequisitionCandidate.findFirst({
             where: {
                 id: data.candidateId,
+                isPreselected: true,
                 requisition: {
                     status: "APROBADA",
                 },
@@ -241,7 +244,7 @@ export const completePersonnelCandidateValidationService = async (
 
     if (!candidate) {
         throw new Error(
-            "El candidato no existe o no está disponible para validación"
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
         );
     }
 
@@ -421,7 +424,7 @@ export const completePersonnelCandidateValidationService = async (
     return validation;
 };
 
-// Obtiene los candidatos disponibles para validación de cargo y postulante.
+// Obtiene los candidatos preseleccionados disponibles para validación de cargo y postulante.
 export const getPersonnelCandidateValidationsService = async (
     authenticatedUser: PersonnelCandidateAuthenticatedUser
 ) => {
@@ -435,22 +438,10 @@ export const getPersonnelCandidateValidationsService = async (
     const candidates =
         await prisma.personnelRequisitionCandidate.findMany({
             where: {
+                isPreselected: true,
                 requisition: {
                     status: "APROBADA",
                 },
-                OR: [
-                    {
-                        requisition: {
-                            candidateSubmissionStatus:
-                                "CERRADA",
-                        },
-                    },
-                    {
-                        validation: {
-                            isNot: null,
-                        },
-                    },
-                ],
             },
             select: {
                 id: true,
@@ -536,7 +527,7 @@ export const getPersonnelCandidateValidationsService = async (
     };
 };
 
-// Obtiene el detalle de la validación de un candidato.
+// Obtiene el detalle de la validación de un candidato preseleccionado.
 export const getPersonnelCandidateValidationDetailService = async (
     candidateId: number,
     authenticatedUser: PersonnelCandidateAuthenticatedUser
@@ -552,21 +543,10 @@ export const getPersonnelCandidateValidationDetailService = async (
         await prisma.personnelRequisitionCandidate.findFirst({
             where: {
                 id: candidateId,
+                isPreselected: true,
                 requisition: {
                     status: "APROBADA",
                 },
-                OR: [
-                    {
-                        requisition: {
-                            candidateSubmissionStatus: "CERRADA",
-                        },
-                    },
-                    {
-                        validation: {
-                            isNot: null,
-                        },
-                    },
-                ],
             },
             select: {
                 id: true,
@@ -658,7 +638,7 @@ export const getPersonnelCandidateValidationDetailService = async (
 
     if (!candidate) {
         throw new Error(
-            "El candidato no existe o no está disponible para validación"
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
         );
     }
 
