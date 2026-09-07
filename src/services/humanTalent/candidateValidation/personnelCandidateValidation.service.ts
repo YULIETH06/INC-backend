@@ -167,6 +167,12 @@ export const updatePersonnelCandidatePositionValidationService = async (
         currentRevision?.id ===
         candidate.requisition.positionRevisionId;
 
+    if (!isPositionProfileCurrent) {
+        throw new Error(
+            "El perfil de cargo asociado a esta requisición ya no se encuentra vigente. No es posible guardar la validación de cargo."
+        );
+    }
+
     const validation =
         await prisma.personnelCandidateValidation.update({
             where: {
