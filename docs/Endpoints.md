@@ -10116,12 +10116,438 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 
 ```json
 {
-  "message": "La validación del candidato ya fue completada"
+  "message": "La validación del postulante ya fue completada"
 }
 ```
 
 ---
 
+
+# Guardar Evaluación Técnica
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/candidate-validations/:candidateId/technical-evaluation
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/candidate-validations/15/technical-evaluation
+```
+
+## Descripción
+
+Este endpoint permite registrar las calificaciones de **entrevista** y **examen** de la Fase 4: Evaluación Técnica.
+
+Las notas son diligenciadas por el Auxiliar de Talento Humano y pueden registrarse por separado. Cuando ambas están completas, la evaluación queda pendiente de validación y se notifica al usuario que creó la requisición.
+
+Para iniciar esta fase, el postulante debe haber completado la Fase 3 y haber sido considerado apto para continuar.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+```
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo | Descripción |
+| --------- | ---- | ----------- |
+| `candidateId` | number | Identificador del candidato preseleccionado |
+
+---
+
+## Body
+
+Se puede registrar una calificación:
+
+```json
+{
+  "interviewScore": 4.5
+}
+```
+
+o:
+
+```json
+{
+  "examScore": 4.2
+}
+```
+
+También pueden enviarse ambas:
+
+```json
+{
+  "interviewScore": 4.5,
+  "examScore": 4.2
+}
+```
+
+---
+
+## Campos del body
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `interviewScore` | number | Condicional | Calificación de entrevista entre 0.0 y 5.0 |
+| `examScore` | number | Condicional | Calificación de examen entre 0.0 y 5.0 |
+
+Debe enviarse por lo menos una de las dos calificaciones.
+
+Cada calificación admite máximo un decimal.
+
+---
+
+## Respuesta exitosa — evaluación todavía en registro
+
+```json
+{
+  "message": "Calificación de la Evaluación Técnica guardada correctamente",
+  "evaluation": {
+    "id": 1,
+    "candidateValidationId": 3,
+    "interviewScore": "4.5",
+    "interviewRecordedAt": "2026-09-07T18:30:00.000Z",
+    "examScore": null,
+    "examRecordedAt": null,
+    "status": "EN_REGISTRO",
+    "enteredById": 22,
+    "updatedAt": "2026-09-07T18:30:00.000Z"
+  }
+}
+```
+
+---
+
+## Respuesta exitosa — ambas notas registradas
+
+```json
+{
+  "message": "Evaluación Técnica enviada para aprobación correctamente",
+  "evaluation": {
+    "id": 1,
+    "candidateValidationId": 3,
+    "interviewScore": "4.5",
+    "interviewRecordedAt": "2026-09-07T18:30:00.000Z",
+    "examScore": "4.2",
+    "examRecordedAt": "2026-09-07T18:40:00.000Z",
+    "status": "PENDIENTE_APROBACION",
+    "enteredById": 22,
+    "updatedAt": "2026-09-07T18:40:00.000Z"
+  }
+}
+```
+
+---
+
+## Notificación automática
+
+Cuando existen las dos calificaciones se genera una notificación para el usuario que creó la requisición.
+
+| Destinatario | Tipo |
+| ------------ | ---- |
+| Usuario creador de la requisición | `CANDIDATE_TECHNICAL_EVALUATION_PENDING` |
+
+---
+
+## Respuesta si no se envía ninguna calificación
+
+```json
+{
+  "message": "Debe diligenciar por lo menos una calificación"
+}
+```
+
+---
+
+## Respuesta si la entrevista no está entre 0.0 y 5.0
+
+```json
+{
+  "message": "La calificación de la entrevista debe estar entre 0.0 y 5.0"
+}
+```
+
+---
+
+## Respuesta si el examen no está entre 0.0 y 5.0
+
+```json
+{
+  "message": "La calificación del examen debe estar entre 0.0 y 5.0"
+}
+```
+
+---
+
+## Respuesta si una calificación contiene más de un decimal
+
+```json
+{
+  "message": "La calificación de la entrevista solo puede tener un decimal"
+}
+```
+
+o:
+
+```json
+{
+  "message": "La calificación del examen solo puede tener un decimal"
+}
+```
+
+---
+
+## Respuesta si falta completar la Fase 3
+
+```json
+{
+  "message": "Debe completar primero la validación del postulante"
+}
+```
+
+---
+
+## Respuesta si el postulante no fue aprobado en la Fase 3
+
+```json
+{
+  "message": "El postulante no fue aprobado en la validación del postulante y no puede continuar a la Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si ya fue enviada para aprobación
+
+```json
+{
+  "message": "La Evaluación Técnica ya fue enviada para aprobación y no puede modificarse"
+}
+```
+
+---
+
+## Respuesta si la Fase 4 ya fue completada
+
+```json
+{
+  "message": "La Evaluación Técnica ya fue completada"
+}
+```
+
+---
+
+# Confirmar Evaluación Técnica
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/candidate-validations/15/technical-evaluation/approve
+```
+
+## Descripción
+
+Endpoint privado encargado de confirmar la **Fase 4: Evaluación Técnica**.
+
+Solo puede ejecutar esta acción el usuario que creó la requisición a la que pertenece el candidato.
+
+Para confirmar la fase, la Evaluación Técnica debe encontrarse en:
+
+```txt
+status: PENDIENTE_APROBACION
+completedStep: 3
+```
+
+y deben existir las dos calificaciones.
+
+El usuario creador decide si el postulante es apto para continuar.
+
+Al confirmar, el backend registra automáticamente:
+
+```txt
+isSuitable
+approvedById
+approvedAt
+status: APROBADA
+completedStep: 4
+```
+
+> `status: APROBADA` significa que la Evaluación Técnica fue revisada y confirmada. No significa necesariamente que el postulante sea apto. Si `isSuitable` queda en `false`, la Fase 4 se considera terminada, pero el postulante no debe avanzar a la Fase 5.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+Usuario autenticado que creó la requisición.
+```
+
+---
+
+## Body — postulante apto
+
+```json
+{
+  "isSuitable": true
+}
+```
+
+## Body — postulante no apto
+
+```json
+{
+  "isSuitable": false
+}
+```
+
+---
+
+## Respuesta exitosa — apto
+
+```json
+{
+  "message": "Evaluación Técnica aprobada. El postulante puede continuar el proceso.",
+  "evaluation": {
+    "id": 1,
+    "candidateValidationId": 3,
+    "interviewScore": "4.5",
+    "interviewRecordedAt": "2026-09-07T18:30:00.000Z",
+    "examScore": "4.2",
+    "examRecordedAt": "2026-09-07T18:40:00.000Z",
+    "status": "APROBADA",
+    "isSuitable": true,
+    "enteredById": 22,
+    "approvedById": 5,
+    "approvedAt": "2026-09-07T19:00:00.000Z",
+    "approvedBy": {
+      "id": 5,
+      "name": "Usuario creador de la requisición"
+    }
+  },
+  "validation": {
+    "id": 3,
+    "completedStep": 4
+  }
+}
+```
+
+---
+
+## Respuesta exitosa — no apto
+
+```json
+{
+  "message": "Evaluación Técnica finalizada. El postulante no continuará el proceso.",
+  "evaluation": {
+    "id": 1,
+    "candidateValidationId": 3,
+    "interviewScore": "4.5",
+    "examScore": "4.2",
+    "status": "APROBADA",
+    "isSuitable": false,
+    "approvedById": 5,
+    "approvedAt": "2026-09-07T19:00:00.000Z"
+  },
+  "validation": {
+    "id": 3,
+    "completedStep": 4
+  }
+}
+```
+
+---
+
+## Respuesta si no se indica si es apto
+
+```json
+{
+  "message": "Debe indicar si el postulante es apto para continuar el proceso"
+}
+```
+
+---
+
+## Respuesta si el usuario no es el creador de la requisición
+
+```json
+{
+  "message": "Solo el usuario que creó la requisición puede validar la Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Evaluación Técnica no está disponible en la etapa actual
+
+```json
+{
+  "message": "La Evaluación Técnica no está disponible en la etapa actual"
+}
+```
+
+---
+
+## Respuesta si todavía no ha sido diligenciada
+
+```json
+{
+  "message": "La Evaluación Técnica todavía no ha sido diligenciada"
+}
+```
+
+---
+
+## Respuesta si todavía no está lista para validación
+
+```json
+{
+  "message": "La Evaluación Técnica todavía no está lista para validación"
+}
+```
+
+---
+
+## Respuesta si faltan calificaciones
+
+```json
+{
+  "message": "La entrevista y el examen deben estar calificados antes de continuar"
+}
+```
+
+---
 
 # Obtener candidatos disponibles para validación
 
@@ -10159,18 +10585,29 @@ ADMIN                       → canManageValidation: false
 
 ## Estados calculados
 
+El sistema utiliza estos estados para identificar en qué punto se encuentra la validación del postulante:
+
 ```txt
-validation: null
-→ SIN_INICIAR
+SIN_INICIAR
+→ Todavía no ha comenzado la validación.
 
-completedStep: 1
-→ CONCEPTO_APLICACION_COMPLETADO
+CONCEPTO_APLICACION_COMPLETADO
+→ Fase 1 completada.
 
-completedStep: 2
-→ VALIDACION_CARGO_COMPLETADA
+VALIDACION_CARGO_COMPLETADA
+→ Fase 2 completada.
 
-completedStep: 3
-→ VALIDACION_COMPLETADA
+VALIDACION_COMPLETADA
+→ Fase 3 completada.
+
+EVALUACION_TECNICA_EN_REGISTRO
+→ La Fase 4 comenzó, pero todavía falta registrar alguna calificación.
+
+EVALUACION_TECNICA_PENDIENTE_APROBACION
+→ Las calificaciones de entrevista y examen están completas y esperan la confirmación del creador de la requisición.
+
+EVALUACION_TECNICA_COMPLETADA
+→ La Fase 4 fue revisada y confirmada.
 ```
 
 ## Respuesta exitosa
@@ -10208,11 +10645,15 @@ completedStep: 3
         "applicationConcept": "INGRESO",
         "positionType": "CARGO_EXISTENTE",
         "isPositionProfileCurrent": true,
-        "isSuitable": null,
-        "completedStep": 2,
-        "validatedAt": null
+        "isSuitable": true,
+        "completedStep": 3,
+        "validatedAt": "2026-09-07T18:00:00.000Z",
+        "technicalEvaluation": {
+          "status": "PENDIENTE_APROBACION",
+          "isSuitable": null
+        }
       },
-      "validationStatus": "VALIDACION_CARGO_COMPLETADA"
+      "validationStatus": "EVALUACION_TECNICA_PENDIENTE_APROBACION"
     }
   ],
   "canManageValidation": true
@@ -10239,7 +10680,15 @@ GET /api/human-talent/candidate-validations/:candidateId
 
 ## Descripción
 
-Endpoint privado encargado de obtener la información necesaria para abrir el proceso de validación de un candidato seleccionado.
+Este endpoint permite consultar el detalle completo del proceso de validación de un candidato.
+
+La respuesta contiene la información del candidato, la requisición asociada, los requisitos evaluados y los datos registrados en cada fase del proceso.
+
+Cuando la Fase 4 ya fue iniciada, también devuelve las calificaciones de la Evaluación Técnica y su estado actual.
+
+Además, informa si el usuario autenticado puede gestionar la validación o confirmar la Evaluación Técnica.
+
+---
 
 ## Acceso permitido
 
@@ -10249,6 +10698,8 @@ Jefe de Talento Humano
 ADMIN
 ```
 
+---
+
 ## Respuesta exitosa
 
 ```json
@@ -10256,68 +10707,75 @@ ADMIN
   "message": "Detalle de la validación obtenido correctamente",
   "candidate": {
     "id": 15,
-    "requisitionId": 10,
-    "identificationNumber": "1045678901",
     "name": "Carlos Pérez",
-    "identificationType": {
-      "id": 1,
-      "code": "CC",
-      "name": "Cédula de ciudadanía"
-    },
     "requisition": {
       "id": 10,
-      "candidateSubmissionStatus": "CERRADA",
-      "positionRevisionId": 5,
-      "department": {
-        "id": 3,
-        "code": "TECNOLOGIA",
-        "name": "Tecnología"
-      },
       "position": {
         "id": 8,
-        "code": "DPC-TI-001",
         "name": "Técnico de Soporte"
       },
-      "positionRevision": {
+      "createdBy": {
         "id": 5,
-        "revisionNumber": 2,
-        "status": "VIGENTE",
-        "requirementDescriptions": [
-          {
-            "id": 15,
-            "description": "Profesional o tecnólogo en sistemas",
-            "requirement": {
-              "id": 1,
-              "name": "Formación académica"
-            }
-          }
-        ]
+        "name": "Usuario creador de la requisición"
       }
     },
     "validation": {
       "id": 3,
       "applicationConcept": "INGRESO",
       "positionType": "CARGO_EXISTENTE",
-      "changeControlCode": null,
       "isPositionProfileCurrent": true,
-      "isSuitable": null,
-      "completedStep": 2,
-      "validatedAt": null,
-      "performedBy": null,
-      "requirementValidations": []
+      "isSuitable": true,
+      "completedStep": 3,
+      "technicalEvaluation": {
+        "interviewScore": "4.5",
+        "examScore": "4.2",
+        "status": "PENDIENTE_APROBACION",
+        "isSuitable": null,
+        "enteredBy": {
+          "id": 22,
+          "name": "Auxiliar de Talento Humano"
+        },
+        "approvedBy": null,
+        "approvedAt": null
+      }
     }
   },
-  "canManageValidation": true
+  "canManageValidation": false,
+  "canApproveTechnicalEvaluation": true
 }
 ```
+
+Si la Evaluación Técnica todavía no ha iniciado:
+
+```json
+{
+  "technicalEvaluation": null
+}
+```
+
+---
+
+## Permisos devueltos
+
+### `canManageValidation`
+
+Indica si el usuario puede diligenciar las fases correspondientes al Auxiliar de Talento Humano.
+
+### `canApproveTechnicalEvaluation`
+
+Indica si el usuario puede confirmar la Evaluación Técnica.
+
+---
 
 ## Respuesta si el candidato no está disponible
 
 ```json
 {
-  "message": "El candidato no existe o no está disponible para validación"
+  "message": "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
 }
 ```
+
+---
 
 ## Respuesta si el usuario no tiene acceso
 
@@ -10326,46 +10784,6 @@ ADMIN
   "message": "No tienes permisos para consultar las validaciones de candidatos"
 }
 ```
-
----
-
-
-
-# Notas técnicas pendientes
-
-## Separación de responsabilidades entre `auth` y `users`
-
-Actualmente `registerUsersBulkService` se encuentra en:
-
-```txt
-src/services/auth/auth.service.ts
-```
-
-Sin embargo, la carga masiva corresponde funcionalmente a la administración de usuarios y no directamente al proceso de autenticación.
-
-Como mejora futura, se recomienda revisar esta responsabilidad y considerar trasladar la carga masiva a un servicio específico del módulo `users`, por ejemplo:
-
-```txt
-src/services/users/userBulk.service.ts
-```
-
-Esta refactorización queda pendiente para una tarea independiente, con el fin de no modificar durante la implementación del cambio de contraseña una funcionalidad que actualmente se encuentra operativa.
-
----
-
-## Consulta de usuario por identificador
-
-Actualmente `getUserByIdService` consulta el usuario mediante `findUnique` sin un `select` explícito.
-
-Como mejora de seguridad y claridad, se recomienda limitar posteriormente los campos recuperados para evitar que el hash de `password` forme parte innecesariamente del objeto retornado por el servicio.
-
-La corrección debe realizarse en:
-
-```txt
-src/services/users/user.service.ts
-```
-
-Esta mejora queda pendiente para una refactorización posterior y no afecta el funcionamiento actual del cambio de contraseña.
 
 ---
 
@@ -10436,6 +10854,8 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Usuario creador de la requisición                               |
 
 
 ---
@@ -10485,5 +10905,6 @@ Esta mejora queda pendiente para una refactorización posterior y no afecta el f
 | Cerrar cargue de candidatos           | Auxiliar de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_CLOSED            |
 | Reabrir cargue de candidatos          | Auxiliar de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_REOPENED          |
 | Rechazar o cancelar confirmación      | Aprobador actual TH          | Usuario creador            | HIRING_CONFIRMATION_REJECTED             |
+| Completar las dos calificaciones técnicas | Auxiliar de Talento Humano   | Usuario creador            | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
 
 ---

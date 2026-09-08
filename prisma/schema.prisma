@@ -61,6 +61,8 @@ enum NotificationType {
   REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
   REQUISITION_CANDIDATES_CLOSED
   REQUISITION_CANDIDATES_REOPENED
+
+  CANDIDATE_TECHNICAL_EVALUATION_PENDING
 }
 
 enum PqrAttachmentType {
@@ -143,6 +145,12 @@ enum CandidatePositionType {
   CARGO_EXISTENTE
 }
 
+enum CandidateTechnicalEvaluationStatus {
+  EN_REGISTRO
+  PENDIENTE_APROBACION
+  APROBADA
+}
+
 model City {
   id       Int     @id @default(autoincrement())
   name     String
@@ -204,6 +212,10 @@ model User {
   closedCandidateSubmissionBatches PersonnelCandidateSubmissionBatch[] @relation("CandidateSubmissionBatchClosedBy")
 
   performedPersonnelCandidateValidations PersonnelCandidateValidation[] @relation("PerformedPersonnelCandidateValidations")
+
+  enteredPersonnelCandidateTechnicalEvaluations PersonnelCandidateTechnicalEvaluation[] @relation("EnteredPersonnelCandidateTechnicalEvaluations")
+
+  approvedPersonnelCandidateTechnicalEvaluations PersonnelCandidateTechnicalEvaluation[] @relation("ApprovedPersonnelCandidateTechnicalEvaluations")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -623,6 +635,8 @@ model PersonnelCandidateValidation {
 
   requirementValidations PersonnelCandidateRequirementValidation[]
 
+  technicalEvaluation PersonnelCandidateTechnicalEvaluation?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -651,6 +665,38 @@ model PersonnelCandidateRequirementValidation {
   @@unique([candidateValidationId, requirementDescriptionId])
   @@index([candidateValidationId])
   @@index([requirementDescriptionId])
+}
+
+model PersonnelCandidateTechnicalEvaluation {
+  id Int @id @default(autoincrement())
+
+  candidateValidationId Int                          @unique
+  candidateValidation   PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
+
+  interviewScore      Decimal?  @db.Decimal(2, 1)
+  interviewRecordedAt DateTime?
+
+  examScore      Decimal?  @db.Decimal(2, 1)
+  examRecordedAt DateTime?
+
+  status CandidateTechnicalEvaluationStatus @default(EN_REGISTRO)
+
+  enteredById Int
+  enteredBy   User @relation("EnteredPersonnelCandidateTechnicalEvaluations", fields: [enteredById], references: [id], onDelete: Restrict)
+
+  isSuitable Boolean?
+
+  approvedById Int?
+  approvedBy   User? @relation("ApprovedPersonnelCandidateTechnicalEvaluations", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enteredById])
+  @@index([approvedById])
+  @@index([status])
 }
 
 model PersonnelRequisitionApproval {

@@ -30,3 +30,16 @@ export interface CompletePersonnelCandidateValidationData {
     isSuitable: boolean;
     requirementValidations: PersonnelCandidateRequirementValidationData[];
 }
+
+// Datos para registrar las notas de la Evaluación Técnica - Fase 4.
+export interface SavePersonnelCandidateTechnicalEvaluationData {
+    candidateId: number;
+    interviewScore?: number | null;
+    examScore?: number | null;
+}
+
+// Datos para aprobar la Evaluación Técnica - Fase 4.
+export interface ApprovePersonnelCandidateTechnicalEvaluationData {
+    candidateId: number;
+    isSuitable: boolean;
+}

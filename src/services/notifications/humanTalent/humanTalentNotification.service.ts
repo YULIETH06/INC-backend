@@ -197,3 +197,23 @@ export const notifyCandidatesReopenedService = async (
             `para realizar ajustes. Te notificaremos cuando los candidatos estén disponibles nuevamente.`,
     });
 };
+
+// Notifica al creador de la requisición que tiene una Evaluación Técnica pendiente.
+export const notifyCandidateTechnicalEvaluationPendingService = async (
+    userId: number,
+    requisitionId: number,
+    candidateName: string,
+    positionName: string
+) => {
+    return createNotificationService({
+        userId,
+        personnelRequisitionId: requisitionId,
+        type: NotificationType.CANDIDATE_TECHNICAL_EVALUATION_PENDING,
+        title:
+            `Evaluación técnica pendiente - ` +
+            `Requisición #${requisitionId}`,
+        message:
+            `La Evaluación Técnica del postulante ${candidateName} ` +
+            `para el cargo ${positionName} está lista y requiere tu validación.`,
+    });
+};

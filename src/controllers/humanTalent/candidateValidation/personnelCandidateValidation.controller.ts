@@ -7,10 +7,12 @@ import {
 import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
 
 import {
+    approvePersonnelCandidateTechnicalEvaluationService,
     completePersonnelCandidateValidationService,
     createPersonnelCandidateValidationService,
     getPersonnelCandidateValidationDetailService,
     getPersonnelCandidateValidationsService,
+    savePersonnelCandidateTechnicalEvaluationService,
     updatePersonnelCandidatePositionValidationService,
 } from "../../../services/humanTalent/candidateValidation/personnelCandidateValidation.service.js";
 
@@ -291,6 +293,198 @@ export const completePersonnelCandidateValidation = async (
                 error instanceof Error
                     ? error.message
                     : "Error al completar la validación del postulante",
+        });
+    }
+};
+
+// Guarda las calificaciones de la Fase 4 - Evaluación Técnica.
+export const savePersonnelCandidateTechnicalEvaluation = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { candidateId } = req.params;
+        const {
+            interviewScore,
+            examScore,
+        } = req.body;
+
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        if (
+            Number.isNaN(Number(candidateId)) ||
+            Number(candidateId) <= 0
+        ) {
+            return res.status(400).json({
+                message: "El candidato no es válido",
+            });
+        }
+
+        const hasInterviewScore =
+            interviewScore !== undefined &&
+            interviewScore !== null;
+
+        const hasExamScore =
+            examScore !== undefined &&
+            examScore !== null;
+
+        if (
+            !hasInterviewScore &&
+            !hasExamScore
+        ) {
+            return res.status(400).json({
+                message:
+                    "Debe diligenciar por lo menos una calificación",
+            });
+        }
+
+        if (
+            hasInterviewScore &&
+            (
+                typeof interviewScore !== "number" ||
+                !Number.isFinite(interviewScore) ||
+                interviewScore < 0 ||
+                interviewScore > 5
+            )
+        ) {
+            return res.status(400).json({
+                message:
+                    "La calificación de la entrevista debe estar entre 0.0 y 5.0",
+            });
+        }
+
+        if (
+            hasInterviewScore &&
+            Number(interviewScore.toFixed(1)) !==
+            interviewScore
+        ) {
+            return res.status(400).json({
+                message:
+                    "La calificación de la entrevista solo puede tener un decimal",
+            });
+        }
+
+        if (
+            hasExamScore &&
+            (
+                typeof examScore !== "number" ||
+                !Number.isFinite(examScore) ||
+                examScore < 0 ||
+                examScore > 5
+            )
+        ) {
+            return res.status(400).json({
+                message:
+                    "La calificación del examen debe estar entre 0.0 y 5.0",
+            });
+        }
+
+        if (
+            hasExamScore &&
+            Number(examScore.toFixed(1)) !==
+            examScore
+        ) {
+            return res.status(400).json({
+                message:
+                    "La calificación del examen solo puede tener un decimal",
+            });
+        }
+
+        const evaluation =
+            await savePersonnelCandidateTechnicalEvaluationService(
+                {
+                    candidateId:
+                        Number(candidateId),
+
+                    interviewScore:
+                        hasInterviewScore
+                            ? interviewScore
+                            : undefined,
+
+                    examScore:
+                        hasExamScore
+                            ? examScore
+                            : undefined,
+                },
+                req.user
+            );
+
+        return res.status(200).json({
+            message:
+                evaluation.status ===
+                    "PENDIENTE_APROBACION"
+                    ? "Evaluación Técnica enviada para aprobación correctamente"
+                    : "Calificación de la Evaluación Técnica guardada correctamente",
+            evaluation,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al guardar la Evaluación Técnica",
+        });
+    }
+};
+
+// Confirma la Fase 4 - Evaluación Técnica.
+export const approvePersonnelCandidateTechnicalEvaluation = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { candidateId } = req.params;
+        const { isSuitable } = req.body;
+
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        if (
+            Number.isNaN(Number(candidateId)) ||
+            Number(candidateId) <= 0
+        ) {
+            return res.status(400).json({
+                message: "El candidato no es válido",
+            });
+        }
+
+        if (typeof isSuitable !== "boolean") {
+            return res.status(400).json({
+                message:
+                    "Debe indicar si el postulante es apto para continuar el proceso",
+            });
+        }
+
+        const result =
+            await approvePersonnelCandidateTechnicalEvaluationService(
+                {
+                    candidateId:
+                        Number(candidateId),
+                    isSuitable,
+                },
+                req.user
+            );
+
+        return res.status(200).json({
+            message:
+                isSuitable
+                    ? "Evaluación Técnica aprobada. El postulante puede continuar el proceso."
+                    : "Evaluación Técnica finalizada. El postulante no continuará el proceso.",
+            ...result,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al validar la Evaluación Técnica",
         });
     }
 };
