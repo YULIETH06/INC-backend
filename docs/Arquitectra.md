@@ -62,6 +62,10 @@ src/
 │   ├── client.ts
 │   └── socket.ts
 │
+├── constants/
+│   └── humanTalent/
+│       └── personnelRequisition.constants.ts
+│
 ├── controllers/
 │   │
 │   ├── auth/
@@ -251,6 +255,7 @@ src/
 | Carpeta     | Descripción                                                                         |
 | ----------- | ----------------------------------------------------------------------------------- |
 | config      | Configuraciones generales del proyecto, cliente Prisma y configuración de Socket.IO |
+| constants   | Constantes de negocio reutilizables y valores compartidos entre módulos             |
 | controllers | Controladores de las peticiones HTTP, organizados por módulo y proceso              |
 | helpers     | Funciones auxiliares de negocio específicas de cada proceso                         |
 | interfaces  | Interfaces y tipados TypeScript reutilizables                                       |

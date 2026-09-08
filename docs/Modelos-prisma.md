@@ -10,7 +10,7 @@ El sistema está dividido en dos módulos principales:
    - Gestión de solicitudes, mensajes, adjuntos, notificaciones y lectura de chats.
 
 2. **Módulo Talento Humano**
-   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos, historial de cargues, preselección de candidatos y validación de cargo y postulante.
+   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos, historial de cargues, preselección de candidatos, validación de cargo y postulante y evaluación técnica.
 
 ---
 
@@ -58,6 +58,8 @@ Esto permite manejar:
 | preselectedPersonnelRequisitionCandidates | PersonnelRequisitionCandidate[]     | Candidatos cuya preselección fue confirmada por el usuario            |
 | closedCandidateSubmissionBatches       | PersonnelCandidateSubmissionBatch[]   | Cargues de candidatos cerrados por el usuario                         |
 | performedPersonnelCandidateValidations | PersonnelCandidateValidation[]        | Validaciones de candidatos finalizadas por el usuario                 |
+| enteredPersonnelCandidateTechnicalEvaluations | PersonnelCandidateTechnicalEvaluation[] | Evaluaciones técnicas diligenciadas por el usuario                    |
+| approvedPersonnelCandidateTechnicalEvaluations | PersonnelCandidateTechnicalEvaluation[] | Evaluaciones técnicas confirmadas por el usuario                      |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
 
@@ -210,6 +212,7 @@ REQUISITION_CANDIDATES_PENDING
 REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
 REQUISITION_CANDIDATES_CLOSED
 REQUISITION_CANDIDATES_REOPENED
+CANDIDATE_TECHNICAL_EVALUATION_PENDING
 ```
 
 ---
@@ -881,9 +884,9 @@ Estos índices facilitan las consultas por requisición, tipo de identificación
 
 ## Descripción
 
-El modelo `PersonnelCandidateValidation` representa el proceso general de validación de cargo y postulante asociado con un candidato.
+El modelo `PersonnelCandidateValidation` representa el proceso general de validación de cargo y postulante asociado con un candidato preseleccionado.
 
-Cada candidato puede tener como máximo una validación. El registro se crea únicamente al guardar la Fase 1 y conserva el avance mediante `completedStep`.
+Cada candidato puede tener como máximo una validación. El registro se crea al guardar la Fase 1 y conserva el avance general del proceso mediante `completedStep`.
 
 ## Fases
 
@@ -891,7 +894,12 @@ Cada candidato puede tener como máximo una validación. El registro se crea ún
 1 = Concepto de aplicación
 2 = Validación de cargo
 3 = Validación del postulante completada
+4 = Evaluación Técnica confirmada
 ```
+
+`completedStep` representa la última fase completamente finalizada.
+
+En la Fase 4, `completedStep` permanece en `3` mientras las calificaciones están en registro o pendientes de aprobación. Solo cambia a `4` cuando el creador de la requisición confirma la Evaluación Técnica.
 
 ## Campos principales
 
@@ -904,12 +912,13 @@ Cada candidato puede tener como máximo una validación. El registro se crea ún
 | positionType             | CandidatePositionType?                    | Tipo de cargo seleccionado en la Fase 2                                     |
 | changeControlCode        | String?                                   | Código de control de cambio cuando se selecciona `NUEVO_CARGO`              |
 | isPositionProfileCurrent | Boolean?                                  | Indica si la revisión usada en la requisición coincide con la revisión VIGENTE al guardar la Fase 2 |
-| isSuitable               | Boolean?                                  | Resultado final que indica si el postulante es apto                         |
-| performedById            | Int?                                      | Usuario que completó la validación                                          |
-| performedBy              | User?                                     | Relación con el usuario que completó la validación                          |
-| completedStep            | Int                                       | Indica la última fase completada de la validación                           |
+| isSuitable | Boolean? | Indica si el postulante fue considerado apto para continuar después de completar la Fase 3 |
+| performedById            | Int?                                      | Usuario que completó la Fase 3                                              |
+| performedBy              | User?                                     | Relación con el usuario que completó la Fase 3                              |
+| completedStep            | Int                                       | Indica hasta qué fase del proceso de validación ha avanzado el postulante                                        |
 | validatedAt              | DateTime?                                 | Fecha y hora en que se completó la Fase 3                                   |
-| requirementValidations   | PersonnelCandidateRequirementValidation[] | Evaluaciones individuales de las descripciones de requisitos                |
+| requirementValidations | PersonnelCandidateRequirementValidation[] | Contiene el resultado de cumplimiento de cada requisito evaluado durante la Fase 3 |
+| technicalEvaluation | PersonnelCandidateTechnicalEvaluation? | Guarda la información de la Fase 4, incluyendo las calificaciones de entrevista y examen, el estado de la evaluación y la decisión sobre si el postulante puede continuar |
 | createdAt                | DateTime                                  | Fecha de creación                                                           |
 | updatedAt                | DateTime                                  | Fecha de última actualización                                               |
 
@@ -919,7 +928,102 @@ Cada candidato puede tener como máximo una validación. El registro se crea ún
 candidateId Int @unique
 ```
 
-Esta restricción garantiza que un candidato no pueda tener más de una validación.
+Esta restricción garantiza que un candidato no pueda tener más de una validación general.
+
+## Índices
+
+```prisma
+@@index([performedById])
+@@index([completedStep])
+```
+
+Estos índices facilitan las consultas por el usuario que realizó la validación y por la fase alcanzada dentro del proceso.
+
+---
+
+# Modelo PersonnelCandidateTechnicalEvaluation
+
+## Descripción
+
+El modelo `PersonnelCandidateTechnicalEvaluation` almacena la **Fase 4 - Evaluación Técnica** de un candidato.
+
+Cada validación general puede tener como máximo una Evaluación Técnica.
+
+La fase registra de forma independiente:
+
+```txt
+Entrevista
+Examen
+```
+
+Cada calificación puede diligenciarse por separado. La fecha de cada componente se registra automáticamente la primera vez que se guarda su calificación.
+
+Cuando ambas calificaciones se encuentran diligenciadas, la Evaluación Técnica pasa automáticamente a estado:
+
+```txt
+PENDIENTE_APROBACION
+```
+
+y el sistema notifica al usuario que creó la requisición.
+
+El creador de la requisición es quien confirma si el postulante es apto para continuar en el proceso.
+
+## Estados de la Evaluación Técnica
+
+El enum `CandidateTechnicalEvaluationStatus` contiene:
+
+```txt
+EN_REGISTRO
+PENDIENTE_APROBACION
+APROBADA
+```
+
+| Estado                 | Descripción                                                                 |
+| ---------------------- | --------------------------------------------------------------------------- |
+| EN_REGISTRO            | La evaluación está siendo diligenciada y todavía falta al menos una nota    |
+| PENDIENTE_APROBACION   | Entrevista y examen ya fueron calificados y esperan confirmación del creador |
+| APROBADA               | El creador de la requisición revisó y confirmó la Evaluación Técnica         |
+
+> `APROBADA` indica que la Evaluación Técnica fue revisada y confirmada. No significa necesariamente que el candidato sea apto. El campo `isSuitable` puede ser `false` aunque el estado sea `APROBADA`.
+
+## Campos principales
+
+| Campo                  | Tipo                                   | Descripción                                                               |
+| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| id                     | Int                                    | Identificador único de la Evaluación Técnica                              |
+| candidateValidationId  | Int                                    | Identificador de la validación general asociada                           |
+| candidateValidation    | PersonnelCandidateValidation           | Relación con la validación general                                        |
+| interviewScore         | Decimal?                               | Calificación de la entrevista técnica                                     |
+| interviewRecordedAt    | DateTime?                              | Fecha y hora de la primera captura de la calificación de entrevista       |
+| examScore              | Decimal?                               | Calificación del examen técnico                                           |
+| examRecordedAt         | DateTime?                              | Fecha y hora de la primera captura de la calificación del examen          |
+| status                 | CandidateTechnicalEvaluationStatus     | Estado actual de la Evaluación Técnica                                    |
+| enteredById            | Int                                    | Usuario que diligenció las calificaciones                                 |
+| enteredBy              | User                                   | Relación con el usuario que diligenció las calificaciones                 |
+| isSuitable             | Boolean?                               | Decisión del creador sobre si el postulante puede continuar               |
+| approvedById           | Int?                                   | Usuario que confirmó la Evaluación Técnica                                |
+| approvedBy             | User?                                  | Relación con el usuario que confirmó la Evaluación Técnica                |
+| approvedAt             | DateTime?                              | Fecha y hora en que fue confirmada                                        |
+| createdAt              | DateTime                               | Fecha de creación                                                         |
+| updatedAt              | DateTime                               | Fecha de última actualización                                             |
+
+## Restricción única
+
+```prisma
+candidateValidationId Int @unique
+```
+
+Esta restricción garantiza una sola Evaluación Técnica por cada validación de candidato.
+
+## Índices
+
+```prisma
+@@index([enteredById])
+@@index([approvedById])
+@@index([status])
+```
+
+Estos índices facilitan las consultas por el usuario que diligenció la Evaluación Técnica, el usuario que la confirmó y su estado actual.
 
 ---
 
@@ -953,6 +1057,15 @@ Cada registro pertenece a una validación general y a una `PositionRequirementDe
 ```
 
 Esta restricción evita evaluar dos veces la misma descripción dentro de una misma validación.
+
+## Índices
+
+```prisma
+@@index([candidateValidationId])
+@@index([requirementDescriptionId])
+```
+
+Estos índices facilitan las consultas de las evaluaciones por validación de candidato y por descripción del requisito evaluado.
 
 ## Regla de evidencia y cierre de brecha
 

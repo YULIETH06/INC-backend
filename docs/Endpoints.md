@@ -9688,18 +9688,20 @@ POST /api/human-talent/candidate-validations/1
 
 ## Descripción
 
-Endpoint privado encargado de guardar la **Fase 1: Concepto de aplicación** e iniciar formalmente la validación de un candidato.
+Endpoint privado encargado de guardar la **Fase 1: Concepto de aplicación** e iniciar formalmente la validación de un candidato preseleccionado.
 
-Para iniciar el proceso, el candidato debe pertenecer a una requisición que cumpla:
+Para iniciar el proceso, el candidato debe:
 
 ```txt
-status: APROBADA
-candidateSubmissionStatus: CERRADA
+Pertenecer a una requisición en estado APROBADA
+Encontrarse previamente preseleccionado
 ```
+
+El estado actual del cargue de candidatos no condiciona el inicio de la validación.
 
 Solo puede existir una validación por candidato.
 
-Una vez creada la validación, el candidato ya no puede ser actualizado ni eliminado desde el proceso de cargue, incluso si posteriormente se reabre la presentación de candidatos.
+Los candidatos preseleccionados no pueden ser modificados ni eliminados desde el proceso de cargue.
 
 ---
 
@@ -9789,7 +9791,7 @@ MODIFICACION_CARGO
 
 ```json
 {
-  "message": "El candidato no existe o todavía no está disponible para validación"
+  "message": "El candidato no existe, no ha sido preseleccionado o no está disponible para validación"
 }
 ```
 
@@ -9823,14 +9825,11 @@ PATCH /api/human-talent/candidate-validations/1/position
 
 Endpoint privado encargado de guardar la **Fase 2: Validación de cargo**.
 
-La Fase 1 debe existir previamente. El sistema registra el tipo de cargo y calcula automáticamente si la revisión del perfil utilizada por la requisición continúa siendo la revisión vigente del mismo perfil.
+La Fase 1 debe existir previamente. El sistema registra el tipo de cargo y verifica automáticamente que la revisión del perfil utilizada por la requisición continúe siendo la revisión vigente del mismo perfil.
 
-El valor `isPositionProfileCurrent` no se envía desde el frontend.
+La Fase 2 solo puede guardarse cuando la revisión del perfil asociada con la requisición continúa vigente. Si el perfil ya no se encuentra vigente, el proceso se detiene y la fase no se guarda.
 
-```txt
-true  = la revisión usada por la requisición continúa VIGENTE
-false = actualmente existe otra revisión VIGENTE o no se encuentra la misma revisión como vigente
-```
+Una vez el proceso haya avanzado a una fase posterior, la Fase 2 no puede volver a modificarse.
 
 ---
 
@@ -9929,11 +9928,31 @@ Cuando `positionType` es `CARGO_EXISTENTE`, el backend almacena `changeControlCo
 
 ---
 
+## Respuesta si el perfil de cargo ya no se encuentra vigente
+
+```json
+{
+  "message": "El perfil de cargo asociado a esta requisición ya no se encuentra vigente. No es posible guardar la validación de cargo."
+}
+```
+
+---
+
 ## Respuesta si no se completó la Fase 1
 
 ```json
 {
   "message": "Debe completar primero el concepto de aplicación"
+}
+```
+
+---
+
+## Respuesta si la validación de cargo ya no puede modificarse
+
+```json
+{
+  "message": "La validación de cargo ya no puede modificarse porque el proceso avanzó a una fase posterior"
 }
 ```
 
@@ -10102,11 +10121,31 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 
 ---
 
+## Respuesta si la evidencia supera los 1000 caracteres
+
+```json
+{
+  "message": "La evidencia no puede superar los 1000 caracteres"
+}
+```
+
+---
+
 ## Respuesta si falta cierre de brecha cuando no cumple
 
 ```json
 {
   "message": "El cierre de brecha es obligatorio cuando el postulante no cumple el requisito"
+}
+```
+
+---
+
+## Respuesta si el cierre de brecha supera los 1000 caracteres
+
+```json
+{
+  "message": "El cierre de brecha no puede superar los 1000 caracteres"
 }
 ```
 
@@ -10141,7 +10180,7 @@ PATCH /api/human-talent/candidate-validations/15/technical-evaluation
 
 Este endpoint permite registrar las calificaciones de **entrevista** y **examen** de la Fase 4: Evaluación Técnica.
 
-Las notas son diligenciadas por el Auxiliar de Talento Humano y pueden registrarse por separado. Cuando ambas están completas, la evaluación queda pendiente de validación y se notifica al usuario que creó la requisición.
+Las notas son diligenciadas por el Auxiliar de Talento Humano y pueden registrarse por separado. Cuando ambas están completas, la evaluación queda pendiente de aprobación y se notifica al usuario que creó la requisición.
 
 Para iniciar esta fase, el postulante debe haber completado la Fase 3 y haber sido considerado apto para continuar.
 
@@ -10210,7 +10249,6 @@ También pueden enviarse ambas:
 
 Debe enviarse por lo menos una de las dos calificaciones.
 
-Cada calificación admite máximo un decimal.
 
 ---
 
@@ -10296,23 +10334,6 @@ Cuando existen las dos calificaciones se genera una notificación para el usuari
 
 ---
 
-## Respuesta si una calificación contiene más de un decimal
-
-```json
-{
-  "message": "La calificación de la entrevista solo puede tener un decimal"
-}
-```
-
-o:
-
-```json
-{
-  "message": "La calificación del examen solo puede tener un decimal"
-}
-```
-
----
 
 ## Respuesta si falta completar la Fase 3
 
@@ -10559,29 +10580,23 @@ GET /api/human-talent/candidate-validations
 
 ## Descripción
 
-Endpoint privado encargado de obtener los candidatos que deben mostrarse en la pantalla principal del módulo **Validación de cargo y postulante**.
+Endpoint privado encargado de obtener los candidatos preseleccionados disponibles en el módulo **Validación de cargo y postulante**.
 
-La requisición debe encontrarse en estado `APROBADA`.
+Solo se incluyen candidatos que:
 
-El candidato se incluye cuando el cargue está `CERRADA` o cuando ya existe una validación asociada con el candidato.
+- Hayan sido confirmados como preseleccionados.
+- Pertenezcan a una requisición en estado `APROBADA`.
 
-Si el cargue se reabre, los candidatos que ya habían iniciado validación continúan visibles y pueden seguir avanzando. Los candidatos que todavía no habían iniciado validación dejan de aparecer temporalmente hasta que el cargue vuelva a cerrarse.
+El estado del cargue puede encontrarse `ABIERTA` o `CERRADA` sin afectar la disponibilidad de un candidato que ya fue preseleccionado.
 
 ## Acceso permitido
 
-```txt
-Auxiliar de Talento Humano
-Jefe de Talento Humano
-ADMIN
-```
+Pueden consultar las validaciones:
 
-```txt
-Auxiliar de Talento Humano → canManageValidation: true
-Jefe de Talento Humano     → canManageValidation: false
-ADMIN                       → canManageValidation: false
-```
-
-`canManageValidation` indica si el usuario puede trabajar y guardar las fases de la validación.
+- **Auxiliar de Talento Humano:** puede consultar todos los candidatos preseleccionados y diligenciar las fases operativas del proceso.
+- **Jefe de Talento Humano:** puede consultar todos los candidatos preseleccionados.
+- **ADMIN:** puede consultar todos los candidatos preseleccionados.
+- **Creador autorizado de requisiciones:** puede consultar únicamente los candidatos pertenecientes a las requisiciones que él mismo creó.
 
 ## Estados calculados
 
@@ -10684,19 +10699,16 @@ Este endpoint permite consultar el detalle completo del proceso de validación d
 
 La respuesta contiene la información del candidato, la requisición asociada, los requisitos evaluados y los datos registrados en cada fase del proceso.
 
-Cuando la Fase 4 ya fue iniciada, también devuelve las calificaciones de la Evaluación Técnica y su estado actual.
-
-Además, informa si el usuario autenticado puede gestionar la validación o confirmar la Evaluación Técnica.
-
 ---
 
 ## Acceso permitido
 
-```txt
-Auxiliar de Talento Humano
-Jefe de Talento Humano
-ADMIN
-```
+Pueden consultar el detalle de la validación:
+
+- **Auxiliar de Talento Humano:** puede consultar el detalle de cualquier candidato preseleccionado y diligenciar las fases operativas del proceso.
+- **Jefe de Talento Humano:** puede consultar el detalle de cualquier candidato preseleccionado.
+- **ADMIN:** puede consultar el detalle de cualquier candidato preseleccionado.
+- **Creador autorizado de requisiciones:** puede consultar únicamente los candidatos pertenecientes a las requisiciones que él mismo creó.
 
 ---
 
@@ -10849,13 +10861,13 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/human-talent/requisitions/:id/candidates/preselect                                                                                     | Confirma la preselección de uno o varios candidatos        | Usuario creador de la requisición                               |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Auxiliar de Talento Humano                                      |
 | DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Auxiliar de Talento Humano                                      |
-| GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Auxiliar TH / Jefe TH / ADMIN                                   |
-| GET    | /api/human-talent/candidate-validations/:candidateId                                                                                         | Obtiene el detalle completo de la validación               | Auxiliar TH / Jefe TH / ADMIN                                   |
+| GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Auxiliar TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
+| GET    | /api/human-talent/candidate-validations/:candidateId                                                                                         | Obtiene el detalle completo de la validación               | Auxiliar TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
 | POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Auxiliar de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Auxiliar de Talento Humano                                      |
-| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Usuario creador de la requisición                               |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
 
 
 ---
