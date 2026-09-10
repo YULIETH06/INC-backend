@@ -14,7 +14,7 @@ import {
     getPersonnelCandidateValidationsService,
     savePersonnelCandidateTechnicalEvaluationService,
     updatePersonnelCandidatePositionValidationService,
-} from "../../../services/humanTalent/candidateValidation/personnelCandidateValidation.service.js";
+} from "../../../services/humanTalent/candidateValidation/index.js";
 
 // Inicia la validación de cargo y postulante.
 export const createPersonnelCandidateValidation = async (

@@ -199,7 +199,12 @@ src/
 │   │   ├── candidateSubmission/
 │   │   │   └── personnelRequisitionCandidate.service.ts
 │   │   ├── candidateValidation/
-│   │   │   └── personnelCandidateValidation.service.ts
+│   │   │   ├── applicationConcept.service.ts
+│   │   │   ├── positionValidation.service.ts
+│   │   │   ├── candidateRequirementValidation.service.ts
+│   │   │   ├── technicalEvaluation.service.ts
+│   │   │   ├── personnelCandidateValidationQuery.service.ts
+│   │   │   └── index.ts
 │   │   └── requisitions/
 │   │       ├── department.service.ts
 │   │       ├── personnelHiringConfirmation.service.ts
