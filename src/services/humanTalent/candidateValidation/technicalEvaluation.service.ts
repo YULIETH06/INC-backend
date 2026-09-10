@@ -14,6 +14,7 @@ import {
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 
 import {
+    notifyCandidateTechnicalEvaluationConfirmedService,
     notifyCandidateTechnicalEvaluationPendingService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 
@@ -312,6 +313,12 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
                     select: {
                         id: true,
                         createdById: true,
+
+                        position: {
+                            select: {
+                                name: true,
+                            },
+                        },
                     },
                 },
 
@@ -326,6 +333,7 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
                                 interviewScore: true,
                                 examScore: true,
                                 status: true,
+                                enteredById: true,
                             },
                         },
                     },
@@ -390,7 +398,7 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
 
     const approvedAt = new Date();
 
-    return prisma.$transaction(
+    const result = await prisma.$transaction(
         async (tx) => {
             const evaluation =
                 await tx.personnelCandidateTechnicalEvaluation.update({
@@ -450,4 +458,15 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
             };
         }
     );
+
+    // Notifica al Auxiliar de Talento Humano que registró las calificaciones.
+    await notifyCandidateTechnicalEvaluationConfirmedService(
+        technicalEvaluation.enteredById,
+        candidate.requisition.id,
+        candidate.name,
+        candidate.requisition.position.name,
+        data.isSuitable
+    );
+
+    return result;
 };

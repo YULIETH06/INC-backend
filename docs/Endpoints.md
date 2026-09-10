@@ -3198,13 +3198,15 @@ Si la PQR no tiene agente asignado, la notificación solo se genera para los usu
 
 # Notificaciones
 
-El backend ahora cuenta con un módulo de notificaciones internas para informar a los usuarios sobre acciones importantes relacionadas con las PQR.
+El backend cuenta con un módulo de notificaciones internas para informar a los usuarios sobre acciones importantes de los módulos **PQR** y **Talento Humano**.
 
-Las notificaciones se guardan en la base de datos y cada usuario autenticado puede consultar únicamente las notificaciones asociadas a su cuenta.
+Las notificaciones se guardan en la base de datos, quedan asociadas al usuario destinatario y, cuando Socket.IO está disponible, también se emiten en tiempo real. Cada usuario autenticado puede consultar únicamente las notificaciones asociadas a su cuenta.
 
 ---
 
 ## Tipos de notificación
+
+### PQR
 
 ```txt
 NEW_PQR
@@ -3217,16 +3219,50 @@ PQR_ASSIGNED
 PQR_UNASSIGNED
 ```
 
-| Tipo            | Descripción                                                                                  |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| NEW_PQR         | Se genera cuando un usuario crea una nueva PQR.                                              |
-| STATUS_CHANGE   | Se reserva para notificar cambios de estado de una PQR.                                      |
-| PRIORITY_CHANGE | Se reserva para notificar cambios de prioridad de una PQR.                                   |
-| PQR_CLOSED      | Se genera cuando una PQR cambia a estado CERRADA.                                            |
-| PQR_RATED       | Se genera cuando un usuario califica una PQR cerrada.                                        |
-| PQR_TAKEN       | Se genera cuando un agente toma una PQR o cuando se asigna por primera vez al usuario dueño. |
-| PQR_ASSIGNED    | Se genera cuando un ADMIN asigna o reasigna una PQR a un agente.                             |
-| PQR_UNASSIGNED  | Se genera cuando un ADMIN retira una PQR a un agente.                                        |
+| Tipo | Descripción |
+| ---- | ----------- |
+| `NEW_PQR` | Se genera cuando un usuario crea una nueva PQR. |
+| `STATUS_CHANGE` | Se reserva para notificar cambios de estado de una PQR. |
+| `PRIORITY_CHANGE` | Se reserva para notificar cambios de prioridad de una PQR. |
+| `PQR_CLOSED` | Se genera cuando una PQR cambia a estado `CERRADA`. |
+| `PQR_RATED` | Se genera cuando un usuario califica una PQR cerrada. |
+| `PQR_TAKEN` | Se genera cuando un agente toma una PQR o cuando se asigna por primera vez al usuario dueño. |
+| `PQR_ASSIGNED` | Se genera cuando un `ADMIN` asigna o reasigna una PQR a un agente. |
+| `PQR_UNASSIGNED` | Se genera cuando un `ADMIN` retira una PQR a un agente. |
+
+### Talento Humano
+
+```txt
+REQUISITION_PENDING_APPROVAL
+REQUISITION_APPROVED
+REQUISITION_REJECTED
+HIRING_CONFIRMATION_PENDING
+HIRING_CONFIRMATION_APPROVED
+HIRING_CONFIRMATION_REJECTED
+REQUISITION_CANDIDATES_PENDING
+REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
+REQUISITION_CANDIDATES_CLOSED
+REQUISITION_CANDIDATES_REOPENED
+REQUISITION_CANDIDATES_PRESELECTED
+CANDIDATE_TECHNICAL_EVALUATION_PENDING
+CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED
+```
+
+| Tipo | Descripción |
+| ---- | ----------- |
+| `REQUISITION_PENDING_APPROVAL` | Indica que una requisición requiere aprobación del usuario correspondiente. |
+| `REQUISITION_APPROVED` | Representa la aprobación de una requisición cuando aplica dentro del flujo. |
+| `REQUISITION_REJECTED` | Informa el rechazo o cancelación de una requisición. |
+| `HIRING_CONFIRMATION_PENDING` | Informa que existe una confirmación de contratación pendiente dentro del flujo de Talento Humano. |
+| `HIRING_CONFIRMATION_APPROVED` | Informa que la confirmación o requisición fue aprobada completamente. |
+| `HIRING_CONFIRMATION_REJECTED` | Informa el rechazo o cancelación de una confirmación de contratación. |
+| `REQUISITION_CANDIDATES_PENDING` | Informa al Auxiliar de Talento Humano que debe iniciar el cargue de candidatos. |
+| `REQUISITION_CANDIDATES_WITHOUT_ASSISTANT` | Informa que no existe un Auxiliar de Talento Humano activo para realizar el cargue. |
+| `REQUISITION_CANDIDATES_CLOSED` | Informa al creador de la requisición que el cargue de candidatos fue cerrado y está disponible para consulta. |
+| `REQUISITION_CANDIDATES_REOPENED` | Informa al creador de la requisición que el cargue de candidatos fue reabierto. |
+| `REQUISITION_CANDIDATES_PRESELECTED` | Informa al Auxiliar de Talento Humano activo que el creador confirmó una nueva preselección de candidatos. |
+| `CANDIDATE_TECHNICAL_EVALUATION_PENDING` | Informa al creador de la requisición que la Evaluación Técnica tiene ambas calificaciones y requiere su confirmación. |
+| `CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED` | Informa al usuario que diligenció las calificaciones que el creador confirmó la Evaluación Técnica y comunica si el postulante continúa o no. |
 
 ---
 
@@ -8897,6 +8933,32 @@ preselectedAt: fecha y hora de confirmación
 preselectedById: id del usuario creador de la requisición
 ```
 
+## Notificación automática
+
+Cada vez que el creador confirma una preselección, el sistema busca al **Auxiliar de Talento Humano activo** y, cuando existe, genera una notificación asociada con la requisición.
+
+| Destinatario | Tipo |
+| ------------ | ---- |
+| Auxiliar de Talento Humano activo | `REQUISITION_CANDIDATES_PRESELECTED` |
+
+La notificación utiliza un mensaje estandarizado según la cantidad de candidatos confirmados.
+
+**Ejemplo con un candidato:**
+
+```txt
+Título: Preselección confirmada - Requisición #25
+Mensaje: Se preseleccionó 1 candidato para el cargo Analista Contable. Ya puedes iniciar el proceso de validación de cargo y postulante.
+```
+
+**Ejemplo con varios candidatos:**
+
+```txt
+Título: Preselección confirmada - Requisición #25
+Mensaje: Se preseleccionaron 3 candidatos para el cargo Analista Contable. Ya puedes iniciar el proceso de validación de cargo y postulante.
+```
+
+Si no existe un Auxiliar de Talento Humano activo, la preselección se conserva correctamente y no se genera esta notificación.
+
 ---
 
 ## Header requerido
@@ -10417,6 +10479,30 @@ completedStep: 4
 ```
 
 > `status: APROBADA` significa que la Evaluación Técnica fue revisada y confirmada. No significa necesariamente que el postulante sea apto. Si `isSuitable` queda en `false`, la Fase 4 se considera terminada, pero el postulante no debe avanzar a la Fase 5.
+
+## Notificación automática
+
+Después de confirmar la Evaluación Técnica, el sistema notifica al **Auxiliar de Talento Humano que registró las calificaciones**, identificado mediante `enteredById`.
+
+| Destinatario | Tipo |
+| ------------ | ---- |
+| Usuario que diligenció las calificaciones de la Evaluación Técnica | `CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED` |
+
+El mensaje informa el resultado confirmado por el creador de la requisición.
+
+**Si el postulante es apto:**
+
+```txt
+Título: Evaluación técnica confirmada - Requisición #25
+Mensaje: Se confirmó la Evaluación Técnica de Juan Pérez para el cargo Analista Contable. El postulante puede continuar en el proceso.
+```
+
+**Si el postulante no es apto:**
+
+```txt
+Título: Evaluación técnica confirmada - Requisición #25
+Mensaje: Se confirmó la Evaluación Técnica de Juan Pérez para el cargo Analista Contable. El postulante no continuará en el proceso.
+```
 
 ---
 

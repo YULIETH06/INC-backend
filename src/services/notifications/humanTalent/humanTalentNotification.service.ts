@@ -217,3 +217,50 @@ export const notifyCandidateTechnicalEvaluationPendingService = async (
             `para el cargo ${positionName} está lista y requiere tu validación.`,
     });
 };
+
+// Notifica al Auxiliar de Talento Humano que se confirmó una preselección.
+export const notifyCandidatesPreselectedService = async (
+    userId: number,
+    requisitionId: number,
+    candidateCount: number,
+    positionName: string
+) => {
+    return createNotificationService({
+        userId,
+        personnelRequisitionId: requisitionId,
+        type: NotificationType.REQUISITION_CANDIDATES_PRESELECTED,
+        title:
+            `Preselección confirmada - ` +
+            `Requisición #${requisitionId}`,
+        message:
+            candidateCount === 1
+                ? `Se preseleccionó 1 candidato para el cargo ${positionName}. ` +
+                `Ya puedes iniciar el proceso de validación de cargo y postulante.`
+                : `Se preseleccionaron ${candidateCount} candidatos para el cargo ${positionName}. ` +
+                `Ya puedes iniciar el proceso de validación de cargo y postulante.`,
+    });
+};
+
+// Notifica al Auxiliar de Talento Humano que la Evaluación Técnica fue confirmada.
+export const notifyCandidateTechnicalEvaluationConfirmedService = async (
+    userId: number,
+    requisitionId: number,
+    candidateName: string,
+    positionName: string,
+    isSuitable: boolean
+) => {
+    return createNotificationService({
+        userId,
+        personnelRequisitionId: requisitionId,
+        type: NotificationType.CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED,
+        title:
+            `Evaluación técnica confirmada - ` +
+            `Requisición #${requisitionId}`,
+        message:
+            isSuitable
+                ? `Se confirmó la Evaluación Técnica de ${candidateName} para el cargo ${positionName}. ` +
+                `El postulante puede continuar en el proceso.`
+                : `Se confirmó la Evaluación Técnica de ${candidateName} para el cargo ${positionName}. ` +
+                `El postulante no continuará en el proceso.`,
+    });
+};

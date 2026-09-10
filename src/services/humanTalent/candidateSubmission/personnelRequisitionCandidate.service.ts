@@ -10,6 +10,7 @@ import {
     validatePersonnelCandidateManager
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 import {
+    notifyCandidatesPreselectedService,
     notifyCandidatesReopenedService,
     notifyCandidatesUploadedService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
@@ -1317,6 +1318,12 @@ export const preselectPersonnelRequisitionCandidatesService =
                     status: true,
                     createdById: true,
                     candidateSubmissionStatus: true,
+
+                    position: {
+                        select: {
+                            name: true,
+                        },
+                    },
                 },
             });
 
@@ -1443,6 +1450,38 @@ export const preselectPersonnelRequisitionCandidatesService =
                     createdAt: "asc",
                 },
             });
+
+        // Busca al Auxiliar de Talento Humano activo.
+        const activeHumanTalentAssistant =
+            await prisma.userPositionAssignment.findFirst({
+                where: {
+                    isActive: true,
+                    endDate: null,
+
+                    position: {
+                        is: {
+                            code: "DPC-TH-0080",
+                            isActive: true,
+                        },
+                    },
+                },
+                select: {
+                    userId: true,
+                },
+                orderBy: {
+                    startDate: "desc",
+                },
+            });
+
+        // Si existe un Auxiliar activo, le notifica la nueva preselección.
+        if (activeHumanTalentAssistant) {
+            await notifyCandidatesPreselectedService(
+                activeHumanTalentAssistant.userId,
+                requisition.id,
+                preselectedCandidates.length,
+                requisition.position.name
+            );
+        }
 
         return preselectedCandidates;
     };
