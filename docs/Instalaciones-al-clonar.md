@@ -206,7 +206,7 @@ Entre los usuarios creados se encuentran:
 * Gerente Ejecutivo.
 * Gerente Financiero.
 * Jefe de Talento Humano.
-* Auxiliar de Talento Humano.
+* Analista de Talento Humano.
 * Otros cargos participantes en el flujo de aprobación.
 
 Este archivo debe ejecutarse después de:

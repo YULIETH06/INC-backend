@@ -10,7 +10,7 @@ El sistema está dividido en dos módulos principales:
    - Gestión de solicitudes, mensajes, adjuntos, notificaciones y lectura de chats.
 
 2. **Módulo Talento Humano**
-   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos, historial de cargues, preselección de candidatos, validación de cargo y postulante y evaluación técnica.
+   - Gestión de requisiciones de personal, estructura organizacional, cargos, revisiones de perfiles, tipos de identificación, asignaciones de usuarios a cargos, aprobaciones, firmas, confirmación de contratación, presentación de candidatos, historial de cargues, preselección de candidatos, validación de cargo y postulante evaluación técnica y evaluación de competencias.
 
 ---
 
@@ -60,6 +60,8 @@ Esto permite manejar:
 | performedPersonnelCandidateValidations | PersonnelCandidateValidation[]        | Validaciones de candidatos finalizadas por el usuario                 |
 | enteredPersonnelCandidateTechnicalEvaluations | PersonnelCandidateTechnicalEvaluation[] | Evaluaciones técnicas diligenciadas por el usuario                    |
 | approvedPersonnelCandidateTechnicalEvaluations | PersonnelCandidateTechnicalEvaluation[] | Evaluaciones técnicas confirmadas por el usuario                      |
+| personnelCandidatePsychotechnicalTests | PersonnelCandidatePsychotechnicalTest[] | Pruebas psicotécnicas registradas por el usuario en la Fase 5 |
+| personnelCandidateCompetencyEvaluations | PersonnelCandidateCompetencyEvaluation[] | Evaluaciones generales de competencias realizadas por el usuario |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
 
@@ -358,6 +360,7 @@ Las requisiciones de personal quedan asociadas con la revisión utilizada al mom
 | changeObservation       | String?                          | Observación general o descripción del cambio           |
 | deletedAt               | DateTime?                        | Fecha de eliminación lógica cuando aplica              |
 | requirementDescriptions | PositionRequirementDescription[] | Descripciones de requisitos registradas en la revisión |
+| positionCompetencyDescriptions | PositionCompetencyDescription[] | Competencias configuradas para esta revisión del perfil de cargo |
 | requisitions            | PersonnelRequisition[]           | Requisiciones creadas utilizando esta revisión         |
 | updatedAt               | DateTime                         | Fecha de última actualización                          |
 
@@ -566,7 +569,7 @@ El cargue de candidatos se controla por separado del estado general de la requis
 | Estado      | Descripción                                                                         |
 | ----------- | ----------------------------------------------------------------------------------- |
 | NO_INICIADA | La requisición todavía no está habilitada para recibir candidatos                   |
-| ABIERTA     | El Auxiliar de Talento Humano puede registrar o modificar candidatos                |
+| ABIERTA     | El Analista de Talento Humano puede registrar o modificar candidatos                |
 | CERRADA     | La presentación fue finalizada y los candidatos quedan bloqueados para modificación |
 
 ## Regla de presentación inicial
@@ -918,7 +921,11 @@ En la Fase 4, `completedStep` permanece en `3` mientras las calificaciones está
 | completedStep            | Int                                       | Indica hasta qué fase del proceso de validación ha avanzado el postulante                                        |
 | validatedAt              | DateTime?                                 | Fecha y hora en que se completó la Fase 3                                   |
 | requirementValidations | PersonnelCandidateRequirementValidation[] | Contiene el resultado de cumplimiento de cada requisito evaluado durante la Fase 3 |
-| technicalEvaluation | PersonnelCandidateTechnicalEvaluation? | Guarda la información de la Fase 4, incluyendo las calificaciones de entrevista y examen, el estado de la evaluación y la decisión sobre si el postulante puede continuar |
+| psychotechnicalTests | PersonnelCandidatePsychotechnicalTest[] | Pruebas psicotécnicas registradas para el candidato |
+| competencyValidations | PersonnelCandidateCompetencyValidation[] | Evaluaciones individuales de las competencias del cargo |
+| competencyEvaluation | PersonnelCandidateCompetencyEvaluation? | Evaluación y cierre general de la Fase 5 |
+| personnelCandidateRequirementValidations | PersonnelCandidateRequirementValidation[] | Validaciones de los requisitos del candidato |
+| personnelCandidateTechnicalEvaluation | PersonnelCandidateTechnicalEvaluation? | Evaluación técnica correspondiente a la Fase 4 |
 | createdAt                | DateTime                                  | Fecha de creación                                                           |
 | updatedAt                | DateTime                                  | Fecha de última actualización                                               |
 
@@ -997,6 +1004,12 @@ APROBADA
 | interviewRecordedAt    | DateTime?                              | Fecha y hora de la primera captura de la calificación de entrevista       |
 | examScore              | Decimal?                               | Calificación del examen técnico                                           |
 | examRecordedAt         | DateTime?                              | Fecha y hora de la primera captura de la calificación del examen          |
+| examEvidenceOriginalName | String? | Nombre original del archivo de evidencia |
+| examEvidenceFileName | String? | Nombre del archivo almacenado |
+| examEvidenceFileUrl | String? | Ubicación o URL de la evidencia |
+| examEvidenceMimeType | String? | Tipo MIME del archivo |
+| examEvidenceFileSize | Int? | Tamaño del archivo |
+| examEvidenceUploadedAt | DateTime? | Fecha y hora de carga de la evidencia |
 | status                 | CandidateTechnicalEvaluationStatus     | Estado actual de la Evaluación Técnica                                    |
 | enteredById            | Int                                    | Usuario que diligenció las calificaciones                                 |
 | enteredBy              | User                                   | Relación con el usuario que diligenció las calificaciones                 |
@@ -1173,7 +1186,7 @@ El modelo `HumanTalentWorkflowConfig` define qué cargos participan en el cierre
 En el flujo actual se usa un solo registro activo:
 
 ```txt
-Auxiliar de Talento Humano
+Analista de Talento Humano
 ↓
 Jefe de Talento Humano
 ```
@@ -1198,7 +1211,7 @@ Este modelo evita dejar estos cargos quemados directamente en el código.
 
 ```txt
 name: Flujo principal de Talento Humano
-analystPosition: Auxiliar de Talento Humano
+analystPosition: Analista de Talento Humano
 chiefPosition: Jefe de Talento Humano
 isActive: true
 ```
@@ -1254,7 +1267,7 @@ Este flujo se genera a partir de `HumanTalentWorkflowConfig`.
 En el flujo actual:
 
 ```txt
-1. Auxiliar de Talento Humano
+1. Analista de Talento Humano
 2. Jefe de Talento Humano
 ```
 
@@ -1289,3 +1302,209 @@ En el flujo actual:
 ```
 
 Esta restricción evita que una misma confirmación tenga dos pasos con el mismo orden.
+
+---
+
+# Modelo CompetencyType
+
+## Descripción
+
+El modelo `CompetencyType` representa el catálogo de tipos de competencia utilizados para clasificar las competencias configuradas en los perfiles de cargo.
+
+Los registros corresponden a los tipos:
+
+```txt
+Organizacionales
+Esenciales
+```
+
+El modelo funciona como catálogo y se relaciona con `PositionCompetencyDescription`.
+
+## Campos principales
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | Int | Identificador único del tipo de competencia |
+| name | String | Nombre del tipo de competencia |
+| positionCompetencyDescriptions | PositionCompetencyDescription[] | Competencias del cargo asociadas al tipo |
+| createdAt | DateTime | Fecha de creación |
+| updatedAt | DateTime | Fecha de última actualización |
+
+## Restricción única
+
+```prisma
+name String @unique
+```
+
+Evita registrar dos tipos de competencia con el mismo nombre.
+
+---
+
+# Modelo PositionCompetencyDescription
+
+## Descripción
+
+El modelo `PositionCompetencyDescription` representa una competencia configurada dentro de una revisión específica del perfil de cargo.
+
+Cada registro relaciona:
+
+```txt
+Revisión del perfil de cargo
+        |
+        └── Tipo de competencia
+                 |
+                 └── Competencia
+```
+
+Ejemplo:
+
+```txt
+Organizacionales
+├── Liderazgo
+└── Trabajo en equipo
+
+Esenciales
+├── Resolución de problemas
+└── Comunicación
+```
+
+## Campos principales
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | Int | Identificador único de la competencia |
+| revisionId | Int | Revisión del perfil de cargo asociada |
+| competencyTypeId | Int | Tipo de competencia |
+| competency | String | Único campo de texto donde se registra la competencia |
+| revision | PositionProfileRevision | Revisión del perfil de cargo |
+| competencyType | CompetencyType | Tipo de competencia |
+| personnelCandidateCompetencyValidations | PersonnelCandidateCompetencyValidation[] | Evaluaciones de candidatos relacionadas con esta competencia |
+| createdAt | DateTime | Fecha de creación |
+| updatedAt | DateTime | Fecha de última actualización |
+| deletedAt | DateTime? | Fecha de eliminación lógica, cuando aplica |
+
+## Regla funcional
+
+Las opciones del tipo de competencia no se escriben manualmente en el formulario. Se obtienen del catálogo `CompetencyType`.
+
+El formulario del perfil del cargo permite:
+
+1. Seleccionar la revisión del cargo.
+2. Seleccionar el tipo de competencia.
+3. Registrar la competencia en un único campo de texto.
+
+---
+
+# Modelo PersonnelCandidatePsychotechnicalTest
+
+## Descripción
+
+El modelo `PersonnelCandidatePsychotechnicalTest` representa cada prueba psicotécnica aplicada a un candidato durante la Fase 5.
+
+Un candidato puede tener múltiples registros, por lo que permite almacenar:
+
+```txt
+Informe prueba 1
+Informe prueba 2
+Informe prueba 3
+...
+Informe prueba N
+```
+
+## Campos principales
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | Int | Identificador único de la prueba |
+| candidateValidationId | Int | Validación general del candidato |
+| appliedTest | String | Nombre de la prueba psicotécnica aplicada |
+| appliedAt | DateTime | Fecha y hora de aplicación |
+| evaluationAspects | String | Aspectos que se evalúan con la prueba |
+| resultDescription | String | Descripción de los resultados de la prueba |
+| createdById | Int | Usuario que registra la prueba |
+| candidateValidation | PersonnelCandidateValidation | Validación general del candidato |
+| createdBy | User | Usuario que registró la prueba |
+| createdAt | DateTime | Fecha de creación |
+| updatedAt | DateTime | Fecha de última actualización |
+
+---
+
+# Modelo PersonnelCandidateCompetencyValidation
+
+## Descripción
+
+El modelo `PersonnelCandidateCompetencyValidation` representa la evaluación individual de una competencia del cargo para un candidato.
+
+La competencia evaluada proviene de `PositionCompetencyDescription`. Por tanto, el sistema conserva la relación entre el resultado del candidato y la competencia exacta configurada para la revisión del cargo.
+
+## Campos principales
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | Int | Identificador único de la evaluación |
+| candidateValidationId | Int | Validación general del candidato |
+| competencyDescriptionId | Int | Competencia del cargo que se está evaluando |
+| result | String | Resultado de la evaluación |
+| candidateValidation | PersonnelCandidateValidation | Validación general del candidato |
+| competencyDescription | PositionCompetencyDescription | Competencia del perfil de cargo evaluada |
+| createdAt | DateTime | Fecha de creación |
+| updatedAt | DateTime | Fecha de última actualización |
+
+## Resultados
+
+Los resultados definidos para la evaluación son:
+
+```txt
+Destacada
+Por destacar
+```
+
+Las competencias evaluadas pueden pertenecer a:
+
+```txt
+Organizacionales
+Esenciales
+```
+
+## Restricción única
+
+```prisma
+@@unique([candidateValidationId, competencyDescriptionId])
+```
+
+Evita evaluar dos veces la misma competencia para el mismo candidato dentro de la misma validación.
+
+---
+
+# Modelo PersonnelCandidateCompetencyEvaluation
+
+## Descripción
+
+El modelo `PersonnelCandidateCompetencyEvaluation` representa el cierre general de la Fase 5.
+
+Mientras `PersonnelCandidateCompetencyValidation` registra el resultado individual de cada competencia, este modelo almacena el concepto general y el resultado final de aptitud para continuar en el proceso.
+
+## Campos principales
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | Int | Identificador único de la evaluación |
+| candidateValidationId | Int | Validación general del candidato |
+| generalConcept | String | Concepto general de la evaluación de competencias |
+| isSuitable | Boolean | Indica si el postulante es apto para continuar |
+| validatedAt | DateTime | Fecha y hora de validación |
+| performedById | Int | Usuario que realizó el cierre de la fase |
+| candidateValidation | PersonnelCandidateValidation | Validación general del candidato |
+| performedBy | User | Usuario que realizó la validación |
+| createdAt | DateTime | Fecha de creación |
+| updatedAt | DateTime | Fecha de última actualización |
+
+## Restricción única
+
+```prisma
+@@unique([candidateValidationId])
+```
+
+Garantiza que cada candidato tenga como máximo un registro de cierre general de la evaluación de competencias.
+
+---

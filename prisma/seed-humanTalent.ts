@@ -1297,7 +1297,7 @@ const main = async () => {
     const auxiliaryHumanTalentPosition =
         await prisma.positionProfile.findUnique({
             where: {
-                code: "DPC-TH-0080",
+                code: "DPC-TH-0118",
             },
         });
 
@@ -1310,7 +1310,7 @@ const main = async () => {
 
     if (!auxiliaryHumanTalentPosition) {
         throw new Error(
-            "No se encontró el cargo Auxiliar de Talento Humano DPC-TH-0080.",
+            "No se encontró el cargo Analista de Talento Humano DPC-TH-0118.",
         );
     }
 

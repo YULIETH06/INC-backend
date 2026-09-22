@@ -337,7 +337,7 @@ export const createPersonnelRequisitionService = async ({
     return result.requisition;
 };
 
-// Valida si el usuario autenticado es Auxiliar activo de Talento Humano.
+// Valida si el usuario autenticado es Analista activo de Talento Humano.
 const isActiveHumanTalentAnalyst = async (userId: number): Promise<boolean> => {
     const humanTalentConfig = await prisma.humanTalentWorkflowConfig.findFirst({
         where: {
@@ -427,7 +427,7 @@ export const getPersonnelRequisitionsService = async (
                         },
                     },
 
-                    // Requisiciones listas para que Auxiliar TH registre confirmación.
+                    // Requisiciones listas para que Analista TH registre confirmación.
                     ...(isHumanTalentAnalyst
                         ? [
                             {

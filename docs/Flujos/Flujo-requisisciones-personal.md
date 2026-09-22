@@ -95,7 +95,7 @@ HumanTalentWorkflowConfig
 y genera el flujo final de Talento Humano:
 
 ```txt
-Auxiliar de Talento Humano
+Analista de Talento Humano
 ↓
 Jefe de Talento Humano
 ```
@@ -130,15 +130,15 @@ Para este cálculo se consideran días hábiles de lunes a viernes y no se cuent
 El sistema busca un usuario con una asignación activa al cargo:
 
 ```txt
-DPC-TH-0080
-Auxiliar de Talento Humano
+DPC-TH-0118
+Analista de Talento Humano
 ```
 
-Si existe un auxiliar activo, se le notifica que tiene un cargue de candidatos pendiente.
+Si existe un analista activo, se le notifica que tiene un cargue de candidatos pendiente.
 
-Si no existe un auxiliar activo, se notifica al Jefe de Talento Humano que realizó la aprobación final.
+Si no existe un analista activo, se notifica al Jefe de Talento Humano que realizó la aprobación final.
 
-Mientras el cargue permanezca abierto, el Auxiliar de Talento Humano puede registrar hasta **10 candidatos** en:
+Mientras el cargue permanezca abierto, el Analista de Talento Humano puede registrar hasta **10 candidatos** en:
 
 ```txt
 PersonnelRequisitionCandidate
@@ -148,7 +148,7 @@ PersonnelRequisitionCandidate
 
 ## 6. Primer cierre o presentación inicial
 
-Cuando el Auxiliar finaliza la presentación por primera vez:
+Cuando el Analista finaliza la presentación por primera vez:
 
 ```txt
 candidateSubmissionStatus: CERRADA

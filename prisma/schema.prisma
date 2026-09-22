@@ -177,16 +177,17 @@ model IdentificationType {
 }
 
 model User {
-  id           Int     @id @default(autoincrement())
-  name         String
-  email        String  @unique
-  password     String
-  role         Role    @default(USER)
+  id Int @id @default(autoincrement())
+
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(USER)
+
   signatureUrl String?
 
-  pqrsCreated  PQR[] @relation("UserPqrs")
-  pqrsAssigned PQR[] @relation("AgentPqrs")
-
+  pqrsCreated   PQR[]          @relation("UserPqrs")
+  pqrsAssigned  PQR[]          @relation("AgentPqrs")
   pqrMessages   PqrMessage[]
   notifications Notification[]
   pqrChatReads  PqrChatRead[]
@@ -218,6 +219,10 @@ model User {
   enteredPersonnelCandidateTechnicalEvaluations PersonnelCandidateTechnicalEvaluation[] @relation("EnteredPersonnelCandidateTechnicalEvaluations")
 
   approvedPersonnelCandidateTechnicalEvaluations PersonnelCandidateTechnicalEvaluation[] @relation("ApprovedPersonnelCandidateTechnicalEvaluations")
+
+  personnelCandidatePsychotechnicalTests PersonnelCandidatePsychotechnicalTest[] @relation("CreatedPsychotechnicalTests")
+
+  personnelCandidateCompetencyEvaluations PersonnelCandidateCompetencyEvaluation[] @relation("PerformedCompetencyEvaluations")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -390,7 +395,8 @@ model PositionProfileRevision {
 
   requisitions PersonnelRequisition[] @relation("RequisitionPositionRevision")
 
-  updatedAt DateTime @updatedAt
+  updatedAt                      DateTime                        @updatedAt
+  positionCompetencyDescriptions PositionCompetencyDescription[]
 
   @@unique([positionProfileId, revisionNumber])
   @@index([positionProfileId, status, deletedAt])
@@ -617,29 +623,40 @@ model PersonnelRequisitionCandidate {
 model PersonnelCandidateValidation {
   id Int @id @default(autoincrement())
 
-  candidateId Int                           @unique
-  candidate   PersonnelRequisitionCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
+  candidateId Int @unique
+
+  candidate PersonnelRequisitionCandidate @relation(fields: [candidateId], references: [id], onDelete: Restrict)
 
   applicationConcept CandidateApplicationConcept
 
-  positionType             CandidatePositionType?
-  changeControlCode        String?                @db.VarChar(100)
+  positionType CandidatePositionType?
+
+  changeControlCode String? @db.VarChar(100)
+
   isPositionProfileCurrent Boolean?
 
   isSuitable Boolean?
 
   performedById Int?
-  performedBy   User? @relation("PerformedPersonnelCandidateValidations", fields: [performedById], references: [id], onDelete: Restrict)
+
+  performedBy User? @relation("PerformedPersonnelCandidateValidations", fields: [performedById], references: [id], onDelete: Restrict)
 
   completedStep Int @default(1)
 
   validatedAt DateTime?
 
-  requirementValidations PersonnelCandidateRequirementValidation[]
+  psychotechnicalTests PersonnelCandidatePsychotechnicalTest[]
 
-  technicalEvaluation PersonnelCandidateTechnicalEvaluation?
+  competencyValidations PersonnelCandidateCompetencyValidation[]
+
+  competencyEvaluation PersonnelCandidateCompetencyEvaluation?
+
+  personnelCandidateRequirementValidations PersonnelCandidateRequirementValidation[]
+
+  personnelCandidateTechnicalEvaluation PersonnelCandidateTechnicalEvaluation?
 
   createdAt DateTime @default(now())
+
   updatedAt DateTime @updatedAt
 
   @@index([performedById])
@@ -681,6 +698,13 @@ model PersonnelCandidateTechnicalEvaluation {
   examScore      Decimal?  @db.Decimal(2, 1)
   examRecordedAt DateTime?
 
+  examEvidenceOriginalName String?   @db.VarChar(255)
+  examEvidenceFileName     String?   @db.VarChar(255)
+  examEvidenceFileUrl      String?   @db.VarChar(500)
+  examEvidenceMimeType     String?   @db.VarChar(100)
+  examEvidenceFileSize     Int?
+  examEvidenceUploadedAt   DateTime?
+
   status CandidateTechnicalEvaluationStatus @default(EN_REGISTRO)
 
   enteredById Int
@@ -699,6 +723,109 @@ model PersonnelCandidateTechnicalEvaluation {
   @@index([enteredById])
   @@index([approvedById])
   @@index([status])
+}
+
+model CompetencyType {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  positionCompetencyDescriptions PositionCompetencyDescription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PositionCompetencyDescription {
+  id Int @id @default(autoincrement())
+
+  revisionId       Int
+  competencyTypeId Int
+
+  competency String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  revision PositionProfileRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+
+  competencyType                          CompetencyType                           @relation(fields: [competencyTypeId], references: [id])
+  personnelCandidateCompetencyValidations PersonnelCandidateCompetencyValidation[]
+
+  @@index([revisionId])
+  @@index([competencyTypeId])
+}
+
+model PersonnelCandidatePsychotechnicalTest {
+  id Int @id @default(autoincrement())
+
+  candidateValidationId Int
+
+  appliedTest String
+
+  appliedAt DateTime @default(now())
+
+  evaluationAspects String @db.Text
+
+  resultDescription String @db.Text
+
+  createdById Int
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  candidateValidation PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
+
+  createdBy User @relation("CreatedPsychotechnicalTests", fields: [createdById], references: [id])
+
+  @@index([candidateValidationId])
+  @@index([createdById])
+}
+
+model PersonnelCandidateCompetencyValidation {
+  id Int @id @default(autoincrement())
+
+  candidateValidationId   Int
+  competencyDescriptionId Int
+
+  result String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  candidateValidation PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
+
+  competencyDescription PositionCompetencyDescription @relation(fields: [competencyDescriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([candidateValidationId, competencyDescriptionId])
+  @@index([candidateValidationId])
+  @@index([competencyDescriptionId])
+}
+
+model PersonnelCandidateCompetencyEvaluation {
+  id Int @id @default(autoincrement())
+
+  candidateValidationId Int
+
+  generalConcept String
+
+  isSuitable Boolean
+
+  validatedAt DateTime @default(now())
+
+  performedById Int
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  candidateValidation PersonnelCandidateValidation @relation(fields: [candidateValidationId], references: [id], onDelete: Cascade)
+
+  performedBy User @relation("PerformedCompetencyEvaluations", fields: [performedById], references: [id])
+
+  @@unique([candidateValidationId])
+  @@index([performedById])
 }
 
 model PersonnelRequisitionApproval {

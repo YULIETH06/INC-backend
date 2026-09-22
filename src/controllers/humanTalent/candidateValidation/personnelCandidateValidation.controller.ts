@@ -1,3 +1,5 @@
+import fs from "fs/promises";
+
 import type { Response } from "express";
 import {
     CandidateApplicationConcept,
@@ -15,6 +17,31 @@ import {
     savePersonnelCandidateTechnicalEvaluationService,
     updatePersonnelCandidatePositionValidationService,
 } from "../../../services/humanTalent/candidateValidation/index.js";
+
+const removeUploadedTechnicalExamFile = async (
+    file?: Express.Multer.File
+) => {
+    if (!file?.path) {
+        return;
+    }
+
+    try {
+        await fs.unlink(file.path);
+    } catch (error) {
+        if (
+            !(
+                error instanceof Error &&
+                "code" in error &&
+                error.code === "ENOENT"
+            )
+        ) {
+            console.error(
+                "No se pudo eliminar la evidencia del examen técnico:",
+                error
+            );
+        }
+    }
+};
 
 // Inicia la validación de cargo y postulante.
 export const createPersonnelCandidateValidation = async (
@@ -304,12 +331,10 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
 ) => {
     try {
         const { candidateId } = req.params;
-        const {
-            interviewScore,
-            examScore,
-        } = req.body;
 
         if (!req.user) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(401).json({
                 message: "Usuario no autenticado",
             });
@@ -319,38 +344,67 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
             Number.isNaN(Number(candidateId)) ||
             Number(candidateId) <= 0
         ) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message: "El candidato no es válido",
             });
         }
 
+        const rawInterviewScore =
+            req.body?.interviewScore;
+
+        const rawExamScore =
+            req.body?.examScore;
+
         const hasInterviewScore =
-            interviewScore !== undefined &&
-            interviewScore !== null;
+            rawInterviewScore !== undefined &&
+            rawInterviewScore !== null &&
+            String(rawInterviewScore).trim() !== "";
 
         const hasExamScore =
-            examScore !== undefined &&
-            examScore !== null;
+            rawExamScore !== undefined &&
+            rawExamScore !== null &&
+            String(rawExamScore).trim() !== "";
 
-        if (
-            !hasInterviewScore &&
-            !hasExamScore
-        ) {
+        if (req.file && !hasExamScore) {
+            await removeUploadedTechnicalExamFile(req.file);
+
+            return res.status(400).json({
+                message:
+                    "Debe registrar la calificación del examen para adjuntar su evidencia",
+            });
+        }
+
+        if (!hasInterviewScore && !hasExamScore) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message:
                     "Debe diligenciar por lo menos una calificación",
             });
         }
 
+        const interviewScore =
+            hasInterviewScore
+                ? Number(rawInterviewScore)
+                : undefined;
+
+        const examScore =
+            hasExamScore
+                ? Number(rawExamScore)
+                : undefined;
+
         if (
-            hasInterviewScore &&
+            interviewScore !== undefined &&
             (
-                typeof interviewScore !== "number" ||
                 !Number.isFinite(interviewScore) ||
                 interviewScore < 0 ||
                 interviewScore > 5
             )
         ) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message:
                     "La calificación de la entrevista debe estar entre 0.0 y 5.0",
@@ -358,10 +412,11 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
         }
 
         if (
-            hasInterviewScore &&
-            Number(interviewScore.toFixed(1)) !==
-            interviewScore
+            interviewScore !== undefined &&
+            Number(interviewScore.toFixed(1)) !== interviewScore
         ) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message:
                     "La calificación de la entrevista solo puede tener un decimal",
@@ -369,14 +424,15 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
         }
 
         if (
-            hasExamScore &&
+            examScore !== undefined &&
             (
-                typeof examScore !== "number" ||
                 !Number.isFinite(examScore) ||
                 examScore < 0 ||
                 examScore > 5
             )
         ) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message:
                     "La calificación del examen debe estar entre 0.0 y 5.0",
@@ -384,31 +440,53 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
         }
 
         if (
-            hasExamScore &&
-            Number(examScore.toFixed(1)) !==
-            examScore
+            examScore !== undefined &&
+            Number(examScore.toFixed(1)) !== examScore
         ) {
+            await removeUploadedTechnicalExamFile(req.file);
+
             return res.status(400).json({
                 message:
                     "La calificación del examen solo puede tener un decimal",
             });
         }
 
+        if (examScore !== undefined && !req.file) {
+            return res.status(400).json({
+                message:
+                    "Debe adjuntar la evidencia PDF del examen",
+            });
+        }
+
         const evaluation =
             await savePersonnelCandidateTechnicalEvaluationService(
                 {
-                    candidateId:
-                        Number(candidateId),
+                    candidateId: Number(candidateId),
 
-                    interviewScore:
-                        hasInterviewScore
-                            ? interviewScore
-                            : undefined,
+                    ...(interviewScore !== undefined
+                        ? { interviewScore }
+                        : {}),
 
-                    examScore:
-                        hasExamScore
-                            ? examScore
-                            : undefined,
+                    ...(examScore !== undefined
+                        ? { examScore }
+                        : {}),
+
+                    ...(req.file
+                        ? {
+                            examEvidence: {
+                                originalName:
+                                    req.file.originalname,
+                                fileName:
+                                    req.file.filename,
+                                fileUrl:
+                                    `/uploads/human-talent/technical-exams/${req.file.filename}`,
+                                mimeType:
+                                    req.file.mimetype,
+                                fileSize:
+                                    req.file.size,
+                            },
+                        }
+                        : {}),
                 },
                 req.user
             );
@@ -422,6 +500,8 @@ export const savePersonnelCandidateTechnicalEvaluation = async (
             evaluation,
         });
     } catch (error) {
+        await removeUploadedTechnicalExamFile(req.file);
+
         return res.status(400).json({
             message:
                 error instanceof Error

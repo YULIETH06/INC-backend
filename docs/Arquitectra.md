@@ -141,11 +141,16 @@ src/
 │   │
 │   ├── uploads/
 │   │   ├── humanTalent/
-│   │   │   └── uploadPersonnelCandidate.middleware.ts
+│   │   |   ├── candidateValidation/
+|   |   |   |   └── uploadCandidateTechnicalExam.middleware.ts
+│   │   │   └── requisitions/
+|   |   |      └── uploadPersonnelCandidate.middleware.ts
+|   |   |
 │   │   ├── pqrs/
 │   │   │   └── pqrAttachmentUpload.middleware.ts
 │   │   └── users/
-│   │       └── userSignatureUpload.middleware.ts
+│   │       ├── uploadUserSignature.middleware.ts
+│   │       └── userBulkUpload.middleware.ts
 │   │
 │   ├── validation/
 │   │
@@ -200,10 +205,10 @@ src/
 │   │   │   └── personnelRequisitionCandidate.service.ts
 │   │   ├── candidateValidation/
 │   │   │   ├── applicationConcept.service.ts
-│   │   │   ├── positionValidation.service.ts
 │   │   │   ├── candidateRequirementValidation.service.ts
-│   │   │   ├── technicalEvaluation.service.ts
 │   │   │   ├── personnelCandidateValidationQuery.service.ts
+│   │   │   ├── positionValidation.service.ts
+│   │   │   ├── technicalEvaluation.service.ts
 │   │   │   └── index.ts
 │   │   └── requisitions/
 │   │       ├── department.service.ts

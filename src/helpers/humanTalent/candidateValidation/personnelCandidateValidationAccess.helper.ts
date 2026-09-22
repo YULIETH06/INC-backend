@@ -68,7 +68,7 @@ export const validatePersonnelCandidateValidationAccess = async (
         workflowAssignment?.positionId ===
         workflowConfig.chiefPositionId;
 
-    // Auxiliar de Talento Humano:
+    // Analista de Talento Humano:
     // consulta todas las validaciones y puede gestionarlas.
     if (isAnalyst) {
         return {

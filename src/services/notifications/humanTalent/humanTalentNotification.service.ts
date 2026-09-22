@@ -56,7 +56,7 @@ export const notifyRequisitionNextApprovalService = async (
     });
 };
 
-// Notifica al Auxiliar TH que la requisición está lista para confirmación.
+// Notifica al Analista TH que la requisición está lista para confirmación.
 export const notifyRequisitionReadyForHumanTalentService = async (
     userId: number,
     requisitionId: number,
@@ -125,7 +125,7 @@ export const notifyHiringConfirmationApprovedService = async (
     });
 };
 
-// Notifica al Auxiliar de Talento Humano que tiene un cargue de candidatos pendiente.
+// Notifica al Analista de Talento Humano que tiene un cargue de candidatos pendiente.
 export const notifyCandidateUploadPendingService = async (
     userId: number,
     requisitionId: number,
@@ -144,7 +144,7 @@ export const notifyCandidateUploadPendingService = async (
     });
 };
 
-// Notifica al Jefe de Talento Humano que no existe un auxiliar activo.
+// Notifica al Jefe de Talento Humano que no existe un Analista activo.
 export const notifyCandidateUploadWithoutAssistantService = async (
     userId: number,
     requisitionId: number,
@@ -153,9 +153,9 @@ export const notifyCandidateUploadWithoutAssistantService = async (
         userId,
         personnelRequisitionId: requisitionId,
         type: NotificationType.REQUISITION_CANDIDATES_WITHOUT_ASSISTANT,
-        title: `Requisición #${requisitionId} sin auxiliar activo`,
+        title: `Requisición #${requisitionId} sin analista activo`,
         message:
-            `La requisición fue aprobada pero actualmente no existe un Auxiliar de Talento Humano activo para realizar el cargue de candidatos.`,
+            `La requisición fue aprobada pero actualmente no existe un Analista de Talento Humano activo para realizar el cargue de candidatos.`,
     });
 };
 
@@ -218,7 +218,7 @@ export const notifyCandidateTechnicalEvaluationPendingService = async (
     });
 };
 
-// Notifica al Auxiliar de Talento Humano que se confirmó una preselección.
+// Notifica al Analista de Talento Humano que se confirmó una preselección.
 export const notifyCandidatesPreselectedService = async (
     userId: number,
     requisitionId: number,
@@ -241,7 +241,7 @@ export const notifyCandidatesPreselectedService = async (
     });
 };
 
-// Notifica al Auxiliar de Talento Humano que la Evaluación Técnica fue confirmada.
+// Notifica al Analista de Talento Humano que la Evaluación Técnica fue confirmada.
 export const notifyCandidateTechnicalEvaluationConfirmedService = async (
     userId: number,
     requisitionId: number,

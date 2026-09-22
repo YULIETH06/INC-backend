@@ -18,8 +18,8 @@ import {
     notifyHiringConfirmationRejectedService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 
-// Código del cargo Auxiliar de Talento Humano.
-const HUMAN_TALENT_ASSISTANT_POSITION_CODE = "DPC-TH-0080";
+// Código del cargo encargado de gestionar candidatos en Talento Humano.
+const HUMAN_TALENT_CANDIDATE_MANAGER_POSITION_CODE = "DPC-TH-0118";
 
 // Calcula la fecha límite de 2 días hábiles para el cargue inicial de candidatos.
 const calculateCandidateSubmissionDeadline = (
@@ -39,7 +39,6 @@ const calculateCandidateSubmissionDeadline = (
         }
     }
 
-    // El Auxiliar dispone de todo el segundo día hábil.
     deadline.setHours(23, 59, 59, 999);
 
     return deadline;
@@ -409,7 +408,7 @@ export const decidePersonnelHiringConfirmationService = async ({
             positionName: string;
             departmentName: string;
 
-            // Auxiliar activo. Será null cuando no exista.
+            // Analista activo. Será null cuando no exista.
             candidateAssistantUserId: number | null;
 
             // Jefe de Talento Humano que realizó la aprobación definitiva.
@@ -690,8 +689,8 @@ export const decidePersonnelHiringConfirmationService = async ({
                 },
             });
 
-            // Busca directamente al usuario que tenga activo el cargo de Auxiliar de Talento Humano.
-            const activeHumanTalentAssistant =
+            // Busca directamente al usuario que tenga activo el cargo de Analista de Talento Humano.
+            const activeCandidateManager  =
                 await tx.userPositionAssignment.findFirst({
                     where: {
                         isActive: true,
@@ -699,7 +698,7 @@ export const decidePersonnelHiringConfirmationService = async ({
                         position: {
                             isActive: true,
                             code:
-                                HUMAN_TALENT_ASSISTANT_POSITION_CODE,
+                                HUMAN_TALENT_CANDIDATE_MANAGER_POSITION_CODE,
                         },
                     },
                     select: {
@@ -728,9 +727,9 @@ export const decidePersonnelHiringConfirmationService = async ({
                     hiringConfirmation.requisition
                         .department.name,
 
-                // Será null cuando actualmente no exista un auxiliar activo.
+                // Será null cuando actualmente no exista un Analista activo.
                 candidateAssistantUserId:
-                    activeHumanTalentAssistant?.userId ??
+                    activeCandidateManager?.userId ??
                     null,
 
                 // Usuario que realizó la aprobación final como Jefe de Talento Humano.
@@ -859,7 +858,7 @@ export const decidePersonnelHiringConfirmationService = async ({
             result.notificationToSend
                 .candidateAssistantUserId !== null
         ) {
-            // Existe Auxiliar de Talento Humano:
+            // Existe Analista de Talento Humano:
             // se le informa que tiene un cargue pendiente.
             await notifyCandidateUploadPendingService(
                 result.notificationToSend
@@ -872,7 +871,7 @@ export const decidePersonnelHiringConfirmationService = async ({
                     .departmentName
             );
         } else {
-            // No existe Auxiliar de Talento Humano:
+            // No existe Analista de Talento Humano:
             // se informa a la Jefe de Talento Humano.
             await notifyCandidateUploadWithoutAssistantService(
                 result.notificationToSend.chiefUserId,

@@ -12,6 +12,7 @@ import {
 
 import {
     authMiddleware,
+    uploadCandidateTechnicalExam,
 } from "../../../middlewares/index.js";
 
 const router = Router();
@@ -55,6 +56,7 @@ router.patch(
 router.patch(
     "/:candidateId/technical-evaluation",
     authMiddleware,
+    uploadCandidateTechnicalExam,
     savePersonnelCandidateTechnicalEvaluation
 );
 

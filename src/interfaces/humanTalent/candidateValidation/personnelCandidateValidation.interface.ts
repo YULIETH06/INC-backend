@@ -36,6 +36,14 @@ export interface SavePersonnelCandidateTechnicalEvaluationData {
     candidateId: number;
     interviewScore?: number | null;
     examScore?: number | null;
+
+    examEvidence?: {
+        originalName: string;
+        fileName: string;
+        fileUrl: string;
+        mimeType: string;
+        fileSize: number;
+    };
 }
 
 // Datos para aprobar la Evaluación Técnica - Fase 4.

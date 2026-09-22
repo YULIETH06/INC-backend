@@ -84,7 +84,7 @@ export const getPersonnelCandidateValidationsService = async (
                         completedStep: true,
                         validatedAt: true,
 
-                        technicalEvaluation: {
+                        personnelCandidateTechnicalEvaluation: {
                             select: {
                                 status: true,
                                 isSuitable: true,
@@ -127,7 +127,7 @@ export const getPersonnelCandidateValidationsService = async (
                 ) {
                     const technicalStatus =
                         candidate.validation
-                            .technicalEvaluation
+                            ?.personnelCandidateTechnicalEvaluation
                             ?.status;
 
                     if (!technicalStatus) {
@@ -303,7 +303,7 @@ export const getPersonnelCandidateValidationDetailService = async (
                             },
                         },
 
-                        requirementValidations: {
+                        personnelCandidateRequirementValidations: {
                             select: {
                                 id: true,
                                 requirementDescriptionId: true,
@@ -313,7 +313,7 @@ export const getPersonnelCandidateValidationDetailService = async (
                             },
                         },
 
-                        technicalEvaluation: {
+                        personnelCandidateTechnicalEvaluation: {
                             select: {
                                 id: true,
 

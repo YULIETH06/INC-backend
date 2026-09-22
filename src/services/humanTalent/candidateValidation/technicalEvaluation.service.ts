@@ -23,7 +23,6 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
     data: SavePersonnelCandidateTechnicalEvaluationData,
     authenticatedUser: PersonnelCandidateAuthenticatedUser
 ) => {
-    // Solo el Auxiliar de Talento Humano puede diligenciar las calificaciones.
     await validatePersonnelCandidateManager(
         prisma,
         authenticatedUser.id
@@ -97,13 +96,21 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
                         completedStep: true,
                         isSuitable: true,
 
-                        technicalEvaluation: {
+                        personnelCandidateTechnicalEvaluation: {
                             select: {
                                 id: true,
                                 interviewScore: true,
                                 interviewRecordedAt: true,
                                 examScore: true,
                                 examRecordedAt: true,
+
+                                examEvidenceOriginalName: true,
+                                examEvidenceFileName: true,
+                                examEvidenceFileUrl: true,
+                                examEvidenceMimeType: true,
+                                examEvidenceFileSize: true,
+                                examEvidenceUploadedAt: true,
+
                                 status: true,
                             },
                         },
@@ -144,7 +151,7 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
     }
 
     const existingEvaluation =
-        candidate.validation.technicalEvaluation;
+        candidate.validation.personnelCandidateTechnicalEvaluation;
 
     if (
         existingEvaluation?.status ===
@@ -176,9 +183,37 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
             ? data.examScore
             : existingEvaluation?.examScore ?? null;
 
-    const hasBothScores =
+    const finalExamEvidenceFileUrl =
+        data.examEvidence?.fileUrl ??
+        existingEvaluation?.examEvidenceFileUrl ??
+        null;
+
+    if (
+        data.examScore !== undefined &&
+        data.examScore !== null &&
+        !data.examEvidence
+    ) {
+        throw new Error(
+            "Debe adjuntar la evidencia PDF del examen"
+        );
+    }
+
+    if (
+        data.examEvidence &&
+        (
+            data.examScore === undefined ||
+            data.examScore === null
+        )
+    ) {
+        throw new Error(
+            "Debe registrar la calificación del examen para adjuntar su evidencia"
+        );
+    }
+
+    const isEvaluationComplete =
         finalInterviewScore !== null &&
-        finalExamScore !== null;
+        finalExamScore !== null &&
+        finalExamEvidenceFileUrl !== null;
 
     const evaluation =
         await prisma.personnelCandidateTechnicalEvaluation.upsert({
@@ -209,11 +244,31 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
                         ? now
                         : null,
 
+                examEvidenceOriginalName:
+                    data.examEvidence?.originalName ?? null,
+
+                examEvidenceFileName:
+                    data.examEvidence?.fileName ?? null,
+
+                examEvidenceFileUrl:
+                    data.examEvidence?.fileUrl ?? null,
+
+                examEvidenceMimeType:
+                    data.examEvidence?.mimeType ?? null,
+
+                examEvidenceFileSize:
+                    data.examEvidence?.fileSize ?? null,
+
+                examEvidenceUploadedAt:
+                    data.examEvidence
+                        ? now
+                        : null,
+
                 enteredById:
                     authenticatedUser.id,
 
                 status:
-                    hasBothScores
+                    isEvaluationComplete
                         ? "PENDIENTE_APROBACION"
                         : "EN_REGISTRO",
             },
@@ -253,8 +308,29 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
                     }
                     : {}),
 
+                ...(data.examEvidence
+                    ? {
+                        examEvidenceOriginalName:
+                            data.examEvidence.originalName,
+
+                        examEvidenceFileName:
+                            data.examEvidence.fileName,
+
+                        examEvidenceFileUrl:
+                            data.examEvidence.fileUrl,
+
+                        examEvidenceMimeType:
+                            data.examEvidence.mimeType,
+
+                        examEvidenceFileSize:
+                            data.examEvidence.fileSize,
+
+                        examEvidenceUploadedAt: now,
+                    }
+                    : {}),
+
                 status:
-                    hasBothScores
+                    isEvaluationComplete
                         ? "PENDIENTE_APROBACION"
                         : "EN_REGISTRO",
             },
@@ -262,10 +338,20 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
             select: {
                 id: true,
                 candidateValidationId: true,
+
                 interviewScore: true,
                 interviewRecordedAt: true,
+
                 examScore: true,
                 examRecordedAt: true,
+
+                examEvidenceOriginalName: true,
+                examEvidenceFileName: true,
+                examEvidenceFileUrl: true,
+                examEvidenceMimeType: true,
+                examEvidenceFileSize: true,
+                examEvidenceUploadedAt: true,
+
                 status: true,
                 enteredById: true,
                 updatedAt: true,
@@ -273,7 +359,7 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
         });
 
     // Cuando ambas notas quedan listas, notifica al creador de la requisición.
-    if (hasBothScores) {
+    if (isEvaluationComplete) {
         await notifyCandidateTechnicalEvaluationPendingService(
             candidate.requisition.createdById,
             candidate.requisition.id,
@@ -327,11 +413,21 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
                         id: true,
                         completedStep: true,
 
-                        technicalEvaluation: {
+                        personnelCandidateTechnicalEvaluation: {
                             select: {
                                 id: true,
                                 interviewScore: true,
+                                interviewRecordedAt: true,
                                 examScore: true,
+                                examRecordedAt: true,
+
+                                examEvidenceOriginalName: true,
+                                examEvidenceFileName: true,
+                                examEvidenceFileUrl: true,
+                                examEvidenceMimeType: true,
+                                examEvidenceFileSize: true,
+                                examEvidenceUploadedAt: true,
+
                                 status: true,
                                 enteredById: true,
                             },
@@ -370,7 +466,7 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
     }
 
     const technicalEvaluation =
-        candidate.validation.technicalEvaluation;
+        candidate.validation.personnelCandidateTechnicalEvaluation;
 
     if (!technicalEvaluation) {
         throw new Error(
@@ -389,10 +485,11 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
 
     if (
         technicalEvaluation.interviewScore === null ||
-        technicalEvaluation.examScore === null
+        technicalEvaluation.examScore === null ||
+        technicalEvaluation.examEvidenceFileUrl === null
     ) {
         throw new Error(
-            "La entrevista y el examen deben estar calificados antes de continuar"
+            "La entrevista, el examen y la evidencia PDF del examen deben estar completos antes de continuar"
         );
     }
 
@@ -459,7 +556,7 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
         }
     );
 
-    // Notifica al Auxiliar de Talento Humano que registró las calificaciones.
+    // Notifica al Analista de Talento Humano que registró las calificaciones.
     await notifyCandidateTechnicalEvaluationConfirmedService(
         technicalEvaluation.enteredById,
         candidate.requisition.id,

@@ -1,8 +1,8 @@
 import type { PrismaExecutor } from "../../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
 
-const HUMAN_TALENT_ASSISTANT_POSITION_CODE = "DPC-TH-0080";
+const HUMAN_TALENT_CANDIDATE_MANAGER_POSITION_CODE = "DPC-TH-0118";
 
-// Valida que el usuario tenga activo el cargo de Auxiliar de Talento Humano.
+// Valida que el usuario tenga activo el permiso para gestionar candidatos de Talento Humano.
 export const validatePersonnelCandidateManager = async (
     prismaExecutor: PrismaExecutor,
     userId: number
@@ -15,7 +15,7 @@ export const validatePersonnelCandidateManager = async (
                 endDate: null,
                 position: {
                     isActive: true,
-                    code: HUMAN_TALENT_ASSISTANT_POSITION_CODE,
+                    code: HUMAN_TALENT_CANDIDATE_MANAGER_POSITION_CODE,
                 },
             },
             select: {
@@ -35,7 +35,7 @@ export const validatePersonnelCandidateManager = async (
 
     if (!assignment) {
         throw new Error(
-            "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+            "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
         );
     }
 

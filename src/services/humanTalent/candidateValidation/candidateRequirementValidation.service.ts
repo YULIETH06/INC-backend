@@ -222,7 +222,7 @@ export const completePersonnelCandidateValidationService = async (
                     performedById: true,
                     completedStep: true,
                     validatedAt: true,
-                    requirementValidations: {
+                    personnelCandidateRequirementValidations: {
                         select: {
                             id: true,
                             requirementDescriptionId: true,

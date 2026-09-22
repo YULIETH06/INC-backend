@@ -3256,11 +3256,11 @@ CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED
 | `HIRING_CONFIRMATION_PENDING` | Informa que existe una confirmación de contratación pendiente dentro del flujo de Talento Humano. |
 | `HIRING_CONFIRMATION_APPROVED` | Informa que la confirmación o requisición fue aprobada completamente. |
 | `HIRING_CONFIRMATION_REJECTED` | Informa el rechazo o cancelación de una confirmación de contratación. |
-| `REQUISITION_CANDIDATES_PENDING` | Informa al Auxiliar de Talento Humano que debe iniciar el cargue de candidatos. |
-| `REQUISITION_CANDIDATES_WITHOUT_ASSISTANT` | Informa que no existe un Auxiliar de Talento Humano activo para realizar el cargue. |
+| `REQUISITION_CANDIDATES_PENDING` | Informa al Analista de Talento Humano que debe iniciar el cargue de candidatos. |
+| `REQUISITION_CANDIDATES_WITHOUT_ASSISTANT` | Informa que no existe un Analista de Talento Humano activo para realizar el cargue. |
 | `REQUISITION_CANDIDATES_CLOSED` | Informa al creador de la requisición que el cargue de candidatos fue cerrado y está disponible para consulta. |
 | `REQUISITION_CANDIDATES_REOPENED` | Informa al creador de la requisición que el cargue de candidatos fue reabierto. |
-| `REQUISITION_CANDIDATES_PRESELECTED` | Informa al Auxiliar de Talento Humano activo que el creador confirmó una nueva preselección de candidatos. |
+| `REQUISITION_CANDIDATES_PRESELECTED` | Informa al Analista de Talento Humano activo que el creador confirmó una nueva preselección de candidatos. |
 | `CANDIDATE_TECHNICAL_EVALUATION_PENDING` | Informa al creador de la requisición que la Evaluación Técnica tiene ambas calificaciones y requiere su confirmación. |
 | `CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED` | Informa al usuario que diligenció las calificaciones que el creador confirmó la Evaluación Técnica y comunica si el postulante continúa o no. |
 
@@ -6511,7 +6511,7 @@ Content-Type: application/json
 Usuario autenticado asignado al primer VoBo de Talento Humano.
 ```
 
-En la configuración inicial, este cargo corresponde al Auxiliar de Talento Humano.
+En la configuración inicial, este cargo corresponde al Analista de Talento Humano.
 
 ---
 
@@ -6693,8 +6693,8 @@ Cuando `contractType` es `PRACTICANTE`, se debe enviar el tipo de practicante.
         "isCurrent": false,
         "approverPosition": {
           "id": 1,
-          "code": "DPC-TH-0080",
-          "name": "Auxiliar de Talento Humano"
+          "code": "DPC-TH-0118",
+          "name": "Analista de Talento Humano"
         },
         "approverUser": {
           "id": 8,
@@ -7019,21 +7019,21 @@ El plazo inicial corresponde a **2 días hábiles**, contando de lunes a viernes
 Después de habilitar el cargue, el sistema busca un usuario con una asignación activa al cargo:
 
 ```txt
-DPC-TH-0080 — Auxiliar de Talento Humano
+DPC-TH-0118 — Analista de Talento Humano
 ```
 
-Si existe un Auxiliar de Talento Humano activo:
+Si existe un Analista de Talento Humano activo:
 
 * El usuario creador recibe una notificación indicando que la requisición fue aprobada completamente.
-* El Auxiliar de Talento Humano recibe una notificación indicando que tiene un cargue de candidatos pendiente.
+* El Analista de Talento Humano recibe una notificación indicando que tiene un cargue de candidatos pendiente.
 
-Si no existe un Auxiliar de Talento Humano activo:
+Si no existe un Analista de Talento Humano activo:
 
 * La confirmación permanece en estado `APROBADA`.
 * La requisición permanece en estado `APROBADA`.
 * El cargue de candidatos permanece en estado `ABIERTA`.
 * El usuario creador recibe la notificación de aprobación completa.
-* El Jefe de Talento Humano que realizó la aprobación final recibe una notificación indicando que no existe un auxiliar activo para realizar el cargue.
+* El Jefe de Talento Humano que realizó la aprobación final recibe una notificación indicando que no existe un Analista activo para realizar el cargue.
 
 Cuando la confirmación es rechazada o cancelada, tanto la confirmación como la requisición cambian al estado correspondiente:
 
@@ -7178,8 +7178,8 @@ CANCELADA
         "isCurrent": false,
         "approverPosition": {
           "id": 1,
-          "code": "DPC-TH-0080",
-          "name": "Auxiliar de Talento Humano"
+          "code": "DPC-TH-0118",
+          "name": "Analista de Talento Humano"
         },
         "approverUser": {
           "id": 8,
@@ -7410,13 +7410,13 @@ candidateSubmissionStatus: ABIERTA
 Solo puede realizar el cargue el usuario que tenga una asignación activa al cargo:
 
 ```txt
-DPC-TH-0080 — Auxiliar de Talento Humano
+DPC-TH-0118 — Analista de Talento Humano
 ```
 
 Al registrar un candidato, el sistema:
 
 * Valida que el usuario esté autenticado.
-* Valida que el usuario tenga activo el cargo de Auxiliar de Talento Humano.
+* Valida que el usuario tenga activo el cargo de Analista de Talento Humano.
 * Valida que el identificador de la requisición sea válido.
 * Valida que la requisición exista.
 * Valida que la requisición esté aprobada.
@@ -7456,13 +7456,13 @@ Authorization: Bearer TOKEN
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 Código del cargo autorizado:
 
 ```txt
-DPC-TH-0080
+DPC-TH-0118
 ```
 
 Un usuario que no tenga activo este cargo no puede gestionar candidatos, aunque tenga un rol general diferente dentro del sistema.
@@ -7570,7 +7570,7 @@ Método: POST
 URL: http://localhost:3000/api/human-talent/requisitions/2/candidates
 
 Headers:
-Authorization: Bearer TOKEN_AUXILIAR_TALENTO_HUMANO
+Authorization: Bearer TOKEN_ANALISTA_TALENTO_HUMANO
 
 Body:
 form-data
@@ -7613,8 +7613,8 @@ form-data
     "updatedAt": "2026-07-30T18:30:00.000Z",
     "uploadedBy": {
       "id": 8,
-      "name": "Auxiliar de Talento Humano",
-      "email": "auxiliar.th@gmail.com",
+      "name": "Analista de Talento Humano",
+      "email": "analista.th@gmail.com",
       "role": "USER"
     }
   }
@@ -7775,11 +7775,11 @@ Cuando no se envía ningún campo, el sistema controla el cuerpo vacío y devuel
 
 ---
 
-## Respuesta si el usuario no es Auxiliar de Talento Humano
+## Respuesta si el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -7893,7 +7893,7 @@ CERRADA
 Mientras el cargue se encuentre en estado `ABIERTA`, únicamente puede consultar los candidatos el usuario que tenga una asignación activa al cargo:
 
 ```txt
-DPC-TH-0080 — Auxiliar de Talento Humano
+DPC-TH-0118 — Analista de Talento Humano
 ```
 
 Cuando el cargue se encuentre en estado `CERRADA`, también pueden consultar los candidatos los usuarios que tengan permiso para visualizar el detalle de la requisición.
@@ -7933,7 +7933,7 @@ Authorization: Bearer TOKEN
 ### Cuando el cargue está abierto
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 ### Cuando el cargue está cerrado
@@ -7983,8 +7983,8 @@ Usuarios autenticados con permiso para consultar la requisición.
       "updatedAt": "2026-08-24T17:05:00.000Z",
       "uploadedBy": {
         "id": 8,
-        "name": "Auxiliar de Talento Humano",
-        "email": "auxiliar.th@gmail.com",
+        "name": "Analista de Talento Humano",
+        "email": "analista.th@gmail.com",
         "role": "USER"
       },
       "preselectedBy": {
@@ -8031,11 +8031,11 @@ Usuarios autenticados con permiso para consultar la requisición.
 
 ---
 
-## Respuesta si el cargue está abierto y el usuario no es Auxiliar de Talento Humano
+## Respuesta si el cargue está abierto y el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -8120,7 +8120,7 @@ Authorization: Bearer TOKEN
 
 Puede consultar el historial:
 
-* El usuario con asignación activa al cargo `DPC-TH-0080 — Auxiliar de Talento Humano`.
+* El usuario con asignación activa al cargo `DPC-TH-0118 — Analista de Talento Humano`.
 * El `ADMIN`.
 * El usuario que creó la requisición.
 * Los usuarios que participan o participaron en las aprobaciones de la requisición.
@@ -8147,8 +8147,8 @@ Puede consultar el historial:
       "performedAt": "2026-08-18T21:51:57.977Z",
       "performedBy": {
         "id": 22,
-        "name": "Auxiliar de Talento Humano",
-        "email": "auxiliar.talentohumano@incobra.com",
+        "name": "Analista de Talento Humano",
+        "email": "analista.talentohumano@incobra.com",
         "role": "USER"
       }
     },
@@ -8161,8 +8161,8 @@ Puede consultar el historial:
       "performedAt": "2026-08-18T21:52:43.746Z",
       "performedBy": {
         "id": 22,
-        "name": "Auxiliar de Talento Humano",
-        "email": "auxiliar.talentohumano@incobra.com",
+        "name": "Analista de Talento Humano",
+        "email": "analista.talentohumano@incobra.com",
         "role": "USER"
       }
     }
@@ -8266,7 +8266,7 @@ Authorization: Bearer TOKEN
 
 Puede consultar las fotografías históricas:
 
-* El usuario con asignación activa al cargo `DPC-TH-0080 — Auxiliar de Talento Humano`.
+* El usuario con asignación activa al cargo `DPC-TH-0118 — Analista de Talento Humano`.
 * Los usuarios que tengan permiso para consultar el detalle de la requisición.
 
 Entre los usuarios relacionados con la requisición pueden encontrarse:
@@ -8300,8 +8300,8 @@ Entre los usuarios relacionados con la requisición pueden encontrarse:
       "closedAt": "2026-08-24T16:55:44.697Z",
       "closedBy": {
         "id": 22,
-        "name": "Auxiliar de Talento Humano",
-        "email": "auxiliar.talentohumano@incobra.com"
+        "name": "Analista de Talento Humano",
+        "email": "analista.talentohumano@incobra.com"
       },
       "candidates": [
         {
@@ -8330,8 +8330,8 @@ Entre los usuarios relacionados con la requisición pueden encontrarse:
       "closedAt": "2026-08-24T18:17:29.881Z",
       "closedBy": {
         "id": 22,
-        "name": "Auxiliar de Talento Humano",
-        "email": "auxiliar.talentohumano@incobra.com"
+        "name": "Analista de Talento Humano",
+        "email": "analista.talentohumano@incobra.com"
       },
       "candidates": [
         {
@@ -8476,7 +8476,7 @@ Si el cierre se realiza dentro del plazo:
 candidateSubmissionLateReason: null
 ```
 
-Si se realiza después de la fecha límite, el Auxiliar de Talento Humano debe enviar el motivo del retraso mediante `lateReason`.
+Si se realiza después de la fecha límite, el Analista de Talento Humano debe enviar el motivo del retraso mediante `lateReason`.
 
 La justificación queda almacenada en:
 
@@ -8522,7 +8522,7 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-DPC-TH-0080 — Auxiliar de Talento Humano
+DPC-TH-0118 — Analista de Talento Humano
 ```
 
 ## Parámetros
@@ -8637,11 +8637,11 @@ Cuando el cargue se cierra correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el usuario no es Auxiliar de Talento Humano
+## Respuesta si el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -8740,10 +8740,10 @@ Al reabrir:
 * Se crea un registro `REAPERTURA` con motivo, usuario y fecha.
 * Los candidatos que todavía no hayan sido preseleccionados pueden actualizarse o eliminarse.
 * Los candidatos preseleccionados permanecen protegidos y no pueden editarse ni eliminarse.
-* El Auxiliar de Talento Humano puede registrar nuevos candidatos mientras el cargue permanezca abierto.
+* El Analista de Talento Humano puede registrar nuevos candidatos mientras el cargue permanezca abierto.
 * El usuario creador recibe una notificación de reapertura.
 
-Cuando el Auxiliar finaliza los ajustes, debe cerrar nuevamente el cargue. Ese cierre posterior se registra como `CIERRE` en el historial y no modifica la fecha del primer cierre.
+Cuando el Analista finaliza los ajustes, debe cerrar nuevamente el cargue. Ese cierre posterior se registra como `CIERRE` en el historial y no modifica la fecha del primer cierre.
 
 ---
 
@@ -8757,7 +8757,7 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-DPC-TH-0080 — Auxiliar de Talento Humano
+DPC-TH-0118 — Analista de Talento Humano
 ```
 
 ## Parámetros
@@ -8842,11 +8842,11 @@ Cuando el cargue se reabre correctamente, el sistema genera una notificación pa
 }
 ```
 
-## Respuesta si el usuario no es Auxiliar de Talento Humano
+## Respuesta si el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -8935,11 +8935,11 @@ preselectedById: id del usuario creador de la requisición
 
 ## Notificación automática
 
-Cada vez que el creador confirma una preselección, el sistema busca al **Auxiliar de Talento Humano activo** y, cuando existe, genera una notificación asociada con la requisición.
+Cada vez que el creador confirma una preselección, el sistema busca al **Analista de Talento Humano activo** y, cuando existe, genera una notificación asociada con la requisición.
 
 | Destinatario | Tipo |
 | ------------ | ---- |
-| Auxiliar de Talento Humano activo | `REQUISITION_CANDIDATES_PRESELECTED` |
+| Analista de Talento Humano activo | `REQUISITION_CANDIDATES_PRESELECTED` |
 
 La notificación utiliza un mensaje estandarizado según la cantidad de candidatos confirmados.
 
@@ -8957,7 +8957,7 @@ Título: Preselección confirmada - Requisición #25
 Mensaje: Se preseleccionaron 3 candidatos para el cargo Analista Contable. Ya puedes iniciar el proceso de validación de cargo y postulante.
 ```
 
-Si no existe un Auxiliar de Talento Humano activo, la preselección se conserva correctamente y no se genera esta notificación.
+Si no existe un Analista de Talento Humano activo, la preselección se conserva correctamente y no se genera esta notificación.
 
 ---
 
@@ -9204,7 +9204,7 @@ Authorization: Bearer TOKEN
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 ---
@@ -9241,7 +9241,7 @@ Método: PATCH
 URL: http://localhost:3000/api/human-talent/requisitions/2/candidates/1
 
 Headers:
-Authorization: Bearer TOKEN_AUXILIAR_TALENTO_HUMANO
+Authorization: Bearer TOKEN_ANALISTA_TALENTO_HUMANO
 
 Body:
 form-data
@@ -9284,8 +9284,8 @@ form-data
     "updatedAt": "2026-07-30T20:40:00.000Z",
     "uploadedBy": {
       "id": 8,
-      "name": "Auxiliar de Talento Humano",
-      "email": "auxiliar.th@gmail.com",
+      "name": "Analista de Talento Humano",
+      "email": "analista.th@gmail.com",
       "role": "USER"
     }
   }
@@ -9434,11 +9434,11 @@ form-data
 
 ---
 
-## Respuesta si el usuario no es Auxiliar de Talento Humano
+## Respuesta si el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -9586,7 +9586,7 @@ Authorization: Bearer TOKEN
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 ---
@@ -9644,11 +9644,11 @@ Este endpoint no requiere body.
 
 ---
 
-## Respuesta si el usuario no es Auxiliar de Talento Humano
+## Respuesta si el usuario no es Analista de Talento Humano
 
 ```json
 {
-  "message": "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+  "message": "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
 }
 ```
 
@@ -9779,13 +9779,13 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 Código del cargo autorizado:
 
 ```txt
-DPC-TH-0080
+DPC-TH-0118
 ```
 
 ---
@@ -9907,7 +9907,7 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 ---
@@ -10070,7 +10070,7 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
+Usuario autenticado con el cargo activo de Analista de Talento Humano.
 ```
 
 ---
@@ -10223,7 +10223,6 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 
 ---
 
-
 # Guardar Evaluación Técnica
 
 ## Endpoint protegido
@@ -10242,9 +10241,11 @@ PATCH /api/human-talent/candidate-validations/15/technical-evaluation
 
 Este endpoint permite registrar las calificaciones de **entrevista** y **examen** de la Fase 4: Evaluación Técnica.
 
-Las notas son diligenciadas por el Auxiliar de Talento Humano y pueden registrarse por separado. Cuando ambas están completas, la evaluación queda pendiente de aprobación y se notifica al usuario que creó la requisición.
+Las notas pueden registrarse por separado. Cuando ambas están completas, la evaluación queda pendiente de aprobación y se notifica al usuario que creó la requisición.
 
 Para iniciar esta fase, el postulante debe haber completado la Fase 3 y haber sido considerado apto para continuar.
+
+La evidencia correspondiente al examen técnico se recibe mediante la carga de un archivo PDF.
 
 ---
 
@@ -10252,7 +10253,6 @@ Para iniciar esta fase, el postulante debe haber completado la Fase 3 y haber si
 
 ```http
 Authorization: Bearer TOKEN
-Content-Type: application/json
 ```
 
 ---
@@ -10275,29 +10275,32 @@ Usuario autenticado con el cargo activo de Auxiliar de Talento Humano.
 
 ## Body
 
+El endpoint utiliza `multipart/form-data`.
+
 Se puede registrar una calificación:
 
-```json
-{
-  "interviewScore": 4.5
-}
+```txt
+interviewScore: 4.5
 ```
 
 o:
 
-```json
-{
-  "examScore": 4.2
-}
+```txt
+examScore: 4.2
 ```
 
 También pueden enviarse ambas:
 
-```json
-{
-  "interviewScore": 4.5,
-  "examScore": 4.2
-}
+```txt
+interviewScore: 4.5
+examScore: 4.2
+```
+
+Cuando se registra la calificación del examen, puede adjuntarse la evidencia correspondiente:
+
+```txt
+examScore: 4.2
+file: examen-tecnico.pdf
 ```
 
 ---
@@ -10308,9 +10311,13 @@ También pueden enviarse ambas:
 | ----- | ---- | ----------- | ----------- |
 | `interviewScore` | number | Condicional | Calificación de entrevista entre 0.0 y 5.0 |
 | `examScore` | number | Condicional | Calificación de examen entre 0.0 y 5.0 |
+| `file` | File | Condicional | Evidencia PDF del examen técnico |
 
 Debe enviarse por lo menos una de las dos calificaciones.
 
+Cada calificación admite máximo un decimal.
+
+La evidencia solamente puede adjuntarse cuando se registra la calificación del examen.
 
 ---
 
@@ -10319,50 +10326,20 @@ Debe enviarse por lo menos una de las dos calificaciones.
 ```json
 {
   "message": "Calificación de la Evaluación Técnica guardada correctamente",
-  "evaluation": {
-    "id": 1,
-    "candidateValidationId": 3,
-    "interviewScore": "4.5",
-    "interviewRecordedAt": "2026-09-07T18:30:00.000Z",
-    "examScore": null,
-    "examRecordedAt": null,
-    "status": "EN_REGISTRO",
-    "enteredById": 22,
-    "updatedAt": "2026-09-07T18:30:00.000Z"
-  }
+  "evaluation": {}
 }
 ```
 
 ---
 
-## Respuesta exitosa — ambas notas registradas
+## Respuesta exitosa — evaluación enviada para aprobación
 
 ```json
 {
   "message": "Evaluación Técnica enviada para aprobación correctamente",
-  "evaluation": {
-    "id": 1,
-    "candidateValidationId": 3,
-    "interviewScore": "4.5",
-    "interviewRecordedAt": "2026-09-07T18:30:00.000Z",
-    "examScore": "4.2",
-    "examRecordedAt": "2026-09-07T18:40:00.000Z",
-    "status": "PENDIENTE_APROBACION",
-    "enteredById": 22,
-    "updatedAt": "2026-09-07T18:40:00.000Z"
-  }
+  "evaluation": {}
 }
 ```
-
----
-
-## Notificación automática
-
-Cuando existen las dos calificaciones se genera una notificación para el usuario que creó la requisición.
-
-| Destinatario | Tipo |
-| ------------ | ---- |
-| Usuario creador de la requisición | `CANDIDATE_TECHNICAL_EVALUATION_PENDING` |
 
 ---
 
@@ -10371,6 +10348,16 @@ Cuando existen las dos calificaciones se genera una notificación para el usuari
 ```json
 {
   "message": "Debe diligenciar por lo menos una calificación"
+}
+```
+
+---
+
+## Respuesta si se adjunta evidencia sin calificación del examen
+
+```json
+{
+  "message": "Debe registrar la calificación del examen para adjuntar su evidencia"
 }
 ```
 
@@ -10386,6 +10373,16 @@ Cuando existen las dos calificaciones se genera una notificación para el usuari
 
 ---
 
+## Respuesta si la calificación de la entrevista tiene más de un decimal
+
+```json
+{
+  "message": "La calificación de la entrevista solo puede tener un decimal"
+}
+```
+
+---
+
 ## Respuesta si el examen no está entre 0.0 y 5.0
 
 ```json
@@ -10396,6 +10393,15 @@ Cuando existen las dos calificaciones se genera una notificación para el usuari
 
 ---
 
+## Respuesta si la calificación del examen tiene más de un decimal
+
+```json
+{
+  "message": "La calificación del examen solo puede tener un decimal"
+}
+```
+
+---
 
 ## Respuesta si falta completar la Fase 3
 
@@ -10432,6 +10438,16 @@ Cuando existen las dos calificaciones se genera una notificación para el usuari
 ```json
 {
   "message": "La Evaluación Técnica ya fue completada"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al guardar la Evaluación Técnica"
 }
 ```
 
@@ -10482,7 +10498,7 @@ completedStep: 4
 
 ## Notificación automática
 
-Después de confirmar la Evaluación Técnica, el sistema notifica al **Auxiliar de Talento Humano que registró las calificaciones**, identificado mediante `enteredById`.
+Después de confirmar la Evaluación Técnica, el sistema notifica al **Analista de Talento Humano que registró las calificaciones**, identificado mediante `enteredById`.
 
 | Destinatario | Tipo |
 | ------------ | ---- |
@@ -10679,7 +10695,7 @@ El estado del cargue puede encontrarse `ABIERTA` o `CERRADA` sin afectar la disp
 
 Pueden consultar las validaciones:
 
-- **Auxiliar de Talento Humano:** puede consultar todos los candidatos preseleccionados y diligenciar las fases operativas del proceso.
+- **Analista de Talento Humano:** puede consultar todos los candidatos preseleccionados y diligenciar las fases operativas del proceso.
 - **Jefe de Talento Humano:** puede consultar todos los candidatos preseleccionados.
 - **ADMIN:** puede consultar todos los candidatos preseleccionados.
 - **Creador autorizado de requisiciones:** puede consultar únicamente los candidatos pertenecientes a las requisiciones que él mismo creó.
@@ -10791,7 +10807,7 @@ La respuesta contiene la información del candidato, la requisición asociada, l
 
 Pueden consultar el detalle de la validación:
 
-- **Auxiliar de Talento Humano:** puede consultar el detalle de cualquier candidato preseleccionado y diligenciar las fases operativas del proceso.
+- **Analista de Talento Humano:** puede consultar el detalle de cualquier candidato preseleccionado y diligenciar las fases operativas del proceso.
 - **Jefe de Talento Humano:** puede consultar el detalle de cualquier candidato preseleccionado.
 - **ADMIN:** puede consultar el detalle de cualquier candidato preseleccionado.
 - **Creador autorizado de requisiciones:** puede consultar únicamente los candidatos pertenecientes a las requisiciones que él mismo creó.
@@ -10831,7 +10847,7 @@ Pueden consultar el detalle de la validación:
         "isSuitable": null,
         "enteredBy": {
           "id": 22,
-          "name": "Auxiliar de Talento Humano"
+          "name": "Analista de Talento Humano"
         },
         "approvedBy": null,
         "approvedAt": null
@@ -10857,7 +10873,7 @@ Si la Evaluación Técnica todavía no ha iniciado:
 
 ### `canManageValidation`
 
-Indica si el usuario puede diligenciar las fases correspondientes al Auxiliar de Talento Humano.
+Indica si el usuario puede diligenciar las fases correspondientes al Analista de Talento Humano.
 
 ### `canApproveTechnicalEvaluation`
 
@@ -10936,23 +10952,23 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | GET    | /api/human-talent/requisitions                                                                                                              | Obtiene las requisiciones visibles para el usuario         | Usuario relacionado                                             |
 | GET    | /api/human-talent/requisitions/:id                                                                                                          | Obtiene el detalle completo de una requisición             | Usuario relacionado                                             |
 | PATCH  | /api/human-talent/requisitions/:id/decision                                                                                                 | Aprueba, rechaza o cancela una requisición                 | Aprobador actual                                                |
-| POST   | /api/human-talent/requisitions/:id/hiring-confirmation                                                                                      | Crea la confirmación final de contratación                 | Auxiliar de Talento Humano                                      |
+| POST   | /api/human-talent/requisitions/:id/hiring-confirmation                                                                                      | Crea la confirmación final de contratación                 | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/hiring-confirmations/:id/decision                                                                                         | Aprueba, rechaza o cancela la confirmación de contratación | Aprobador actual TH                                             |
-| POST   | /api/human-talent/requisitions/:id/candidates                                                                                               | Registra un candidato y carga su hoja de vida              | Auxiliar de Talento Humano                                      |
-| GET    | /api/human-talent/requisitions/:id/candidates                                                                                               | Obtiene los candidatos registrados en una requisición e información de preselección           | Auxiliar TH / Usuario relacionado cuando el cargue esté cerrado |
-| GET    | /api/human-talent/requisitions/:id/candidates/history                                                                                       | Obtiene reaperturas y cierres posteriores del cargue       | Auxiliar TH / Usuario relacionado                               |
-| GET    | /api/human-talent/requisitions/:id/candidates/batches                                                                                       | Obtiene las fotografías históricas de cada cierre          | Auxiliar TH / Usuario relacionado                               |
-| PATCH  | /api/human-talent/requisitions/:id/candidates/close                                                                                         | Cierra el cargue y genera una fotografía histórica         | Auxiliar de Talento Humano                                      |
-| PATCH  | /api/human-talent/requisitions/:id/candidates/reopen                                                                                        | Reabre el proceso de cargue de candidatos                  | Auxiliar de Talento Humano                                      |
+| POST   | /api/human-talent/requisitions/:id/candidates                                                                                               | Registra un candidato y carga su hoja de vida              | Analista de Talento Humano                                      |
+| GET    | /api/human-talent/requisitions/:id/candidates                                                                                               | Obtiene los candidatos registrados en una requisición e información de preselección           | Analista TH / Usuario relacionado cuando el cargue esté cerrado |
+| GET    | /api/human-talent/requisitions/:id/candidates/history                                                                                       | Obtiene reaperturas y cierres posteriores del cargue       | Analista TH / Usuario relacionado                               |
+| GET    | /api/human-talent/requisitions/:id/candidates/batches                                                                                       | Obtiene las fotografías históricas de cada cierre          | Analista TH / Usuario relacionado                               |
+| PATCH  | /api/human-talent/requisitions/:id/candidates/close                                                                                         | Cierra el cargue y genera una fotografía histórica         | Analista de Talento Humano                                      |
+| PATCH  | /api/human-talent/requisitions/:id/candidates/reopen                                                                                        | Reabre el proceso de cargue de candidatos                  | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/requisitions/:id/candidates/preselect                                                                                     | Confirma la preselección de uno o varios candidatos        | Usuario creador de la requisición                               |
-| PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Auxiliar de Talento Humano                                      |
-| DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Auxiliar de Talento Humano                                      |
-| GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Auxiliar TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
-| GET    | /api/human-talent/candidate-validations/:candidateId                                                                                         | Obtiene el detalle completo de la validación               | Auxiliar TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
-| POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Auxiliar de Talento Humano                                      |
-| PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Auxiliar de Talento Humano                                      |
-| PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Auxiliar de Talento Humano                                      |
-| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Auxiliar de Talento Humano                                      |
+| PATCH  | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Actualiza los datos o la hoja de vida de un candidato      | Analista de Talento Humano                                      |
+| DELETE | /api/human-talent/requisitions/:id/candidates/:candidateId                                                                                  | Elimina un candidato y su hoja de vida                     | Analista de Talento Humano                                      |
+| GET    | /api/human-talent/candidate-validations                                                                                                      | Obtiene los candidatos disponibles para validación         | Analista TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
+| GET    | /api/human-talent/candidate-validations/:candidateId                                                                                         | Obtiene el detalle completo de la validación               | Analista TH / Jefe TH / ADMIN / Creador autorizado: solo sus requisiciones |
+| POST   | /api/human-talent/candidate-validations/:candidateId                                                                                         | Inicia la validación y guarda el concepto de aplicación    | Analista de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/position                                                                                | Guarda la validación de cargo                              | Analista de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Analista de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
 
 
@@ -10994,15 +11010,15 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | ------------------------------------- | ---------------------------- | -------------------------- | ---------------------------------------- |
 | Crear requisición                     | Usuario con cargo autorizado | Primer aprobador           | REQUISITION_PENDING_APPROVAL             |
 | Aprobar paso de requisición           | Aprobador actual             | Siguiente aprobador        | REQUISITION_PENDING_APPROVAL             |
-| Finalizar aprobación jerárquica       | Último aprobador             | Auxiliar de Talento Humano | HIRING_CONFIRMATION_PENDING              |
+| Finalizar aprobación jerárquica       | Último aprobador             | Analista de Talento Humano | HIRING_CONFIRMATION_PENDING              |
 | Rechazar o cancelar requisición       | Aprobador actual             | Usuario creador            | REQUISITION_REJECTED                     |
-| Crear confirmación de contratación    | Auxiliar de Talento Humano   | Jefe de Talento Humano     | HIRING_CONFIRMATION_PENDING              |
+| Crear confirmación de contratación    | Analista de Talento Humano   | Jefe de Talento Humano     | HIRING_CONFIRMATION_PENDING              |
 | Aprobar completamente la confirmación | Jefe de Talento Humano       | Usuario creador            | HIRING_CONFIRMATION_APPROVED             |
-| Habilitar cargue con auxiliar activo  | Jefe de Talento Humano       | Auxiliar de Talento Humano | REQUISITION_CANDIDATES_PENDING           |
-| Habilitar cargue sin auxiliar activo  | Jefe de Talento Humano       | Jefe de Talento Humano     | REQUISITION_CANDIDATES_WITHOUT_ASSISTANT |
-| Cerrar cargue de candidatos           | Auxiliar de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_CLOSED            |
-| Reabrir cargue de candidatos          | Auxiliar de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_REOPENED          |
+| Habilitar cargue con Analista activo  | Jefe de Talento Humano       | Analista de Talento Humano | REQUISITION_CANDIDATES_PENDING           |
+| Habilitar cargue sin Analista activo  | Jefe de Talento Humano       | Jefe de Talento Humano     | REQUISITION_CANDIDATES_WITHOUT_ASSISTANT |
+| Cerrar cargue de candidatos           | Analista de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_CLOSED            |
+| Reabrir cargue de candidatos          | Analista de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_REOPENED          |
 | Rechazar o cancelar confirmación      | Aprobador actual TH          | Usuario creador            | HIRING_CONFIRMATION_REJECTED             |
-| Completar las dos calificaciones técnicas | Auxiliar de Talento Humano   | Usuario creador            | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
+| Completar las dos calificaciones técnicas | Analista de Talento Humano   | Usuario creador            | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
 
 ---

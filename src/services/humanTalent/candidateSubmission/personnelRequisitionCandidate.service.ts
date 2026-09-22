@@ -21,8 +21,6 @@ export const createPersonnelRequisitionCandidateService = async (
     data: CreatePersonnelRequisitionCandidateData,
     authenticatedUser: PersonnelCandidateAuthenticatedUser
 ) => {
-    // Valida que el usuario autenticado tenga activo
-    // el cargo de Auxiliar de Talento Humano.
     await validatePersonnelCandidateManager(
         prisma,
         authenticatedUser.id
@@ -216,7 +214,7 @@ export const getPersonnelRequisitionCandidatesService = async (
     }
 
     // Verifica si el usuario autenticado tiene activo
-    // el cargo de Auxiliar de Talento Humano.
+    // el cargo de Analista de Talento Humano.
     const candidateManagerAssignment =
         await prisma.userPositionAssignment.findFirst({
             where: {
@@ -225,7 +223,7 @@ export const getPersonnelRequisitionCandidatesService = async (
 
                 position: {
                     is: {
-                        code: "DPC-TH-0080",
+                        code: "DPC-TH-0118",
                         isActive: true,
                     },
                 },
@@ -239,14 +237,14 @@ export const getPersonnelRequisitionCandidatesService = async (
         Boolean(candidateManagerAssignment);
 
     // Mientras el cargue está abierto, solamente el
-    // Auxiliar de Talento Humano puede consultar candidatos.
+    // Analista de Talento Humano puede consultar candidatos.
     if (
         requisition.candidateSubmissionStatus ===
         "ABIERTA" &&
         !isCandidateManager
     ) {
         throw new Error(
-            "Solo el Auxiliar de Talento Humano activo puede gestionar los candidatos"
+            "Solo el Analista de Talento Humano activo puede gestionar los candidatos"
         );
     }
 
@@ -357,7 +355,7 @@ export const getPersonnelCandidateSubmissionHistoryService = async (
         );
     }
 
-    // Verifica si el usuario es el Auxiliar de Talento Humano activo.
+    // Verifica si el usuario es el Analista de Talento Humano activo.
     const candidateManagerAssignment =
         await prisma.userPositionAssignment.findFirst({
             where: {
@@ -365,7 +363,7 @@ export const getPersonnelCandidateSubmissionHistoryService = async (
                 isActive: true,
                 position: {
                     is: {
-                        code: "DPC-TH-0080",
+                        code: "DPC-TH-0118",
                         isActive: true,
                     },
                 },
@@ -375,7 +373,7 @@ export const getPersonnelCandidateSubmissionHistoryService = async (
             },
         });
 
-    // Si no es el Auxiliar, valida los permisos generales de la requisición.
+    // Si no es el Analista, valida los permisos generales de la requisición.
     if (!candidateManagerAssignment) {
         await getPersonnelRequisitionByIdService(
             requisitionId,
@@ -458,7 +456,7 @@ export const getPersonnelCandidateSubmissionBatchesService =
 
                     position: {
                         is: {
-                            code: "DPC-TH-0080",
+                            code: "DPC-TH-0118",
                             isActive: true,
                         },
                     },
@@ -468,7 +466,7 @@ export const getPersonnelCandidateSubmissionBatchesService =
                 },
             });
 
-        // Si no es Auxiliar de Talento Humano,
+        // Si no es Analista de Talento Humano,
         // valida los permisos generales de la requisición.
         if (!candidateManagerAssignment) {
             await getPersonnelRequisitionByIdService(
@@ -528,7 +526,6 @@ export const closePersonnelRequisitionCandidatesService = async (
     authenticatedUser: PersonnelCandidateAuthenticatedUser,
     lateReason?: string
 ) => {
-    // Solo el Auxiliar de Talento Humano activo puede cerrar el cargue.
     await validatePersonnelCandidateManager(
         prisma,
         authenticatedUser.id
@@ -792,7 +789,6 @@ export const reopenPersonnelRequisitionCandidatesService = async (
     authenticatedUser: PersonnelCandidateAuthenticatedUser,
     reason: string
 ) => {
-    // Solo el Auxiliar de Talento Humano activo puede reabrir el cargue.
     await validatePersonnelCandidateManager(
         prisma,
         authenticatedUser.id
@@ -932,7 +928,6 @@ export const deletePersonnelRequisitionCandidateService =
         candidateId: number,
         authenticatedUser: PersonnelCandidateAuthenticatedUser
     ) => {
-        // Solo el Auxiliar de Talento Humano activo puede eliminar candidatos.
         await validatePersonnelCandidateManager(
             prisma,
             authenticatedUser.id
@@ -1024,7 +1019,6 @@ export const updatePersonnelRequisitionCandidateService =
         data: UpdatePersonnelRequisitionCandidateData,
         authenticatedUser: PersonnelCandidateAuthenticatedUser
     ) => {
-        // Solo el Auxiliar de Talento Humano activo puede editar candidatos.
         await validatePersonnelCandidateManager(
             prisma,
             authenticatedUser.id
@@ -1451,7 +1445,7 @@ export const preselectPersonnelRequisitionCandidatesService =
                 },
             });
 
-        // Busca al Auxiliar de Talento Humano activo.
+        // Busca al Analista de Talento Humano activo.
         const activeHumanTalentAssistant =
             await prisma.userPositionAssignment.findFirst({
                 where: {
@@ -1460,7 +1454,7 @@ export const preselectPersonnelRequisitionCandidatesService =
 
                     position: {
                         is: {
-                            code: "DPC-TH-0080",
+                            code: "DPC-TH-0118",
                             isActive: true,
                         },
                     },
@@ -1473,7 +1467,7 @@ export const preselectPersonnelRequisitionCandidatesService =
                 },
             });
 
-        // Si existe un Auxiliar activo, le notifica la nueva preselección.
+        // Si existe un Analista activo, le notifica la nueva preselección.
         if (activeHumanTalentAssistant) {
             await notifyCandidatesPreselectedService(
                 activeHumanTalentAssistant.userId,

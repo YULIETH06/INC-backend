@@ -136,10 +136,10 @@ const testUsers = [
     },
 
     {
-        name: "Auxiliar de Talento Humano",
-        email: "auxiliar.talentohumano@incobra.com",
+        name: "Analista de Talento Humano",
+        email: "analista.talentohumano@incobra.com",
         role: Role.USER,
-        positionCode: "DPC-TH-0080",
+        positionCode: "DPC-TH-0118",
     },
 ];
 
