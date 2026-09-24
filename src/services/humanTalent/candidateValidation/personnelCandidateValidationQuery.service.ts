@@ -323,6 +323,13 @@ export const getPersonnelCandidateValidationDetailService = async (
                                 examScore: true,
                                 examRecordedAt: true,
 
+                                examEvidenceOriginalName: true,
+                                examEvidenceFileName: true,
+                                examEvidenceFileUrl: true,
+                                examEvidenceMimeType: true,
+                                examEvidenceFileSize: true,
+                                examEvidenceUploadedAt: true,
+
                                 status: true,
                                 isSuitable: true,
 
