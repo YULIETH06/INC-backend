@@ -483,9 +483,49 @@ export const getPositionProfileRevisionDetailService = async (
             },
         });
 
+    /*
+ * Obtiene todos los tipos de competencia configurados.
+ *
+ * Cada tipo incluye únicamente las competencias activas
+ * asociadas a la revisión consultada.
+ */
+    const competencies =
+        await prisma.competencyType.findMany({
+            select: {
+                id: true,
+                name: true,
+                positionCompetencyDescriptions: {
+                    where: {
+                        revisionId,
+                        deletedAt: null,
+                    },
+                    select: {
+                        id: true,
+                        revisionId: true,
+                        competencyTypeId: true,
+                        competency: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: [
+                        {
+                            createdAt: "asc",
+                        },
+                        {
+                            id: "asc",
+                        },
+                    ],
+                },
+            },
+            orderBy: {
+                id: "asc",
+            },
+        });
+
     return {
         ...revision,
         requirements,
+        competencies,
     };
 };
 
@@ -730,6 +770,424 @@ export const deletePositionRequirementDescriptionService = async (
                     name: true,
                 },
             },
+        },
+    });
+};
+
+// Agrega una competencia dentro de una revisión en borrador.
+export const createPositionCompetencyDescriptionService = async (
+    positionProfileId: number,
+    revisionId: number,
+    competencyTypeId: number,
+    competency: string
+) => {
+    if (
+        !Number.isInteger(positionProfileId) ||
+        positionProfileId <= 0
+    ) {
+        throw new Error(
+            "El id del perfil de cargo no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(revisionId) ||
+        revisionId <= 0
+    ) {
+        throw new Error(
+            "El id de la revisión no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(competencyTypeId) ||
+        competencyTypeId <= 0
+    ) {
+        throw new Error(
+            "El id del tipo de competencia no es válido"
+        );
+    }
+
+    const normalizedCompetency =
+        competency.trim();
+
+    if (!normalizedCompetency) {
+        throw new Error(
+            "La competencia es obligatoria"
+        );
+    }
+
+    if (normalizedCompetency.length > 500) {
+        throw new Error(
+            "La competencia no puede superar los 500 caracteres"
+        );
+    }
+
+    /*
+     * Verifica que la revisión exista, pertenezca al cargo
+     * indicado y no esté eliminada lógicamente.
+     */
+    const revision =
+        await prisma.positionProfileRevision.findFirst({
+            where: {
+                id: revisionId,
+                positionProfileId,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                status: true,
+                revisionNumber: true,
+            },
+        });
+
+    if (!revision) {
+        throw new Error(
+            "La revisión del perfil de cargo no existe"
+        );
+    }
+
+    /*
+     * Las competencias solamente pueden asociarse
+     * mientras la revisión esté en estado BORRADOR.
+     */
+    if (revision.status !== "BORRADOR") {
+        throw new Error(
+            "Solo se pueden agregar competencias a una revisión en estado BORRADOR"
+        );
+    }
+
+    /*
+     * Verifica que el tipo de competencia exista.
+     */
+    const competencyType =
+        await prisma.competencyType.findUnique({
+            where: {
+                id: competencyTypeId,
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        });
+
+    if (!competencyType) {
+        throw new Error(
+            "El tipo de competencia no existe"
+        );
+    }
+
+    /*
+     * Evita registrar dos veces la misma competencia
+     * dentro de la misma revisión y tipo.
+     */
+    const existingCompetency =
+        await prisma.positionCompetencyDescription.findFirst({
+            where: {
+                revisionId,
+                competencyTypeId,
+                competency: normalizedCompetency,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (existingCompetency) {
+        throw new Error(
+            "La competencia ya se encuentra asociada a esta revisión"
+        );
+    }
+
+    return prisma.positionCompetencyDescription.create({
+        data: {
+            revisionId,
+            competencyTypeId,
+            competency: normalizedCompetency,
+        },
+        select: {
+            id: true,
+            revisionId: true,
+            competencyTypeId: true,
+            competency: true,
+            createdAt: true,
+            updatedAt: true,
+            deletedAt: true,
+
+            competencyType: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+        },
+    });
+};
+
+// Actualiza la descripción de una competencia asociada a una revisión en borrador.
+export const updatePositionCompetencyDescriptionService = async (
+    positionProfileId: number,
+    revisionId: number,
+    competencyDescriptionId: number,
+    competency: string
+) => {
+    if (
+        !Number.isInteger(positionProfileId) ||
+        positionProfileId <= 0
+    ) {
+        throw new Error(
+            "El id del perfil de cargo no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(revisionId) ||
+        revisionId <= 0
+    ) {
+        throw new Error(
+            "El id de la revisión no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(competencyDescriptionId) ||
+        competencyDescriptionId <= 0
+    ) {
+        throw new Error(
+            "El id de la competencia no es válido"
+        );
+    }
+
+    const normalizedCompetency =
+        competency.trim();
+
+    if (!normalizedCompetency) {
+        throw new Error(
+            "La competencia es obligatoria"
+        );
+    }
+
+    if (normalizedCompetency.length > 500) {
+        throw new Error(
+            "La competencia no puede superar los 500 caracteres"
+        );
+    }
+
+    /*
+     * Verifica que la revisión exista, pertenezca al cargo
+     * indicado y no esté eliminada lógicamente.
+     */
+    const revision =
+        await prisma.positionProfileRevision.findFirst({
+            where: {
+                id: revisionId,
+                positionProfileId,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                status: true,
+            },
+        });
+
+    if (!revision) {
+        throw new Error(
+            "La revisión del perfil de cargo no existe"
+        );
+    }
+
+    /*
+     * Las competencias solamente pueden editarse
+     * mientras la revisión esté en estado BORRADOR.
+     */
+    if (revision.status !== "BORRADOR") {
+        throw new Error(
+            "Solo se pueden actualizar competencias de una revisión en estado BORRADOR"
+        );
+    }
+
+    /*
+     * Busca la competencia asociada a la revisión.
+     */
+    const existingCompetency =
+        await prisma.positionCompetencyDescription.findFirst({
+            where: {
+                id: competencyDescriptionId,
+                revisionId,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                competencyTypeId: true,
+                competency: true,
+            },
+        });
+
+    if (!existingCompetency) {
+        throw new Error(
+            "La competencia no existe en la revisión"
+        );
+    }
+
+    /*
+     * Evita que la actualización genere una competencia
+     * duplicada dentro del mismo tipo y revisión.
+     */
+    const duplicatedCompetency =
+        await prisma.positionCompetencyDescription.findFirst({
+            where: {
+                revisionId,
+                competencyTypeId:
+                    existingCompetency.competencyTypeId,
+                competency: normalizedCompetency,
+                deletedAt: null,
+
+                NOT: {
+                    id: competencyDescriptionId,
+                },
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (duplicatedCompetency) {
+        throw new Error(
+            "La competencia ya se encuentra asociada a esta revisión"
+        );
+    }
+
+    return prisma.positionCompetencyDescription.update({
+        where: {
+            id: competencyDescriptionId,
+        },
+        data: {
+            competency: normalizedCompetency,
+        },
+        select: {
+            id: true,
+            revisionId: true,
+            competencyTypeId: true,
+            competency: true,
+            createdAt: true,
+            updatedAt: true,
+            deletedAt: true,
+
+            competencyType: {
+                select: {
+                    id: true,
+                    name: true,
+                },
+            },
+        },
+    });
+};
+
+// Elimina lógicamente una competencia asociada a una revisión en borrador.
+export const deletePositionCompetencyDescriptionService = async (
+    positionProfileId: number,
+    revisionId: number,
+    competencyDescriptionId: number
+) => {
+    if (
+        !Number.isInteger(positionProfileId) ||
+        positionProfileId <= 0
+    ) {
+        throw new Error(
+            "El id del perfil de cargo no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(revisionId) ||
+        revisionId <= 0
+    ) {
+        throw new Error(
+            "El id de la revisión no es válido"
+        );
+    }
+
+    if (
+        !Number.isInteger(competencyDescriptionId) ||
+        competencyDescriptionId <= 0
+    ) {
+        throw new Error(
+            "El id de la competencia no es válido"
+        );
+    }
+
+    /*
+     * Verifica que la revisión exista, pertenezca al cargo
+     * indicado y no esté eliminada lógicamente.
+     */
+    const revision =
+        await prisma.positionProfileRevision.findFirst({
+            where: {
+                id: revisionId,
+                positionProfileId,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                status: true,
+            },
+        });
+
+    if (!revision) {
+        throw new Error(
+            "La revisión del perfil de cargo no existe"
+        );
+    }
+
+    /*
+     * Las competencias solamente pueden eliminarse
+     * mientras la revisión esté en estado BORRADOR.
+     */
+    if (revision.status !== "BORRADOR") {
+        throw new Error(
+            "Solo se pueden eliminar competencias de una revisión en estado BORRADOR"
+        );
+    }
+
+    /*
+     * Verifica que la competencia pertenezca a la revisión
+     * y que no haya sido eliminada anteriormente.
+     */
+    const existingCompetency =
+        await prisma.positionCompetencyDescription.findFirst({
+            where: {
+                id: competencyDescriptionId,
+                revisionId,
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+    if (!existingCompetency) {
+        throw new Error(
+            "La competencia no existe en la revisión"
+        );
+    }
+
+    /*
+     * Eliminación lógica.
+     */
+    return prisma.positionCompetencyDescription.update({
+        where: {
+            id: competencyDescriptionId,
+        },
+        data: {
+            deletedAt: new Date(),
+        },
+        select: {
+            id: true,
+            revisionId: true,
+            competencyTypeId: true,
+            competency: true,
+            deletedAt: true,
         },
     });
 };
@@ -1019,6 +1477,71 @@ export const publishPositionProfileRevisionService = async (
             if (missingRequirements.length > 0) {
                 throw new Error(
                     `No se puede publicar la revisión. Faltan descripciones para: ${missingRequirements.join(", ")}`
+                );
+            }
+
+            /*
+            * Obtiene todos los tipos de competencia configurados y verifica
+            * que cada uno tenga al menos una competencia activa en la revisión.
+            */
+            const competencyTypes =
+                await transaction.competencyType.findMany({
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                    orderBy: {
+                        id: "asc",
+                    },
+                });
+
+            if (competencyTypes.length === 0) {
+                throw new Error(
+                    "No existen tipos de competencia configurados"
+                );
+            }
+
+            /*
+             * Agrupa las competencias activas de la revisión por tipo.
+             */
+            const competencyCounts =
+                await transaction.positionCompetencyDescription.groupBy({
+                    by: ["competencyTypeId"],
+                    where: {
+                        revisionId,
+                        deletedAt: null,
+                    },
+                    _count: {
+                        id: true,
+                    },
+                });
+
+            /*
+             * Identifica los tipos de competencia que no tienen
+             * ninguna competencia activa asociada a la revisión.
+             */
+            const missingCompetencyTypes =
+                competencyTypes
+                    .filter((competencyType) => {
+                        const competencyCount =
+                            competencyCounts.find(
+                                (item) =>
+                                    item.competencyTypeId ===
+                                    competencyType.id
+                            );
+
+                        return (
+                            !competencyCount ||
+                            competencyCount._count.id === 0
+                        );
+                    })
+                    .map((competencyType) => {
+                        return competencyType.name;
+                    });
+
+            if (missingCompetencyTypes.length > 0) {
+                throw new Error(
+                    `No se puede publicar la revisión. Faltan competencias para: ${missingCompetencyTypes.join(", ")}`
                 );
             }
 

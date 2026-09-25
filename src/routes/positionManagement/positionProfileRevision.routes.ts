@@ -1,14 +1,17 @@
 import { Router } from "express";
 
 import {
+    createPositionCompetencyDescription,
     createPositionProfileRevision,
     createPositionRequirementDescription,
+    deletePositionCompetencyDescription,
     deletePositionProfileRevision,
     deletePositionRequirementDescription,
     getCurrentPositionProfileRevision,
     getPositionProfileRevisionDetail,
     getPositionProfileRevisions,
     publishPositionProfileRevision,
+    updatePositionCompetencyDescription,
     updatePositionProfileRevision,
     updatePositionRequirementDescription,
 } from "../../controllers/positionManagement/positionProfileRevision.controller.js";
@@ -36,6 +39,27 @@ router.post(
     "/:positionProfileId/revisions/:revisionId/requirements/:requirementId/descriptions",
     authMiddleware,
     createPositionRequirementDescription
+);
+
+// Agrega una competencia a una revisión.
+router.post(
+    "/:positionProfileId/revisions/:revisionId/competencies",
+    authMiddleware,
+    createPositionCompetencyDescription
+);
+
+// Actualiza la descripción de una competencia de una revisión.
+router.patch(
+    "/:positionProfileId/revisions/:revisionId/competencies/:competencyDescriptionId",
+    authMiddleware,
+    updatePositionCompetencyDescription
+);
+
+// Elimina lógicamente una competencia de una revisión.
+router.delete(
+    "/:positionProfileId/revisions/:revisionId/competencies/:competencyDescriptionId",
+    authMiddleware,
+    deletePositionCompetencyDescription
 );
 
 // Elimina lógicamente una descripción de una revisión.

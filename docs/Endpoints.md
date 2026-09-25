@@ -4572,8 +4572,9 @@ La respuesta incluye:
 
 * Información general de la revisión.
 * Información del perfil de cargo.
-* Requisitos fijos.
-* Descripciones activas registradas en cada requisito.
+* Requisitos fijos y sus descripciones activas.
+* Tipos de competencia configurados y sus competencias activas asociadas.
+
 
 Las descripciones eliminadas lógicamente no se incluyen.
 
@@ -4639,6 +4640,36 @@ Usuario autenticado
         "id": 3,
         "name": "Conocimientos específicos",
         "descriptions": []
+      }
+    ],
+    "competencies": [
+      {
+        "id": 1,
+        "name": "Organizacionales",
+        "competencies": [
+          {
+            "id": 3,
+            "revisionId": 1,
+            "competencyTypeId": 1,
+            "competency": "Trabajo colaborativo",
+            "createdAt": "2026-09-24T19:39:56.915Z",
+            "updatedAt": "2026-09-24T19:39:56.915Z"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Esenciales",
+        "competencies": [
+          {
+            "id": 2,
+            "revisionId": 1,
+            "competencyTypeId": 2,
+            "competency": "Liderazgo",
+            "createdAt": "2026-09-24T17:02:47.075Z",
+            "updatedAt": "2026-09-24T17:02:47.075Z"
+          }
+        ]
       }
     ]
   }
@@ -4876,7 +4907,7 @@ PATCH /api/position-management/position-profiles/13/revisions/1/publish
 
 Endpoint privado encargado de publicar una revisión en estado `BORRADOR`.
 
-Antes de publicar, el sistema valida que todos los requisitos fijos tengan al menos una descripción activa.
+Antes de publicar, el sistema valida que todos los requisitos fijos tengan al menos una descripción activa y que cada tipo de competencia configurado tenga al menos una competencia activa asociada a la revisión.
 
 Cuando la publicación se completa:
 
@@ -4941,6 +4972,26 @@ Este endpoint no requiere body.
 ```json
 {
   "message": "No existen requisitos configurados para los perfiles de cargo"
+}
+```
+
+---
+
+## Respuesta si no existen tipos de competencia configurados
+
+```json
+{
+  "message": "No existen tipos de competencia configurados"
+}
+```
+
+---
+
+## Respuesta si faltan competencias
+
+```json
+{
+  "message": "No se puede publicar la revisión. Faltan competencias para: Organizacionales, Esenciales"
 }
 ```
 
@@ -5067,6 +5118,318 @@ Content-Type: application/json
   "message": "El requisito del perfil de cargo no existe"
 }
 ```
+
+---
+
+# Agregar competencia a una revisión de perfil de cargo
+
+## Endpoint protegido
+
+POST /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/competencies
+
+## Ejemplo
+
+POST /api/position-management/position-profiles/175/revisions/2/competencies
+
+## Descripción
+
+Endpoint privado encargado de registrar una competencia dentro de una revisión específica de un perfil de cargo.
+
+La competencia se asocia a un tipo de competencia mediante `competencyTypeId` y solo puede registrarse cuando la revisión se encuentra en estado `BORRADOR`.
+
+## Header requerido
+
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+## Acceso permitido
+
+Usuario autenticado.
+
+## Parámetros
+
+| Parámetro         | Tipo   | Descripción                            |
+| ----------------- | ------ | -------------------------------------- |
+| positionProfileId | number | Identificador del perfil de cargo      |
+| revisionId        | number | Identificador de la revisión del cargo |
+
+## Body
+
+{
+  "competencyTypeId": 1,
+  "competency": "Trabajo en equipo"
+}
+
+## Campos del body
+
+| Campo            | Tipo   | Obligatorio | Descripción                                     |
+| ---------------- | ------ | ----------- | ----------------------------------------------- |
+| competencyTypeId | number | Sí          | Identificador del tipo de competencia           |
+| competency       | string | Sí          | Nombre de la competencia que se desea registrar |
+
+## Respuesta exitosa
+
+{
+  "message": "Competencia registrada correctamente",
+  "positionCompetencyDescription": {
+    "id": 1,
+    "revisionId": 2,
+    "competencyTypeId": 1,
+    "competency": "Trabajo en equipo",
+    "createdAt": "2026-09-24T00:00:00.000Z",
+    "updatedAt": "2026-09-24T00:00:00.000Z",
+    "deletedAt": null,
+    "competencyType": {
+      "id": 1,
+      "name": "Organizacionales"
+    }
+  }
+}
+
+## Respuestas de error
+
+### Revisión no encontrada
+
+{
+  "message": "La revisión del perfil de cargo no existe"
+}
+
+### Revisión no editable
+
+{
+  "message": "Solo se pueden agregar competencias a una revisión en estado BORRADOR"
+}
+
+### Tipo de competencia no encontrado
+
+{
+  "message": "El tipo de competencia no existe"
+}
+
+### Competencia duplicada
+
+{
+  "message": "La competencia ya se encuentra asociada a esta revisión"
+}
+
+### Competencia obligatoria
+
+{
+  "message": "La competencia es obligatoria"
+}
+
+### Competencia supera el límite permitido
+
+{
+  "message": "La competencia no puede superar los 500 caracteres"
+}
+
+---
+
+# Actualizar la descripción de una competencia de una revisión de perfil de cargo
+
+## Endpoint protegido
+
+PATCH /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/competencies/:competencyDescriptionId
+
+## Ejemplo
+
+PATCH /api/position-management/position-profiles/175/revisions/2/competencies/1
+
+## Descripción
+
+Endpoint privado encargado de actualizar la descripción de una competencia previamente asociada a una revisión específica de un perfil de cargo.
+
+La actualización únicamente permite modificar la descripción de la competencia. El tipo de competencia (`competencyTypeId`) permanece sin cambios.
+
+La competencia solo puede actualizarse cuando la revisión se encuentra en estado `BORRADOR`.
+
+## Header requerido
+
+Authorization: Bearer TOKEN
+Content-Type: application/json
+
+## Acceso permitido
+
+Usuario autenticado.
+
+
+## Parámetros
+
+| Parámetro                | Tipo   | Descripción                                      |
+| ------------------------ | ------ | ------------------------------------------------ |
+| positionProfileId        | number | Identificador del perfil de cargo                |
+| revisionId               | number | Identificador de la revisión del cargo           |
+| competencyDescriptionId  | number | Identificador de la competencia asociada         |
+
+## Body
+
+{
+  "competency": "Trabajo colaborativo"
+}
+
+## Campos del body
+
+| Campo      | Tipo   | Obligatorio | Descripción                                      |
+| ---------- | ------ | ----------- | ------------------------------------------------ |
+| competency | string | Sí          | Nueva descripción de la competencia              |
+
+## Respuesta exitosa
+
+{
+  "message": "Competencia actualizada correctamente",
+  "positionCompetencyDescription": {
+    "id": 1,
+    "revisionId": 2,
+    "competencyTypeId": 1,
+    "competency": "Trabajo colaborativo",
+    "createdAt": "2026-09-24T16:58:46.544Z",
+    "updatedAt": "2026-09-24T19:24:31.228Z",
+    "deletedAt": null,
+    "competencyType": {
+      "id": 1,
+      "name": "Organizacionales"
+    }
+  }
+}
+
+## Reglas de actualización
+
+- Solo se puede modificar la descripción de la competencia.
+- El `competencyTypeId` no puede modificarse mediante este endpoint.
+- La revisión debe encontrarse en estado `BORRADOR`.
+- La competencia debe pertenecer a la revisión indicada.
+- No se permite registrar una descripción duplicada dentro del mismo tipo de competencia y revisión.
+- La descripción es obligatoria.
+- La descripción no puede superar los 500 caracteres.
+
+## Respuestas de error
+
+### Revisión no encontrada
+
+{
+  "message": "La revisión del perfil de cargo no existe"
+}
+
+### Competencia no encontrada en la revisión
+
+{
+  "message": "La competencia no existe en la revisión"
+}
+
+### Revisión no editable
+
+{
+  "message": "Solo se pueden actualizar competencias de una revisión en estado BORRADOR"
+}
+
+### Competencia duplicada
+
+{
+  "message": "La competencia ya se encuentra asociada a esta revisión"
+}
+
+### Competencia obligatoria
+
+{
+  "message": "La competencia es obligatoria"
+}
+
+### Competencia supera el límite permitido
+
+{
+  "message": "La competencia no puede superar los 500 caracteres"
+}
+
+---
+
+# Eliminar una competencia de una revisión de perfil de cargo
+
+## Endpoint protegido
+
+DELETE /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/competencies/:competencyDescriptionId
+
+## Ejemplo
+
+DELETE /api/position-management/position-profiles/175/revisions/2/competencies/1
+
+## Descripción
+
+Endpoint privado encargado de eliminar lógicamente una competencia asociada a una revisión específica de un perfil de cargo.
+
+La eliminación se realiza de forma lógica mediante el campo `deletedAt`, por lo que el registro no se elimina físicamente de la base de datos.
+
+La competencia solo puede eliminarse cuando la revisión se encuentra en estado `BORRADOR`.
+
+## Header requerido
+
+Authorization: Bearer TOKEN
+
+## Acceso permitido
+
+Usuario autenticado.
+
+## Parámetros
+
+| Parámetro               | Tipo   | Descripción                                      |
+| ----------------------- | ------ | ------------------------------------------------ |
+| positionProfileId       | number | Identificador del perfil de cargo                |
+| revisionId              | number | Identificador de la revisión del cargo           |
+| competencyDescriptionId | number | Identificador de la competencia asociada         |
+
+## Body
+
+No requiere body.
+
+## Respuesta exitosa
+
+{
+  "message": "Competencia eliminada correctamente",
+  "positionCompetencyDescription": {
+    "id": 1,
+    "revisionId": 2,
+    "competencyTypeId": 1,
+    "competency": "Comunicación",
+    "deletedAt": "2026-09-24T19:55:41.130Z"
+  }
+}
+
+## Reglas de eliminación
+
+- La revisión debe existir.
+- La revisión debe pertenecer al perfil de cargo indicado.
+- La revisión debe encontrarse en estado `BORRADOR`.
+- La competencia debe pertenecer a la revisión indicada.
+- La competencia debe encontrarse activa, es decir, con `deletedAt` igual a `null`.
+- La eliminación se realiza de forma lógica mediante `deletedAt`.
+- El registro histórico permanece almacenado en la base de datos.
+
+## Respuestas de error
+
+### Revisión no encontrada
+
+{
+  "message": "La revisión del perfil de cargo no existe"
+}
+
+### Competencia no encontrada en la revisión
+
+{
+  "message": "La competencia no existe en la revisión"
+}
+
+### Revisión no editable
+
+{
+  "message": "Solo se pueden eliminar competencias de una revisión en estado BORRADOR"
+}
+
+### Error interno
+
+{
+  "message": "Error al eliminar la competencia",
+  "error": "Error desconocido"
+}
 
 ---
 

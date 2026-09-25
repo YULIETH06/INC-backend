@@ -17,6 +17,17 @@ export interface UpdatePositionRequirementDescriptionBody {
     description: string;
 }
 
+// Datos permitidos para agregar una competencia a una revisión.
+export interface CreatePositionCompetencyDescriptionBody {
+    competencyTypeId: number;
+    competency: string;
+}
+
+// Datos permitidos para actualizar una competencia asociada a una revisión.
+export interface UpdatePositionCompetencyDescriptionBody {
+    competency: string;
+}
+
 // Datos permitidos para actualizar una revisión en borrador.
 export interface UpdatePositionProfileRevisionBody {
     changeObservation: string | null;

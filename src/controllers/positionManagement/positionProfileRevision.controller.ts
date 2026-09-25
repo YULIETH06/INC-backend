@@ -1,17 +1,27 @@
 import type { Response } from "express";
 
 import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
-import type { CreatePositionProfileRevisionBody, CreatePositionRequirementDescriptionBody, UpdatePositionProfileRevisionBody, UpdatePositionRequirementDescriptionBody } from "../../interfaces/positionManagement/positionProfileRevision.interface.js";
+import type {
+    CreatePositionCompetencyDescriptionBody,
+    CreatePositionProfileRevisionBody,
+    CreatePositionRequirementDescriptionBody,
+    UpdatePositionCompetencyDescriptionBody,
+    UpdatePositionProfileRevisionBody,
+    UpdatePositionRequirementDescriptionBody,
+} from "../../interfaces/positionManagement/positionProfileRevision.interface.js";
 
 import {
+    createPositionCompetencyDescriptionService,
     createPositionProfileRevisionService,
     createPositionRequirementDescriptionService,
+    deletePositionCompetencyDescriptionService,
     deletePositionProfileRevisionService,
     deletePositionRequirementDescriptionService,
     getCurrentPositionProfileRevisionService,
     getPositionProfileRevisionDetailService,
     getPositionProfileRevisionsService,
     publishPositionProfileRevisionService,
+    updatePositionCompetencyDescriptionService,
     updatePositionProfileRevisionService,
     updatePositionRequirementDescriptionService,
 } from "../../services/positionManagement/positionProfileRevision.service.js";
@@ -360,6 +370,380 @@ export const createPositionRequirementDescription = async (
         return res.status(500).json({
             message:
                 "Error al registrar la descripción del requisito",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Error desconocido",
+        });
+    }
+};
+
+// Agrega una competencia a una revisión en borrador.
+export const createPositionCompetencyDescription = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        const positionProfileId = Number(
+            req.params.positionProfileId
+        );
+
+        const revisionId = Number(
+            req.params.revisionId
+        );
+
+        if (
+            !Number.isInteger(positionProfileId) ||
+            positionProfileId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id del perfil de cargo no es válido",
+            });
+        }
+
+        if (
+            !Number.isInteger(revisionId) ||
+            revisionId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id de la revisión no es válido",
+            });
+        }
+
+        const {
+            competencyTypeId,
+            competency,
+        } =
+            (req.body ?? {}) as CreatePositionCompetencyDescriptionBody;
+
+        if (
+            !Number.isInteger(competencyTypeId) ||
+            competencyTypeId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id del tipo de competencia no es válido",
+            });
+        }
+
+        if (typeof competency !== "string") {
+            return res.status(400).json({
+                message:
+                    "La competencia debe ser un texto",
+            });
+        }
+
+        const positionCompetencyDescription =
+            await createPositionCompetencyDescriptionService(
+                positionProfileId,
+                revisionId,
+                competencyTypeId,
+                competency
+            );
+
+        return res.status(201).json({
+            message:
+                "Competencia registrada correctamente",
+            positionCompetencyDescription,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (
+                error.message ===
+                "La revisión del perfil de cargo no existe" ||
+                error.message ===
+                "El tipo de competencia no existe"
+            ) {
+                return res.status(404).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "Solo se pueden agregar competencias a una revisión en estado BORRADOR" ||
+                error.message ===
+                "La competencia ya se encuentra asociada a esta revisión"
+            ) {
+                return res.status(409).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "El id del perfil de cargo no es válido" ||
+                error.message ===
+                "El id de la revisión no es válido" ||
+                error.message ===
+                "El id del tipo de competencia no es válido" ||
+                error.message ===
+                "La competencia es obligatoria" ||
+                error.message ===
+                "La competencia no puede superar los 500 caracteres"
+            ) {
+                return res.status(400).json({
+                    message: error.message,
+                });
+            }
+        }
+
+        return res.status(500).json({
+            message:
+                "Error al registrar la competencia",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Error desconocido",
+        });
+    }
+};
+
+// Actualiza la descripción de una competencia asociada a una revisión.
+export const updatePositionCompetencyDescription = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        const positionProfileId = Number(
+            req.params.positionProfileId
+        );
+
+        const revisionId = Number(
+            req.params.revisionId
+        );
+
+        const competencyDescriptionId = Number(
+            req.params.competencyDescriptionId
+        );
+
+        if (
+            !Number.isInteger(positionProfileId) ||
+            positionProfileId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id del perfil de cargo no es válido",
+            });
+        }
+
+        if (
+            !Number.isInteger(revisionId) ||
+            revisionId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id de la revisión no es válido",
+            });
+        }
+
+        if (
+            !Number.isInteger(competencyDescriptionId) ||
+            competencyDescriptionId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id de la competencia no es válido",
+            });
+        }
+
+        const {
+            competency,
+        } =
+            (req.body ?? {}) as UpdatePositionCompetencyDescriptionBody;
+
+        if (typeof competency !== "string") {
+            return res.status(400).json({
+                message:
+                    "La competencia debe ser un texto",
+            });
+        }
+
+        const positionCompetencyDescription =
+            await updatePositionCompetencyDescriptionService(
+                positionProfileId,
+                revisionId,
+                competencyDescriptionId,
+                competency
+            );
+
+        return res.status(200).json({
+            message:
+                "Competencia actualizada correctamente",
+            positionCompetencyDescription,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (
+                error.message ===
+                "La revisión del perfil de cargo no existe" ||
+                error.message ===
+                "La competencia no existe en la revisión"
+            ) {
+                return res.status(404).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "Solo se pueden actualizar competencias de una revisión en estado BORRADOR" ||
+                error.message ===
+                "La competencia ya se encuentra asociada a esta revisión"
+            ) {
+                return res.status(409).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "El id del perfil de cargo no es válido" ||
+                error.message ===
+                "El id de la revisión no es válido" ||
+                error.message ===
+                "El id de la competencia no es válido" ||
+                error.message ===
+                "La competencia es obligatoria" ||
+                error.message ===
+                "La competencia no puede superar los 500 caracteres"
+            ) {
+                return res.status(400).json({
+                    message: error.message,
+                });
+            }
+        }
+
+        return res.status(500).json({
+            message:
+                "Error al actualizar la competencia",
+            error:
+                error instanceof Error
+                    ? error.message
+                    : "Error desconocido",
+        });
+    }
+};
+
+// Elimina lógicamente una competencia asociada a una revisión.
+export const deletePositionCompetencyDescription = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        const positionProfileId = Number(
+            req.params.positionProfileId
+        );
+
+        const revisionId = Number(
+            req.params.revisionId
+        );
+
+        const competencyDescriptionId = Number(
+            req.params.competencyDescriptionId
+        );
+
+        if (
+            !Number.isInteger(positionProfileId) ||
+            positionProfileId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id del perfil de cargo no es válido",
+            });
+        }
+
+        if (
+            !Number.isInteger(revisionId) ||
+            revisionId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id de la revisión no es válido",
+            });
+        }
+
+        if (
+            !Number.isInteger(competencyDescriptionId) ||
+            competencyDescriptionId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id de la competencia no es válido",
+            });
+        }
+
+        const positionCompetencyDescription =
+            await deletePositionCompetencyDescriptionService(
+                positionProfileId,
+                revisionId,
+                competencyDescriptionId
+            );
+
+        return res.status(200).json({
+            message:
+                "Competencia eliminada correctamente",
+            positionCompetencyDescription,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            if (
+                error.message ===
+                "La revisión del perfil de cargo no existe" ||
+                error.message ===
+                "La competencia no existe en la revisión"
+            ) {
+                return res.status(404).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "Solo se pueden eliminar competencias de una revisión en estado BORRADOR"
+            ) {
+                return res.status(409).json({
+                    message: error.message,
+                });
+            }
+
+            if (
+                error.message ===
+                "El id del perfil de cargo no es válido" ||
+                error.message ===
+                "El id de la revisión no es válido" ||
+                error.message ===
+                "El id de la competencia no es válido"
+            ) {
+                return res.status(400).json({
+                    message: error.message,
+                });
+            }
+        }
+
+        return res.status(500).json({
+            message:
+                "Error al eliminar la competencia",
             error:
                 error instanceof Error
                     ? error.message
