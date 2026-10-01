@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
     approvePersonnelCandidateTechnicalEvaluation,
     completePersonnelCandidateValidation,
+    createPersonnelCandidatePsychotechnicalTests,
     createPersonnelCandidateValidation,
     getPersonnelCandidateValidationDetail,
     getPersonnelCandidateValidations,
@@ -65,6 +66,13 @@ router.patch(
     "/:candidateId/technical-evaluation/approve",
     authMiddleware,
     approvePersonnelCandidateTechnicalEvaluation
+);
+
+// Registra una prueba psicotécnica - Fase 5.
+router.post(
+    "/:candidateId/psychotechnical-tests",
+    authMiddleware,
+    createPersonnelCandidatePsychotechnicalTests
 );
 
 export default router;

@@ -51,3 +51,15 @@ export interface ApprovePersonnelCandidateTechnicalEvaluationData {
     candidateId: number;
     isSuitable: boolean;
 }
+// Datos de una prueba psicotécnica individual - Fase 5.
+export interface PersonnelCandidatePsychotechnicalTestData {
+    appliedTest: string;
+    evaluationAspects: string;
+    resultDescription: string;
+}
+
+// Datos para registrar múltiples pruebas psicotécnicas - Fase 5.
+export interface CreatePersonnelCandidatePsychotechnicalTestsData {
+    candidateId: number;
+    psychotechnicalTests: PersonnelCandidatePsychotechnicalTestData[];
+}

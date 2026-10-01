@@ -16,6 +16,10 @@ export {
 } from "./technicalEvaluation.service.js";
 
 export {
+    createPersonnelCandidatePsychotechnicalTestsService,
+} from "./psychotechnicalTest.service.js";
+
+export {
     getPersonnelCandidateValidationsService,
     getPersonnelCandidateValidationDetailService,
 } from "./personnelCandidateValidationQuery.service.js";

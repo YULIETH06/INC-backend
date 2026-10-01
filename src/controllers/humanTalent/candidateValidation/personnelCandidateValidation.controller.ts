@@ -11,6 +11,7 @@ import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
 import {
     approvePersonnelCandidateTechnicalEvaluationService,
     completePersonnelCandidateValidationService,
+    createPersonnelCandidatePsychotechnicalTestsService,
     createPersonnelCandidateValidationService,
     getPersonnelCandidateValidationDetailService,
     getPersonnelCandidateValidationsService,
@@ -565,6 +566,127 @@ export const approvePersonnelCandidateTechnicalEvaluation = async (
                 error instanceof Error
                     ? error.message
                     : "Error al validar la Evaluación Técnica",
+        });
+    }
+};
+
+// Registra las pruebas psicotécnicas - Fase 5.
+export const createPersonnelCandidatePsychotechnicalTests = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { candidateId } = req.params;
+        const { psychotechnicalTests } = req.body;
+
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        if (
+            Number.isNaN(Number(candidateId)) ||
+            Number(candidateId) <= 0
+        ) {
+            return res.status(400).json({
+                message: "El candidato no es válido",
+            });
+        }
+
+        if (
+            !Array.isArray(psychotechnicalTests) ||
+            psychotechnicalTests.length === 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "Debe registrar por lo menos una prueba psicotécnica",
+            });
+        }
+
+        for (
+            let index = 0;
+            index < psychotechnicalTests.length;
+            index++
+        ) {
+            const test =
+                psychotechnicalTests[index];
+
+            if (
+                typeof test !== "object" ||
+                test === null
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La prueba psicotécnica ${index + 1} no es válida`,
+                });
+            }
+
+            if (
+                typeof test.appliedTest !== "string" ||
+                !test.appliedTest.trim()
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La prueba aplicada es obligatoria en el registro ${index + 1}`,
+                });
+            }
+
+            if (
+                typeof test.evaluationAspects !== "string" ||
+                !test.evaluationAspects.trim()
+            ) {
+                return res.status(400).json({
+                    message:
+                        `Los aspectos a evaluar son obligatorios en el registro ${index + 1}`,
+                });
+            }
+
+            if (
+                typeof test.resultDescription !== "string" ||
+                !test.resultDescription.trim()
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La descripción de resultados es obligatoria en el registro ${index + 1}`,
+                });
+            }
+        }
+
+        const tests =
+            await createPersonnelCandidatePsychotechnicalTestsService(
+                {
+                    candidateId:
+                        Number(candidateId),
+
+                    psychotechnicalTests:
+                        psychotechnicalTests.map(
+                            (test) => ({
+                                appliedTest:
+                                    test.appliedTest.trim(),
+
+                                evaluationAspects:
+                                    test.evaluationAspects.trim(),
+
+                                resultDescription:
+                                    test.resultDescription.trim(),
+                            })
+                        ),
+                },
+                req.user
+            );
+
+        return res.status(201).json({
+            message:
+                "Pruebas psicotécnicas registradas correctamente",
+            psychotechnicalTests: tests,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al registrar las pruebas psicotécnicas",
         });
     }
 };

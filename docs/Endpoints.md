@@ -4961,7 +4961,7 @@ Este endpoint no requiere body.
 
 ```json
 {
-  "message": "No se puede publicar la revisión. Faltan descripciones para: Experiencia, Conocimientos específicos"
+  "message": "No se puede publicar la revisión. Debe completar los requisitos pendientes: Experiencia, Conocimientos específicos"
 }
 ```
 
@@ -4991,7 +4991,7 @@ Este endpoint no requiere body.
 
 ```json
 {
-  "message": "No se puede publicar la revisión. Faltan competencias para: Organizacionales, Esenciales"
+  "message": "No se puede publicar la revisión. Debe completar las competencias pendientes: Organizacionales, Esenciales"
 }
 ```
 
@@ -11035,6 +11035,361 @@ Usuario autenticado que creó la requisición.
 
 ---
 
+# Registrar pruebas psicotécnicas - Fase 5
+
+## Endpoint protegido
+
+```http
+POST /api/human-talent/candidate-validations/:candidateId/psychotechnical-tests
+```
+
+## Ejemplo
+
+```http
+POST /api/human-talent/candidate-validations/15/psychotechnical-tests
+```
+
+## Descripción
+
+Endpoint privado encargado de registrar una o varias **pruebas psicotécnicas** correspondientes a la **Fase 5: Evaluación de Competencias**.
+
+El endpoint permite enviar múltiples pruebas en una sola petición. Cada prueba se almacena como un registro independiente asociado con la validación del candidato.
+
+Las pruebas se registran dentro de una transacción. De esta forma, si ocurre un error durante el registro del grupo, la operación no debe quedar guardada parcialmente.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+DPC-TH-0118 — Analista de Talento Humano
+```
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo | Descripción |
+| --------- | ---- | ----------- |
+| `candidateId` | number | Identificador del candidato preseleccionado |
+
+---
+
+## Body
+
+```json
+{
+  "psychotechnicalTests": [
+    {
+      "appliedTest": "DISC",
+      "evaluationAspects": "Comportamiento, comunicación y adaptación",
+      "resultDescription": "El candidato presenta un estilo conductual adecuado para las funciones del cargo."
+    },
+    {
+      "appliedTest": "Wartegg",
+      "evaluationAspects": "Personalidad, relaciones interpersonales y adaptación",
+      "resultDescription": "El candidato evidencia características favorables en las áreas evaluadas."
+    },
+    {
+      "appliedTest": "Valanti",
+      "evaluationAspects": "Valores y principios personales",
+      "resultDescription": "Los resultados evidencian alineación con los valores requeridos."
+    }
+  ]
+}
+```
+
+---
+
+## Campos del body
+
+### Campo principal
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `psychotechnicalTests` | Array | Sí | Lista de pruebas psicotécnicas que se desean registrar |
+
+Debe enviarse por lo menos una prueba psicotécnica.
+
+### Campos de cada prueba
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `appliedTest` | string | Sí | Nombre de la prueba psicotécnica aplicada |
+| `evaluationAspects` | string | Sí | Aspectos evaluados mediante la prueba |
+| `resultDescription` | string | Sí | Descripción de los resultados obtenidos |
+
+---
+
+## Validaciones implementadas
+
+### Candidato y etapa
+
+- El `candidateId` debe ser válido.
+- El candidato debe existir.
+- El candidato debe estar preseleccionado.
+- Pertenecer a una requisición en estado `APROBADA`.
+- Tener una validación iniciada.
+- Haber completado la Fase 4 (`completedStep: 4`).
+- La Evaluación Técnica debe encontrarse `APROBADA`.
+- Haber sido considerado apto en la Evaluación Técnica (`isSuitable: true`).
+- La Evaluación de Competencias no debe estar finalizada.
+
+### Arreglo de pruebas
+
+- `psychotechnicalTests` debe ser un arreglo.
+- Debe contener por lo menos una prueba.
+- Cada elemento debe ser un objeto válido.
+- Todos los campos de cada prueba son obligatorios.
+- Los textos se normalizan eliminando espacios innecesarios al inicio y al final.
+
+### Pruebas repetidas
+
+El sistema no permite registrar dos veces la misma prueba para el mismo candidato.
+
+La validación se realiza en dos niveles:
+
+1. **Dentro de la misma petición:** no se permite repetir el nombre de una prueba en el arreglo enviado.
+2. **Contra las pruebas ya registradas:** no se permite registrar nuevamente una prueba que ya exista para la validación del candidato.
+
+La comparación del nombre de la prueba no distingue entre mayúsculas y minúsculas.
+
+Por ejemplo, los siguientes valores se consideran la misma prueba:
+
+```txt
+DISC
+disc
+Disc
+```
+
+---
+
+## Fecha automática
+
+Al registrar el grupo de pruebas, el backend genera automáticamente:
+
+```txt
+appliedAt
+createdAt
+updatedAt
+createdById
+```
+
+`appliedAt` corresponde a la fecha y hora en que se registra el grupo de pruebas.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Pruebas psicotécnicas registradas correctamente",
+  "psychotechnicalTests": [
+    {
+      "id": 1,
+      "candidateValidationId": 1,
+      "appliedTest": "DISC",
+      "appliedAt": "2026-10-01T21:23:05.185Z",
+      "evaluationAspects": "Comportamiento, comunicación y adaptación",
+      "resultDescription": "El candidato presenta un estilo conductual adecuado para las funciones del cargo.",
+      "createdById": 21,
+      "createdAt": "2026-10-01T21:23:05.192Z",
+      "updatedAt": "2026-10-01T21:23:05.192Z",
+      "createdBy": {
+        "id": 21,
+        "name": "Analista de Talento Humano"
+      }
+    },
+    {
+      "id": 2,
+      "candidateValidationId": 1,
+      "appliedTest": "Wartegg",
+      "appliedAt": "2026-10-01T21:23:05.185Z",
+      "evaluationAspects": "Personalidad, relaciones interpersonales y adaptación",
+      "resultDescription": "El candidato evidencia características favorables en las áreas evaluadas.",
+      "createdById": 21,
+      "createdAt": "2026-10-01T21:23:05.192Z",
+      "updatedAt": "2026-10-01T21:23:05.192Z",
+      "createdBy": {
+        "id": 21,
+        "name": "Analista de Talento Humano"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Usuario no autenticado"
+}
+```
+
+---
+
+## Respuesta si el candidato no es válido
+
+```json
+{
+  "message": "El candidato no es válido"
+}
+```
+
+---
+
+## Respuesta si no se envían pruebas
+
+```json
+{
+  "message": "Debe registrar por lo menos una prueba psicotécnica"
+}
+```
+
+---
+
+## Respuesta si falta el nombre de una prueba
+
+```json
+{
+  "message": "La prueba aplicada es obligatoria en el registro 1"
+}
+```
+
+---
+
+## Respuesta si faltan los aspectos a evaluar
+
+```json
+{
+  "message": "Los aspectos a evaluar son obligatorios en el registro 1"
+}
+```
+
+---
+
+## Respuesta si falta la descripción de resultados
+
+```json
+{
+  "message": "La descripción de resultados es obligatoria en el registro 1"
+}
+```
+
+---
+
+## Respuesta si una prueba está repetida en el mismo formulario
+
+```json
+{
+  "message": "La prueba psicotécnica \"DISC\" está repetida en el formulario"
+}
+```
+
+---
+
+## Respuesta si una prueba ya estaba registrada
+
+```json
+{
+  "message": "La prueba psicotécnica \"DISC\" ya fue registrada para este candidato"
+}
+```
+
+---
+
+## Respuesta si el candidato no existe o no está disponible
+
+```json
+{
+  "message": "El candidato no existe, no ha sido preseleccionado o no está disponible para Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si el candidato no tiene validación iniciada
+
+```json
+{
+  "message": "El candidato todavía no tiene una validación iniciada"
+}
+```
+
+---
+
+## Respuesta si falta completar la Evaluación Técnica
+
+```json
+{
+  "message": "Debe completar primero la Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Fase 5 ya fue completada
+
+```json
+{
+  "message": "La Evaluación de Competencias ya fue completada"
+}
+```
+
+---
+
+## Respuesta si no existe Evaluación Técnica
+
+```json
+{
+  "message": "El candidato todavía no tiene una Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Evaluación Técnica todavía no fue confirmada
+
+```json
+{
+  "message": "La Evaluación Técnica todavía no ha sido confirmada"
+}
+```
+
+---
+
+## Respuesta si el postulante no fue aprobado en la Evaluación Técnica
+
+```json
+{
+  "message": "El postulante no fue aprobado en la Evaluación Técnica y no puede continuar a la Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si la Evaluación de Competencias ya fue finalizada
+
+```json
+{
+  "message": "La Evaluación de Competencias ya fue finalizada"
+}
+```
+
+---
+
 # Obtener candidatos disponibles para validación
 
 ## Endpoint protegido
@@ -11333,6 +11688,7 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
+| POST   | /api/human-talent/candidate-validations/:candidateId/psychotechnical-tests                                                                    | Registra una o varias pruebas psicotécnicas de la Fase 5   | Analista de Talento Humano                                      |
 
 
 ---
