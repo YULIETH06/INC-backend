@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
     approvePersonnelCandidateTechnicalEvaluation,
+    completePersonnelCandidateCompetencyEvaluation,
     completePersonnelCandidateValidation,
     createPersonnelCandidatePsychotechnicalTests,
     createPersonnelCandidateValidation,
@@ -81,6 +82,13 @@ router.post(
     "/:candidateId/competency-validations",
     authMiddleware,
     savePersonnelCandidateCompetencyValidations
+);
+
+// Finaliza la Fase 5 - Evaluación de Competencias.
+router.patch(
+    "/:candidateId/competency-evaluation",
+    authMiddleware,
+    completePersonnelCandidateCompetencyEvaluation
 );
 
 export default router;

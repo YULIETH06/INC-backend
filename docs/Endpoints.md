@@ -11733,6 +11733,268 @@ Después de que las competencias del candidato hayan sido registradas correctame
 
 ---
 
+
+# Finalizar Evaluación de Competencias - Fase 5
+
+## Endpoint protegido
+
+```http
+PATCH /api/human-talent/candidate-validations/:candidateId/competency-evaluation
+```
+
+## Ejemplo
+
+```http
+PATCH /api/human-talent/candidate-validations/1/competency-evaluation
+```
+
+## Descripción
+
+Endpoint privado encargado de finalizar la **Fase 5: Evaluación de Competencias** de un candidato.
+
+Este endpoint registra el concepto general de la evaluación y define si el postulante es apto para continuar en el proceso.
+
+Antes de finalizar la fase, el backend valida que:
+
+- El candidato exista y se encuentre preseleccionado.
+- La requisición se encuentre en estado `APROBADA`.
+- La validación del candidato haya sido iniciada.
+- La Fase 4 haya sido completada.
+- La Evaluación Técnica se encuentre confirmada.
+- El postulante haya sido considerado apto en la Evaluación Técnica.
+- Exista por lo menos una prueba psicotécnica registrada.
+- Todas las competencias activas del perfil de cargo hayan sido evaluadas.
+- La Evaluación de Competencias no haya sido finalizada previamente.
+
+Al finalizar correctamente, el sistema:
+
+- Registra el concepto general.
+- Registra si el postulante es apto para continuar.
+- Guarda automáticamente la fecha de validación.
+- Guarda automáticamente el usuario autenticado que realizó la validación.
+- Actualiza `completedStep` a `5`.
+
+La creación de la evaluación y la actualización del paso se realizan dentro de una transacción.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+DPC-TH-0118 — Analista de Talento Humano
+```
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo | Descripción |
+| --------- | ---- | ----------- |
+| `candidateId` | number | Identificador del candidato preseleccionado |
+
+---
+
+## Body
+
+```json
+{
+  "generalConcept": "El candidato cumple con las competencias requeridas para ocupar cargo",
+  "isSuitable": true
+}
+```
+
+---
+
+## Campos del body
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `generalConcept` | string | Sí | Concepto general de la Evaluación de Competencias |
+| `isSuitable` | boolean | Sí | Indica si el postulante es apto para continuar en el proceso |
+
+---
+
+## Campos generados automáticamente
+
+El frontend no debe enviar los siguientes campos:
+
+```txt
+validatedAt
+performedById
+completedStep
+```
+
+El backend los genera o actualiza automáticamente.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Evaluación de Competencias finalizada correctamente",
+  "competencyEvaluation": {
+    "id": 1,
+    "candidateValidationId": 1,
+    "generalConcept": "El candidato cumple con las competencias requeridas para ocupar cargo",
+    "isSuitable": true,
+    "validatedAt": "2026-10-02T16:45:51.386Z",
+    "performedById": 21,
+    "createdAt": "2026-10-02T16:45:51.400Z",
+    "updatedAt": "2026-10-02T16:45:51.400Z",
+    "performedBy": {
+      "id": 21,
+      "name": "Analista de Talento Humano"
+    }
+  },
+  "validation": {
+    "id": 1,
+    "completedStep": 5
+  }
+}
+```
+
+---
+
+## Respuesta si el concepto general no es enviado
+
+```json
+{
+  "message": "El concepto general es obligatorio"
+}
+```
+
+---
+
+## Respuesta si no se indica si el postulante es apto
+
+```json
+{
+  "message": "Debe indicar si el postulante es apto para continuar el proceso"
+}
+```
+
+---
+
+## Respuesta si el candidato no existe o no está disponible
+
+```json
+{
+  "message": "El candidato no existe, no ha sido preseleccionado o no está disponible para Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si el candidato no tiene validación iniciada
+
+```json
+{
+  "message": "El candidato todavía no tiene una validación iniciada"
+}
+```
+
+---
+
+## Respuesta si falta completar la Evaluación Técnica
+
+```json
+{
+  "message": "Debe completar primero la Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Fase 5 ya fue completada
+
+```json
+{
+  "message": "La Evaluación de Competencias ya fue completada"
+}
+```
+
+---
+
+## Respuesta si no existe Evaluación Técnica
+
+```json
+{
+  "message": "El candidato todavía no tiene una Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Evaluación Técnica todavía no fue confirmada
+
+```json
+{
+  "message": "La Evaluación Técnica todavía no ha sido confirmada"
+}
+```
+
+---
+
+## Respuesta si el postulante no fue aprobado en la Evaluación Técnica
+
+```json
+{
+  "message": "El postulante no fue aprobado en la Evaluación Técnica y no puede continuar a la Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si la Evaluación de Competencias ya fue finalizada
+
+```json
+{
+  "message": "La Evaluación de Competencias ya fue finalizada"
+}
+```
+
+---
+
+## Respuesta si no existen pruebas psicotécnicas
+
+```json
+{
+  "message": "Debe registrar al menos una prueba psicotécnica antes de finalizar la Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si la revisión no tiene competencias configuradas
+
+```json
+{
+  "message": "La revisión del cargo no tiene competencias configuradas"
+}
+```
+
+---
+
+## Respuesta si faltan competencias por evaluar
+
+```json
+{
+  "message": "Debe evaluar todas las competencias del perfil de cargo antes de finalizar la Evaluación de Competencias"
+}
+```
+
+---
+
 # Obtener candidatos disponibles para validación
 
 ## Endpoint protegido
@@ -11974,7 +12236,7 @@ Pueden consultar el detalle de la validación:
       "changeControlCode": null,
       "isPositionProfileCurrent": true,
       "isSuitable": true,
-      "completedStep": 4,
+      "completedStep": 5,
       "validatedAt": "2026-10-01T20:44:59.676Z",
       "performedBy": {
         "id": 21,
@@ -12044,6 +12306,20 @@ Pueden consultar el detalle de la validación:
           }
         }
       ],
+      "competencyEvaluation": {
+        "id": 1,
+        "candidateValidationId": 1,
+        "generalConcept": "El candidato cumple con las competencias requeridas para ocupar cargo",
+        "isSuitable": true,
+        "validatedAt": "2026-10-02T16:45:51.386Z",
+        "performedById": 21,
+        "createdAt": "2026-10-02T16:45:51.400Z",
+        "updatedAt": "2026-10-02T16:45:51.400Z",
+        "performedBy": {
+          "id": 21,
+          "name": "Analista de Talento Humano"
+        }
+      },
       "psychotechnicalTests": [
         {
           "id": 1,
@@ -12127,6 +12403,14 @@ Si todavía no existen pruebas psicotécnicas o competencias evaluadas, los arre
 {
   "psychotechnicalTests": [],
   "competencyValidations": []
+}
+```
+
+Si la Fase 5 todavía no ha sido finalizada:
+
+```json
+{
+  "competencyEvaluation": null
 }
 ```
 
@@ -12242,6 +12526,7 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
 | POST   | /api/human-talent/candidate-validations/:candidateId/competency-validations                                                                      | Registra todas las competencias evaluadas de la Fase 5     | Analista de Talento Humano                                      |
+| PATCH  | /api/human-talent/candidate-validations/:candidateId/competency-evaluation                                                                     | Finaliza la Fase 5 - Evaluación de Competencias            | Analista de Talento Humano                                      |
 | POST   | /api/human-talent/candidate-validations/:candidateId/psychotechnical-tests                                                                    | Registra una o varias pruebas psicotécnicas de la Fase 5   | Analista de Talento Humano                                      |
 
 

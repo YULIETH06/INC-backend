@@ -1,6 +1,7 @@
 import prisma from "../../../config/client.js";
 
 import type {
+    CompletePersonnelCandidateCompetencyEvaluationData,
     CreatePersonnelCandidatePsychotechnicalTestsData,
     SavePersonnelCandidateCompetencyValidationsData,
 } from "../../../interfaces/humanTalent/candidateValidation/personnelCandidateValidation.interface.js";
@@ -593,4 +594,300 @@ export const savePersonnelCandidateCompetencyValidationsService = async (
         );
 
     return competencyValidations;
+};
+
+// Finaliza la Evaluación de Competencias - Fase 5.
+export const completePersonnelCandidateCompetencyEvaluationService = async (
+    data: CompletePersonnelCandidateCompetencyEvaluationData,
+    authenticatedUser: PersonnelCandidateAuthenticatedUser
+) => {
+    await validatePersonnelCandidateManager(
+        prisma,
+        authenticatedUser.id
+    );
+
+    const generalConcept =
+        data.generalConcept?.trim();
+
+    if (!generalConcept) {
+        throw new Error(
+            "El concepto general es obligatorio"
+        );
+    }
+
+    if (
+        typeof data.isSuitable !== "boolean"
+    ) {
+        throw new Error(
+            "Debe indicar si el postulante es apto para continuar el proceso"
+        );
+    }
+
+    const candidate =
+        await prisma.personnelRequisitionCandidate.findFirst({
+            where: {
+                id: data.candidateId,
+                isPreselected: true,
+
+                requisition: {
+                    status: "APROBADA",
+                },
+            },
+
+            select: {
+                id: true,
+                name: true,
+
+                requisition: {
+                    select: {
+                        positionRevision: {
+                            select: {
+                                positionCompetencyDescriptions: {
+                                    where: {
+                                        deletedAt: null,
+                                    },
+
+                                    select: {
+                                        id: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+
+                validation: {
+                    select: {
+                        id: true,
+                        completedStep: true,
+
+                        personnelCandidateTechnicalEvaluation: {
+                            select: {
+                                status: true,
+                                isSuitable: true,
+                            },
+                        },
+
+                        psychotechnicalTests: {
+                            select: {
+                                id: true,
+                            },
+                        },
+
+                        competencyValidations: {
+                            select: {
+                                competencyDescriptionId: true,
+                            },
+                        },
+
+                        competencyEvaluation: {
+                            select: {
+                                id: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+    if (!candidate) {
+        throw new Error(
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para Evaluación de Competencias"
+        );
+    }
+
+    if (!candidate.validation) {
+        throw new Error(
+            "El candidato todavía no tiene una validación iniciada"
+        );
+    }
+
+    if (
+        candidate.validation.completedStep < 4
+    ) {
+        throw new Error(
+            "Debe completar primero la Evaluación Técnica"
+        );
+    }
+
+    if (
+        candidate.validation.completedStep > 4
+    ) {
+        throw new Error(
+            "La Evaluación de Competencias ya fue completada"
+        );
+    }
+
+    const technicalEvaluation =
+        candidate.validation
+            .personnelCandidateTechnicalEvaluation;
+
+    if (!technicalEvaluation) {
+        throw new Error(
+            "El candidato todavía no tiene una Evaluación Técnica"
+        );
+    }
+
+    if (
+        technicalEvaluation.status !==
+        "APROBADA"
+    ) {
+        throw new Error(
+            "La Evaluación Técnica todavía no ha sido confirmada"
+        );
+    }
+
+    if (
+        technicalEvaluation.isSuitable !== true
+    ) {
+        throw new Error(
+            "El postulante no fue aprobado en la Evaluación Técnica y no puede continuar a la Evaluación de Competencias"
+        );
+    }
+
+    if (
+        candidate.validation
+            .competencyEvaluation
+    ) {
+        throw new Error(
+            "La Evaluación de Competencias ya fue finalizada"
+        );
+    }
+
+    if (
+        candidate.validation
+            .psychotechnicalTests.length === 0
+    ) {
+        throw new Error(
+            "Debe registrar al menos una prueba psicotécnica antes de finalizar la Evaluación de Competencias"
+        );
+    }
+
+    const requiredCompetencyIds =
+        candidate.requisition
+            .positionRevision
+            .positionCompetencyDescriptions
+            .map(
+                (competency) =>
+                    competency.id
+            );
+
+    if (
+        requiredCompetencyIds.length === 0
+    ) {
+        throw new Error(
+            "La revisión del cargo no tiene competencias configuradas"
+        );
+    }
+
+    const registeredCompetencyIds =
+        candidate.validation
+            .competencyValidations
+            .map(
+                (competency) =>
+                    competency
+                        .competencyDescriptionId
+            );
+
+    if (
+        registeredCompetencyIds.length !==
+        requiredCompetencyIds.length
+    ) {
+        throw new Error(
+            "Debe evaluar todas las competencias del perfil de cargo antes de finalizar la Evaluación de Competencias"
+        );
+    }
+
+    const registeredCompetencyIdSet =
+        new Set(
+            registeredCompetencyIds
+        );
+
+    const hasMissingCompetency =
+        requiredCompetencyIds.some(
+            (competencyId) =>
+                !registeredCompetencyIdSet.has(
+                    competencyId
+                )
+        );
+
+    if (hasMissingCompetency) {
+        throw new Error(
+            "Debe evaluar todas las competencias del perfil de cargo antes de finalizar la Evaluación de Competencias"
+        );
+    }
+
+    const validatedAt =
+        new Date();
+
+    const result =
+        await prisma.$transaction(
+            async (tx) => {
+                const competencyEvaluation =
+                    await tx
+                        .personnelCandidateCompetencyEvaluation
+                        .create({
+                            data: {
+                                candidateValidationId:
+                                    candidate
+                                        .validation!.id,
+
+                                generalConcept,
+
+                                isSuitable:
+                                    data.isSuitable,
+
+                                validatedAt,
+
+                                performedById:
+                                    authenticatedUser.id,
+                            },
+
+                            select: {
+                                id: true,
+                                candidateValidationId: true,
+                                generalConcept: true,
+                                isSuitable: true,
+                                validatedAt: true,
+                                performedById: true,
+                                createdAt: true,
+                                updatedAt: true,
+
+                                performedBy: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+                            },
+                        });
+
+                const validation =
+                    await tx
+                        .personnelCandidateValidation
+                        .update({
+                            where: {
+                                id:
+                                    candidate
+                                        .validation!.id,
+                            },
+
+                            data: {
+                                completedStep: 5,
+                            },
+
+                            select: {
+                                id: true,
+                                completedStep: true,
+                            },
+                        });
+
+                return {
+                    competencyEvaluation,
+                    validation,
+                };
+            }
+        );
+
+    return result;
 };

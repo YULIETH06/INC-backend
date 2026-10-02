@@ -125,11 +125,11 @@ src/
 │   │   ├── pqr.interface.ts
 │   │   └── pqrMessage.interface.ts
 │   │
-│   ├── users/
-│   │   └── userBulk.interface.ts
+│   ├── sockets/
+│   │   └── socket.interface.ts
 │   │
-│   └── sockets/
-│       └── socket.interface.ts
+│   └── users/
+│       └── userBulk.interface.ts
 │
 ├── middlewares/
 │   ├── auth/
@@ -206,10 +206,11 @@ src/
 │   │   ├── candidateValidation/
 │   │   │   ├── applicationConcept.service.ts
 │   │   │   ├── candidateRequirementValidation.service.ts
+│   │   │   ├── competencyEvaluation.service.ts
+│   │   │   ├── index.ts
 │   │   │   ├── personnelCandidateValidationQuery.service.ts
 │   │   │   ├── positionValidation.service.ts
-│   │   │   ├── technicalEvaluation.service.ts
-│   │   │   └── index.ts
+│   │   │   └── technicalEvaluation.service.ts
 │   │   └── requisitions/
 │   │       ├── department.service.ts
 │   │       ├── personnelHiringConfirmation.service.ts

@@ -82,3 +82,10 @@ export interface SavePersonnelCandidateCompetencyValidationsData {
     candidateId: number;
     competencyValidations: PersonnelCandidateCompetencyValidationData[];
 }
+
+// Datos para finalizar la Evaluación de Competencias - Fase 5.
+export interface CompletePersonnelCandidateCompetencyEvaluationData {
+    candidateId: number;
+    generalConcept: string;
+    isSuitable: boolean;
+}

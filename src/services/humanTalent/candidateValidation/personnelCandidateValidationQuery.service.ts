@@ -260,8 +260,7 @@ export const getPersonnelCandidateValidationDetailService = async (
 
                                 requirementDescriptions: {
                                     where: {
-                                        deletedAt:
-                                            null,
+                                        deletedAt: null,
                                     },
 
                                     select: {
@@ -358,6 +357,26 @@ export const getPersonnelCandidateValidationDetailService = async (
 
                             orderBy: {
                                 id: "asc",
+                            },
+                        },
+
+                        competencyEvaluation: {
+                            select: {
+                                id: true,
+                                candidateValidationId: true,
+                                generalConcept: true,
+                                isSuitable: true,
+                                validatedAt: true,
+                                performedById: true,
+                                createdAt: true,
+                                updatedAt: true,
+
+                                performedBy: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
                             },
                         },
 

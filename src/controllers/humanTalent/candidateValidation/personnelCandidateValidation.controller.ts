@@ -10,6 +10,7 @@ import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
 
 import {
     approvePersonnelCandidateTechnicalEvaluationService,
+    completePersonnelCandidateCompetencyEvaluationService,
     completePersonnelCandidateValidationService,
     createPersonnelCandidatePsychotechnicalTestsService,
     createPersonnelCandidateValidationService,
@@ -802,6 +803,86 @@ export const savePersonnelCandidateCompetencyValidations = async (
                 error instanceof Error
                     ? error.message
                     : "Error al registrar las competencias evaluadas",
+        });
+    }
+};
+
+// Finaliza la Evaluación de Competencias - Fase 5.
+export const completePersonnelCandidateCompetencyEvaluation = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        const candidateId =
+            Number(req.params.candidateId);
+
+        if (
+            !Number.isInteger(candidateId) ||
+            candidateId <= 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "El id del candidato no es válido",
+            });
+        }
+
+        const {
+            generalConcept,
+            isSuitable,
+        } = req.body;
+
+        if (
+            typeof generalConcept !==
+            "string" ||
+            !generalConcept.trim()
+        ) {
+            return res.status(400).json({
+                message:
+                    "El concepto general es obligatorio",
+            });
+        }
+
+        if (
+            typeof isSuitable !==
+            "boolean"
+        ) {
+            return res.status(400).json({
+                message:
+                    "Debe indicar si el postulante es apto para continuar el proceso",
+            });
+        }
+
+        const result =
+            await completePersonnelCandidateCompetencyEvaluationService(
+                {
+                    candidateId,
+                    generalConcept:
+                        generalConcept.trim(),
+                    isSuitable,
+                },
+                req.user
+            );
+
+        return res.status(200).json({
+            message:
+                "Evaluación de Competencias finalizada correctamente",
+            competencyEvaluation:
+                result.competencyEvaluation,
+            validation:
+                result.validation,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al finalizar la Evaluación de Competencias",
         });
     }
 };
