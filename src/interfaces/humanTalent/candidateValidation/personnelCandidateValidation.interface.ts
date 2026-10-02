@@ -63,3 +63,22 @@ export interface CreatePersonnelCandidatePsychotechnicalTestsData {
     candidateId: number;
     psychotechnicalTests: PersonnelCandidatePsychotechnicalTestData[];
 }
+
+// Resultado permitido para una competencia evaluada - Fase 5.
+export type PersonnelCandidateCompetencyResult =
+    | "Destacada"
+    | "Por destacar";
+
+
+// Datos de una competencia individual evaluada - Fase 5.
+export interface PersonnelCandidateCompetencyValidationData {
+    competencyDescriptionId: number;
+    result: PersonnelCandidateCompetencyResult;
+}
+
+
+// Datos para registrar múltiples competencias - Fase 5.
+export interface SavePersonnelCandidateCompetencyValidationsData {
+    candidateId: number;
+    competencyValidations: PersonnelCandidateCompetencyValidationData[];
+}

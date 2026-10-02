@@ -7,6 +7,7 @@ import {
     createPersonnelCandidateValidation,
     getPersonnelCandidateValidationDetail,
     getPersonnelCandidateValidations,
+    savePersonnelCandidateCompetencyValidations,
     savePersonnelCandidateTechnicalEvaluation,
     updatePersonnelCandidatePositionValidation,
 } from "../../../controllers/humanTalent/candidateValidation/personnelCandidateValidation.controller.js";
@@ -73,6 +74,13 @@ router.post(
     "/:candidateId/psychotechnical-tests",
     authMiddleware,
     createPersonnelCandidatePsychotechnicalTests
+);
+
+// Guarda las competencias evaluadas - Fase 5.
+router.post(
+    "/:candidateId/competency-validations",
+    authMiddleware,
+    savePersonnelCandidateCompetencyValidations
 );
 
 export default router;

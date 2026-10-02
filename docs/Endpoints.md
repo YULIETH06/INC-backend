@@ -11390,6 +11390,349 @@ createdById
 
 ---
 
+
+# Registrar evaluación de competencias - Fase 5
+
+## Endpoint protegido
+
+```http
+POST /api/human-talent/candidate-validations/:candidateId/competency-validations
+```
+
+## Ejemplo
+
+```http
+POST /api/human-talent/candidate-validations/1/competency-validations
+```
+
+## Descripción
+
+Endpoint privado encargado de registrar la **Prueba de Competencias** correspondiente a la **Fase 5: Evaluación de Competencias**.
+
+Las competencias que se evalúan no se escriben manualmente. Se obtienen de las competencias activas configuradas en la revisión del perfil de cargo utilizada por la requisición.
+
+Cada competencia debe enviarse con uno de los siguientes resultados:
+
+```txt
+Destacada
+Por destacar
+```
+
+Todas las competencias activas de la revisión deben evaluarse y enviarse **en una sola petición**.
+
+El backend valida que:
+
+- La Fase 4 esté completada.
+- La Evaluación Técnica esté confirmada.
+- El postulante haya sido considerado apto en la Evaluación Técnica.
+- Las competencias correspondan exactamente a la revisión utilizada por la requisición.
+- No existan competencias repetidas.
+- Se hayan evaluado todas las competencias activas del perfil.
+- Las competencias del candidato no hayan sido registradas previamente.
+
+Las evaluaciones se guardan dentro de una transacción para evitar registros parciales.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+```txt
+DPC-TH-0118 — Analista de Talento Humano
+```
+
+---
+
+## Parámetros
+
+| Parámetro | Tipo | Descripción |
+| --------- | ---- | ----------- |
+| `candidateId` | number | Identificador del candidato preseleccionado |
+
+---
+
+## Body
+
+```json
+{
+  "competencyValidations": [
+    {
+      "competencyDescriptionId": 1,
+      "result": "Destacada"
+    },
+    {
+      "competencyDescriptionId": 2,
+      "result": "Por destacar"
+    },
+    {
+      "competencyDescriptionId": 3,
+      "result": "Por destacar"
+    }
+  ]
+}
+```
+
+---
+
+## Campos del body
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `competencyValidations` | Array | Sí | Lista completa de competencias a evaluar |
+
+### Campos de cada competencia
+
+| Campo | Tipo | Obligatorio | Descripción |
+| ----- | ---- | ----------- | ----------- |
+| `competencyDescriptionId` | number | Sí | Identificador de la competencia configurada en la revisión del cargo |
+| `result` | string | Sí | Resultado de la evaluación: `Destacada` o `Por destacar` |
+
+---
+
+## Reglas de negocio
+
+### Todas las competencias son obligatorias
+
+El sistema obtiene todas las competencias activas de:
+
+```txt
+requisition
+→ positionRevision
+→ positionCompetencyDescriptions
+```
+
+La cantidad de competencias enviadas debe coincidir con la cantidad de competencias activas configuradas para esa revisión.
+
+Ejemplo:
+
+```txt
+Competencias configuradas:
+1 - Comunicación
+2 - Trabajo en equipo
+3 - Liderazgo
+```
+
+El body debe evaluar las tres.
+
+---
+
+### Competencias válidas para la revisión
+
+Cada `competencyDescriptionId` debe pertenecer a la misma `positionRevisionId` asociada con la requisición.
+
+No se permite evaluar una competencia perteneciente a otra revisión del perfil de cargo.
+
+---
+
+### Competencias repetidas
+
+Una misma competencia no puede aparecer dos veces dentro de la petición.
+
+Ejemplo no permitido:
+
+```json
+{
+  "competencyValidations": [
+    {
+      "competencyDescriptionId": 1,
+      "result": "Destacada"
+    },
+    {
+      "competencyDescriptionId": 1,
+      "result": "Por destacar"
+    }
+  ]
+}
+```
+
+---
+
+### Registro único de la prueba de competencias
+
+Las competencias deben registrarse juntas.
+
+Después de que las competencias del candidato hayan sido registradas correctamente, el endpoint no permite volver a registrar otro grupo adicional.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Competencias evaluadas registradas correctamente",
+  "competencyValidations": [
+    {
+      "id": 1,
+      "candidateValidationId": 1,
+      "competencyDescriptionId": 1,
+      "result": "Destacada",
+      "createdAt": "2026-10-01T22:25:49.194Z",
+      "updatedAt": "2026-10-01T22:25:49.194Z",
+      "competencyDescription": {
+        "id": 1,
+        "competency": "Comunicación",
+        "competencyType": {
+          "id": 1,
+          "name": "Organizacionales"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "candidateValidationId": 1,
+      "competencyDescriptionId": 2,
+      "result": "Por destacar",
+      "createdAt": "2026-10-01T22:25:49.194Z",
+      "updatedAt": "2026-10-01T22:25:49.194Z",
+      "competencyDescription": {
+        "id": 2,
+        "competency": "Trabajo en equipo",
+        "competencyType": {
+          "id": 1,
+          "name": "Organizacionales"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "candidateValidationId": 1,
+      "competencyDescriptionId": 3,
+      "result": "Por destacar",
+      "createdAt": "2026-10-01T22:25:49.194Z",
+      "updatedAt": "2026-10-01T22:25:49.194Z",
+      "competencyDescription": {
+        "id": 3,
+        "competency": "Liderazgo",
+        "competencyType": {
+          "id": 2,
+          "name": "Esenciales"
+        }
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta si no se envían competencias
+
+```json
+{
+  "message": "Debe evaluar por lo menos una competencia"
+}
+```
+
+---
+
+## Respuesta si falta evaluar alguna competencia
+
+```json
+{
+  "message": "Debe evaluar todas las competencias del perfil de cargo"
+}
+```
+
+---
+
+## Respuesta si una competencia está repetida
+
+```json
+{
+  "message": "No se puede evaluar una misma competencia más de una vez"
+}
+```
+
+---
+
+## Respuesta si una competencia no pertenece a la revisión
+
+```json
+{
+  "message": "Una o más competencias no pertenecen a la revisión del cargo de esta requisición"
+}
+```
+
+---
+
+## Respuesta si el resultado no es válido
+
+```json
+{
+  "message": "El resultado de la competencia 1 no es válido"
+}
+```
+
+---
+
+## Respuesta si las competencias ya fueron registradas
+
+```json
+{
+  "message": "Las competencias del candidato ya fueron registradas"
+}
+```
+
+---
+
+## Respuesta si la revisión no tiene competencias configuradas
+
+```json
+{
+  "message": "La revisión del cargo no tiene competencias configuradas"
+}
+```
+
+---
+
+## Respuesta si falta completar la Evaluación Técnica
+
+```json
+{
+  "message": "Debe completar primero la Evaluación Técnica"
+}
+```
+
+---
+
+## Respuesta si la Evaluación Técnica todavía no fue confirmada
+
+```json
+{
+  "message": "La Evaluación Técnica todavía no ha sido confirmada"
+}
+```
+
+---
+
+## Respuesta si el postulante no fue aprobado en la Evaluación Técnica
+
+```json
+{
+  "message": "El postulante no fue aprobado en la Evaluación Técnica y no puede continuar a la Evaluación de Competencias"
+}
+```
+
+---
+
+## Respuesta si la Evaluación de Competencias ya fue finalizada
+
+```json
+{
+  "message": "La Evaluación de Competencias ya fue finalizada"
+}
+```
+
+---
+
 # Obtener candidatos disponibles para validación
 
 ## Endpoint protegido
@@ -11515,9 +11858,9 @@ GET /api/human-talent/candidate-validations/:candidateId
 
 ## Descripción
 
-Este endpoint permite consultar el detalle completo del proceso de validación de un candidato.
+Este endpoint permite consultar el detalle completo del proceso de validación de un candidato preseleccionado.
 
-La respuesta contiene la información del candidato, la requisición asociada, los requisitos evaluados y los datos registrados en cada fase del proceso.
+La respuesta contiene la información del candidato, la requisición asociada, la revisión del perfil de cargo, los requisitos y competencias del cargo, los datos registrados en las diferentes fases del proceso.
 
 ---
 
@@ -11538,42 +11881,252 @@ Pueden consultar el detalle de la validación:
 {
   "message": "Detalle de la validación obtenido correctamente",
   "candidate": {
-    "id": 15,
-    "name": "Carlos Pérez",
+    "id": 1,
+    "requisitionId": 1,
+    "identificationNumber": "123456789",
+    "name": "Yulieth Devia",
+    "identificationType": {
+      "id": 1,
+      "code": "CC",
+      "name": "Cedula de ciudadania"
+    },
     "requisition": {
-      "id": 10,
-      "position": {
-        "id": 8,
-        "name": "Técnico de Soporte"
-      },
+      "id": 1,
+      "candidateSubmissionStatus": "CERRADA",
+      "positionRevisionId": 1,
+      "createdById": 20,
       "createdBy": {
-        "id": 5,
-        "name": "Usuario creador de la requisición"
+        "id": 20,
+        "name": "Jefe de Tecnología"
+      },
+      "department": {
+        "id": 20,
+        "code": "ORG-TH-0007",
+        "name": "Tecnología e Inteligencia de Negocios"
+      },
+      "position": {
+        "id": 175,
+        "code": "DPC-TH-0065",
+        "name": "Aprendiz de Tecnología"
+      },
+      "positionRevision": {
+        "id": 1,
+        "revisionNumber": 1,
+        "status": "VIGENTE",
+        "requirementDescriptions": [
+          {
+            "id": 1,
+            "description": "Estudiante vigente programas de sistemas o relaccionados",
+            "requirement": {
+              "id": 1,
+              "name": "Formación académica"
+            }
+          },
+          {
+            "id": 2,
+            "description": "No es obligatorio contar con esperiencia",
+            "requirement": {
+              "id": 2,
+              "name": "Experiencia"
+            }
+          },
+          {
+            "id": 3,
+            "description": "Html, Csss, Bases de datos",
+            "requirement": {
+              "id": 3,
+              "name": "Conocimientos específicos"
+            }
+          }
+        ],
+        "positionCompetencyDescriptions": [
+          {
+            "id": 1,
+            "competency": "Comunicación",
+            "competencyType": {
+              "id": 1,
+              "name": "Organizacionales"
+            }
+          },
+          {
+            "id": 2,
+            "competency": "Trabajo en equipo",
+            "competencyType": {
+              "id": 1,
+              "name": "Organizacionales"
+            }
+          },
+          {
+            "id": 3,
+            "competency": "Liderazgo",
+            "competencyType": {
+              "id": 2,
+              "name": "Esenciales"
+            }
+          }
+        ]
       }
     },
     "validation": {
-      "id": 3,
+      "id": 1,
       "applicationConcept": "INGRESO",
       "positionType": "CARGO_EXISTENTE",
+      "changeControlCode": null,
       "isPositionProfileCurrent": true,
       "isSuitable": true,
-      "completedStep": 3,
-      "technicalEvaluation": {
-        "interviewScore": "4.5",
-        "examScore": "4.2",
-        "status": "PENDIENTE_APROBACION",
-        "isSuitable": null,
+      "completedStep": 4,
+      "validatedAt": "2026-10-01T20:44:59.676Z",
+      "performedBy": {
+        "id": 21,
+        "name": "Analista de Talento Humano"
+      },
+      "personnelCandidateRequirementValidations": [
+        {
+          "id": 1,
+          "requirementDescriptionId": 1,
+          "complies": true,
+          "evidence": "Matricula vigente",
+          "gapClosure": null
+        },
+        {
+          "id": 2,
+          "requirementDescriptionId": 2,
+          "complies": true,
+          "evidence": "no cuenta con experiencia",
+          "gapClosure": null
+        },
+        {
+          "id": 3,
+          "requirementDescriptionId": 3,
+          "complies": true,
+          "evidence": "certificados de cursos",
+          "gapClosure": null
+        }
+      ],
+      "competencyValidations": [
+        {
+          "id": 1,
+          "competencyDescriptionId": 1,
+          "result": "Destacada",
+          "competencyDescription": {
+            "id": 1,
+            "competency": "Comunicación",
+            "competencyType": {
+              "id": 1,
+              "name": "Organizacionales"
+            }
+          }
+        },
+        {
+          "id": 2,
+          "competencyDescriptionId": 2,
+          "result": "Por destacar",
+          "competencyDescription": {
+            "id": 2,
+            "competency": "Trabajo en equipo",
+            "competencyType": {
+              "id": 1,
+              "name": "Organizacionales"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "competencyDescriptionId": 3,
+          "result": "Por destacar",
+          "competencyDescription": {
+            "id": 3,
+            "competency": "Liderazgo",
+            "competencyType": {
+              "id": 2,
+              "name": "Esenciales"
+            }
+          }
+        }
+      ],
+      "psychotechnicalTests": [
+        {
+          "id": 1,
+          "appliedTest": "DISC",
+          "appliedAt": "2026-10-01T21:23:05.185Z",
+          "evaluationAspects": "Comportamiento, comunicación y adaptación",
+          "resultDescription": "El candidato presenta un estilo conductual adecuado para las funciones del cargo.",
+          "createdById": 21,
+          "createdAt": "2026-10-01T21:23:05.192Z",
+          "updatedAt": "2026-10-01T21:23:05.192Z",
+          "createdBy": {
+            "id": 21,
+            "name": "Analista de Talento Humano"
+          }
+        },
+        {
+          "id": 2,
+          "appliedTest": "Wartegg",
+          "appliedAt": "2026-10-01T21:23:05.185Z",
+          "evaluationAspects": "Personalidad, relaciones interpersonales y adaptación",
+          "resultDescription": "El candidato evidencia características favorables en las áreas evaluadas.",
+          "createdById": 21,
+          "createdAt": "2026-10-01T21:23:05.192Z",
+          "updatedAt": "2026-10-01T21:23:05.192Z",
+          "createdBy": {
+            "id": 21,
+            "name": "Analista de Talento Humano"
+          }
+        },
+        {
+          "id": 3,
+          "appliedTest": "Valanti",
+          "appliedAt": "2026-10-01T21:23:05.185Z",
+          "evaluationAspects": "Valores y principios personales",
+          "resultDescription": "Los resultados evidencian alineación con los valores requeridos.",
+          "createdById": 21,
+          "createdAt": "2026-10-01T21:23:05.192Z",
+          "updatedAt": "2026-10-01T21:23:05.192Z",
+          "createdBy": {
+            "id": 21,
+            "name": "Analista de Talento Humano"
+          }
+        }
+      ],
+      "personnelCandidateTechnicalEvaluation": {
+        "id": 1,
+        "interviewScore": "3",
+        "interviewRecordedAt": "2026-10-01T20:45:23.410Z",
+        "examScore": "5",
+        "examRecordedAt": "2026-10-01T20:45:23.410Z",
+        "examEvidenceOriginalName": "5.pdf",
+        "examEvidenceFileName": "technical-exam-1790887523400-5.pdf",
+        "examEvidenceFileUrl": "/uploads/human-talent/technical-exams/technical-exam-1790887523400-5.pdf",
+        "examEvidenceMimeType": "application/pdf",
+        "examEvidenceFileSize": 91520,
+        "examEvidenceUploadedAt": "2026-10-01T20:45:23.410Z",
+        "status": "APROBADA",
+        "isSuitable": true,
+        "enteredById": 21,
         "enteredBy": {
-          "id": 22,
+          "id": 21,
           "name": "Analista de Talento Humano"
         },
-        "approvedBy": null,
-        "approvedAt": null
+        "approvedById": 20,
+        "approvedBy": {
+          "id": 20,
+          "name": "Jefe de Tecnología"
+        },
+        "approvedAt": "2026-10-01T20:45:44.106Z"
       }
     }
   },
-  "canManageValidation": false,
-  "canApproveTechnicalEvaluation": true
+  "canManageValidation": true,
+  "canApproveTechnicalEvaluation": false
+}
+```
+
+Si todavía no existen pruebas psicotécnicas o competencias evaluadas, los arreglos se devuelven vacíos:
+
+```json
+{
+  "psychotechnicalTests": [],
+  "competencyValidations": []
 }
 ```
 
@@ -11581,7 +12134,7 @@ Si la Evaluación Técnica todavía no ha iniciado:
 
 ```json
 {
-  "technicalEvaluation": null
+  "personnelCandidateTechnicalEvaluation": null
 }
 ```
 
@@ -11688,6 +12241,7 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/candidate                                                                               | Completa la validación del postulante                      | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
+| POST   | /api/human-talent/candidate-validations/:candidateId/competency-validations                                                                      | Registra todas las competencias evaluadas de la Fase 5     | Analista de Talento Humano                                      |
 | POST   | /api/human-talent/candidate-validations/:candidateId/psychotechnical-tests                                                                    | Registra una o varias pruebas psicotécnicas de la Fase 5   | Analista de Talento Humano                                      |
 
 

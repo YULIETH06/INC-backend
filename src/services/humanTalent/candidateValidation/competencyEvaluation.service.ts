@@ -2,6 +2,7 @@ import prisma from "../../../config/client.js";
 
 import type {
     CreatePersonnelCandidatePsychotechnicalTestsData,
+    SavePersonnelCandidateCompetencyValidationsData,
 } from "../../../interfaces/humanTalent/candidateValidation/personnelCandidateValidation.interface.js";
 
 import type {
@@ -274,4 +275,322 @@ export const createPersonnelCandidatePsychotechnicalTestsService = async (
         );
 
     return psychotechnicalTests;
+};
+
+// Guarda todas las competencias evaluadas de la Fase 5.
+export const savePersonnelCandidateCompetencyValidationsService = async (
+    data: SavePersonnelCandidateCompetencyValidationsData,
+    authenticatedUser: PersonnelCandidateAuthenticatedUser
+) => {
+    await validatePersonnelCandidateManager(
+        prisma,
+        authenticatedUser.id
+    );
+
+    if (
+        !Array.isArray(data.competencyValidations) ||
+        data.competencyValidations.length === 0
+    ) {
+        throw new Error(
+            "Debe evaluar por lo menos una competencia"
+        );
+    }
+
+    const candidate =
+        await prisma.personnelRequisitionCandidate.findFirst({
+            where: {
+                id: data.candidateId,
+                isPreselected: true,
+
+                requisition: {
+                    status: "APROBADA",
+                },
+            },
+
+            select: {
+                id: true,
+                name: true,
+
+                requisition: {
+                    select: {
+                        positionRevisionId: true,
+
+                        positionRevision: {
+                            select: {
+                                positionCompetencyDescriptions: {
+                                    where: {
+                                        deletedAt: null,
+                                    },
+
+                                    select: {
+                                        id: true,
+                                        competency: true,
+
+                                        competencyType: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
+                                        },
+                                    },
+
+                                    orderBy: {
+                                        id: "asc",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+
+                validation: {
+                    select: {
+                        id: true,
+                        completedStep: true,
+
+                        personnelCandidateTechnicalEvaluation: {
+                            select: {
+                                status: true,
+                                isSuitable: true,
+                            },
+                        },
+
+                        competencyEvaluation: {
+                            select: {
+                                id: true,
+                            },
+                        },
+
+                        competencyValidations: {
+                            select: {
+                                id: true,
+                                competencyDescriptionId: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+    if (!candidate) {
+        throw new Error(
+            "El candidato no existe, no ha sido preseleccionado o no está disponible para Evaluación de Competencias"
+        );
+    }
+
+    if (!candidate.validation) {
+        throw new Error(
+            "El candidato todavía no tiene una validación iniciada"
+        );
+    }
+
+    if (
+        candidate.validation.completedStep < 4
+    ) {
+        throw new Error(
+            "Debe completar primero la Evaluación Técnica"
+        );
+    }
+
+    if (
+        candidate.validation.completedStep > 4
+    ) {
+        throw new Error(
+            "La Evaluación de Competencias ya fue completada"
+        );
+    }
+
+    const technicalEvaluation =
+        candidate.validation
+            .personnelCandidateTechnicalEvaluation;
+
+    if (!technicalEvaluation) {
+        throw new Error(
+            "El candidato todavía no tiene una Evaluación Técnica"
+        );
+    }
+
+    if (
+        technicalEvaluation.status !==
+        "APROBADA"
+    ) {
+        throw new Error(
+            "La Evaluación Técnica todavía no ha sido confirmada"
+        );
+    }
+
+    if (
+        technicalEvaluation.isSuitable !== true
+    ) {
+        throw new Error(
+            "El postulante no fue aprobado en la Evaluación Técnica y no puede continuar a la Evaluación de Competencias"
+        );
+    }
+
+    if (
+        candidate.validation.competencyEvaluation
+    ) {
+        throw new Error(
+            "La Evaluación de Competencias ya fue finalizada"
+        );
+    }
+
+    if (
+        candidate.validation
+            .competencyValidations.length > 0
+    ) {
+        throw new Error(
+            "Las competencias del candidato ya fueron registradas"
+        );
+    }
+
+    const allowedResults =
+        new Set([
+            "Destacada",
+            "Por destacar",
+        ]);
+
+    const submittedCompetencyIds =
+        new Set<number>();
+
+    for (
+        const [index, competency]
+        of data.competencyValidations.entries()
+    ) {
+        if (
+            !Number.isInteger(
+                competency
+                    .competencyDescriptionId
+            ) ||
+            competency
+                .competencyDescriptionId <= 0
+        ) {
+            throw new Error(
+                `La competencia del registro ${index + 1} no es válida`
+            );
+        }
+
+        if (
+            !allowedResults.has(
+                competency.result
+            )
+        ) {
+            throw new Error(
+                `El resultado de la competencia ${index + 1} no es válido`
+            );
+        }
+
+        if (
+            submittedCompetencyIds.has(
+                competency
+                    .competencyDescriptionId
+            )
+        ) {
+            throw new Error(
+                "No se puede evaluar una misma competencia más de una vez"
+            );
+        }
+
+        submittedCompetencyIds.add(
+            competency
+                .competencyDescriptionId
+        );
+    }
+
+    const requiredCompetencies =
+        candidate.requisition
+            .positionRevision
+            .positionCompetencyDescriptions;
+
+    if (
+        requiredCompetencies.length === 0
+    ) {
+        throw new Error(
+            "La revisión del cargo no tiene competencias configuradas"
+        );
+    }
+
+    const requiredCompetencyIds =
+        requiredCompetencies.map(
+            (competency) =>
+                competency.id
+        );
+
+    if (
+        data.competencyValidations.length !==
+        requiredCompetencyIds.length
+    ) {
+        throw new Error(
+            "Debe evaluar todas las competencias del perfil de cargo"
+        );
+    }
+
+    const requiredCompetencyIdSet =
+        new Set(
+            requiredCompetencyIds
+        );
+
+    const hasInvalidCompetency =
+        data.competencyValidations.some(
+            (competency) =>
+                !requiredCompetencyIdSet.has(
+                    competency
+                        .competencyDescriptionId
+                )
+        );
+
+    if (hasInvalidCompetency) {
+        throw new Error(
+            "Una o más competencias no pertenecen a la revisión del cargo de esta requisición"
+        );
+    }
+
+    const competencyValidations =
+        await prisma.$transaction(
+            data.competencyValidations.map(
+                (competency) =>
+                    prisma
+                        .personnelCandidateCompetencyValidation
+                        .create({
+                            data: {
+                                candidateValidationId:
+                                    candidate
+                                        .validation!.id,
+
+                                competencyDescriptionId:
+                                    competency
+                                        .competencyDescriptionId,
+
+                                result:
+                                    competency
+                                        .result,
+                            },
+
+                            select: {
+                                id: true,
+                                candidateValidationId: true,
+                                competencyDescriptionId: true,
+                                result: true,
+                                createdAt: true,
+                                updatedAt: true,
+
+                                competencyDescription: {
+                                    select: {
+                                        id: true,
+                                        competency: true,
+
+                                        competencyType: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        })
+            )
+        );
+
+    return competencyValidations;
 };

@@ -15,6 +15,7 @@ import {
     createPersonnelCandidateValidationService,
     getPersonnelCandidateValidationDetailService,
     getPersonnelCandidateValidationsService,
+    savePersonnelCandidateCompetencyValidationsService,
     savePersonnelCandidateTechnicalEvaluationService,
     updatePersonnelCandidatePositionValidationService,
 } from "../../../services/humanTalent/candidateValidation/index.js";
@@ -687,6 +688,120 @@ export const createPersonnelCandidatePsychotechnicalTests = async (
                 error instanceof Error
                     ? error.message
                     : "Error al registrar las pruebas psicotécnicas",
+        });
+    }
+};
+
+// Guarda las competencias evaluadas - Fase 5.
+export const savePersonnelCandidateCompetencyValidations = async (
+    req: AuthRequest,
+    res: Response
+) => {
+    try {
+        const { candidateId } = req.params;
+        const { competencyValidations } = req.body;
+
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Usuario no autenticado",
+            });
+        }
+
+        if (
+            Number.isNaN(Number(candidateId)) ||
+            Number(candidateId) <= 0
+        ) {
+            return res.status(400).json({
+                message: "El candidato no es válido",
+            });
+        }
+
+        if (
+            !Array.isArray(competencyValidations) ||
+            competencyValidations.length === 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "Debe evaluar por lo menos una competencia",
+            });
+        }
+
+        for (
+            const [index, competency]
+            of competencyValidations.entries()
+        ) {
+            if (
+                typeof competency !== "object" ||
+                competency === null
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La competencia del registro ${index + 1} no es válida`,
+                });
+            }
+
+            if (
+                !Number.isInteger(
+                    Number(
+                        competency.competencyDescriptionId
+                    )
+                ) ||
+                Number(
+                    competency.competencyDescriptionId
+                ) <= 0
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La competencia del registro ${index + 1} no es válida`,
+                });
+            }
+
+            if (
+                competency.result !== "Destacada" &&
+                competency.result !== "Por destacar"
+            ) {
+                return res.status(400).json({
+                    message:
+                        `El resultado de la competencia ${index + 1} no es válido`,
+                });
+            }
+        }
+
+        const validations =
+            await savePersonnelCandidateCompetencyValidationsService(
+                {
+                    candidateId:
+                        Number(candidateId),
+
+                    competencyValidations:
+                        competencyValidations.map(
+                            (competency) => ({
+                                competencyDescriptionId:
+                                    Number(
+                                        competency
+                                            .competencyDescriptionId
+                                    ),
+
+                                result:
+                                    competency.result,
+                            })
+                        ),
+                },
+                req.user
+            );
+
+        return res.status(201).json({
+            message:
+                "Competencias evaluadas registradas correctamente",
+            competencyValidations:
+                validations,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            message:
+                error instanceof Error
+                    ? error.message
+                    : "Error al registrar las competencias evaluadas",
         });
     }
 };

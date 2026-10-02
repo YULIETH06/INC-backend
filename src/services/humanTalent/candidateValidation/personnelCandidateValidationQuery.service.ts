@@ -280,6 +280,28 @@ export const getPersonnelCandidateValidationDetailService = async (
                                         id: "asc",
                                     },
                                 },
+
+                                positionCompetencyDescriptions: {
+                                    where: {
+                                        deletedAt: null,
+                                    },
+
+                                    select: {
+                                        id: true,
+                                        competency: true,
+
+                                        competencyType: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
+                                        },
+                                    },
+
+                                    orderBy: {
+                                        id: "asc",
+                                    },
+                                },
                             },
                         },
                     },
@@ -310,6 +332,56 @@ export const getPersonnelCandidateValidationDetailService = async (
                                 complies: true,
                                 evidence: true,
                                 gapClosure: true,
+                            },
+                        },
+
+                        competencyValidations: {
+                            select: {
+                                id: true,
+                                competencyDescriptionId: true,
+                                result: true,
+
+                                competencyDescription: {
+                                    select: {
+                                        id: true,
+                                        competency: true,
+
+                                        competencyType: {
+                                            select: {
+                                                id: true,
+                                                name: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+
+                            orderBy: {
+                                id: "asc",
+                            },
+                        },
+
+                        psychotechnicalTests: {
+                            select: {
+                                id: true,
+                                appliedTest: true,
+                                appliedAt: true,
+                                evaluationAspects: true,
+                                resultDescription: true,
+                                createdById: true,
+                                createdAt: true,
+                                updatedAt: true,
+
+                                createdBy: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                    },
+                                },
+                            },
+
+                            orderBy: {
+                                id: "asc",
                             },
                         },
 

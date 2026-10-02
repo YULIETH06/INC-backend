@@ -17,6 +17,7 @@ export {
 
 export {
     createPersonnelCandidatePsychotechnicalTestsService,
+    savePersonnelCandidateCompetencyValidationsService,
 } from "./competencyEvaluation.service.js";
 
 export {
