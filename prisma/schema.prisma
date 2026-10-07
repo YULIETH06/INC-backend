@@ -761,7 +761,7 @@ model PersonnelCandidatePsychotechnicalTest {
 
   candidateValidationId Int
 
-  appliedTest String
+  appliedTest String @db.VarChar(150)
 
   appliedAt DateTime @default(now())
 
@@ -808,7 +808,7 @@ model PersonnelCandidateCompetencyEvaluation {
 
   candidateValidationId Int
 
-  generalConcept String
+  generalConcept String @db.VarChar(500)
 
   isSuitable Boolean
 

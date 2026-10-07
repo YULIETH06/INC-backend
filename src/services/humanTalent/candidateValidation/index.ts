@@ -16,8 +16,6 @@ export {
 } from "./technicalEvaluation.service.js";
 
 export {
-    createPersonnelCandidatePsychotechnicalTestsService,
-    savePersonnelCandidateCompetencyValidationsService,
     completePersonnelCandidateCompetencyEvaluationService,
 } from "./competencyEvaluation.service.js";
 

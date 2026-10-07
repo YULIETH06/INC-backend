@@ -8,15 +8,19 @@ import {
 
 import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
 
+import type {
+    PersonnelCandidateCompetencyResult,
+    PersonnelCandidateCompetencyValidationData,
+    PersonnelCandidatePsychotechnicalTestData,
+} from "../../../interfaces/humanTalent/candidateValidation/personnelCandidateValidation.interface.js";
+
 import {
     approvePersonnelCandidateTechnicalEvaluationService,
     completePersonnelCandidateCompetencyEvaluationService,
     completePersonnelCandidateValidationService,
-    createPersonnelCandidatePsychotechnicalTestsService,
     createPersonnelCandidateValidationService,
     getPersonnelCandidateValidationDetailService,
     getPersonnelCandidateValidationsService,
-    savePersonnelCandidateCompetencyValidationsService,
     savePersonnelCandidateTechnicalEvaluationService,
     updatePersonnelCandidatePositionValidationService,
 } from "../../../services/humanTalent/candidateValidation/index.js";
@@ -572,242 +576,9 @@ export const approvePersonnelCandidateTechnicalEvaluation = async (
     }
 };
 
-// Registra las pruebas psicotécnicas - Fase 5.
-export const createPersonnelCandidatePsychotechnicalTests = async (
-    req: AuthRequest,
-    res: Response
-) => {
-    try {
-        const { candidateId } = req.params;
-        const { psychotechnicalTests } = req.body;
-
-        if (!req.user) {
-            return res.status(401).json({
-                message: "Usuario no autenticado",
-            });
-        }
-
-        if (
-            Number.isNaN(Number(candidateId)) ||
-            Number(candidateId) <= 0
-        ) {
-            return res.status(400).json({
-                message: "El candidato no es válido",
-            });
-        }
-
-        if (
-            !Array.isArray(psychotechnicalTests) ||
-            psychotechnicalTests.length === 0
-        ) {
-            return res.status(400).json({
-                message:
-                    "Debe registrar por lo menos una prueba psicotécnica",
-            });
-        }
-
-        for (
-            let index = 0;
-            index < psychotechnicalTests.length;
-            index++
-        ) {
-            const test =
-                psychotechnicalTests[index];
-
-            if (
-                typeof test !== "object" ||
-                test === null
-            ) {
-                return res.status(400).json({
-                    message:
-                        `La prueba psicotécnica ${index + 1} no es válida`,
-                });
-            }
-
-            if (
-                typeof test.appliedTest !== "string" ||
-                !test.appliedTest.trim()
-            ) {
-                return res.status(400).json({
-                    message:
-                        `La prueba aplicada es obligatoria en el registro ${index + 1}`,
-                });
-            }
-
-            if (
-                typeof test.evaluationAspects !== "string" ||
-                !test.evaluationAspects.trim()
-            ) {
-                return res.status(400).json({
-                    message:
-                        `Los aspectos a evaluar son obligatorios en el registro ${index + 1}`,
-                });
-            }
-
-            if (
-                typeof test.resultDescription !== "string" ||
-                !test.resultDescription.trim()
-            ) {
-                return res.status(400).json({
-                    message:
-                        `La descripción de resultados es obligatoria en el registro ${index + 1}`,
-                });
-            }
-        }
-
-        const tests =
-            await createPersonnelCandidatePsychotechnicalTestsService(
-                {
-                    candidateId:
-                        Number(candidateId),
-
-                    psychotechnicalTests:
-                        psychotechnicalTests.map(
-                            (test) => ({
-                                appliedTest:
-                                    test.appliedTest.trim(),
-
-                                evaluationAspects:
-                                    test.evaluationAspects.trim(),
-
-                                resultDescription:
-                                    test.resultDescription.trim(),
-                            })
-                        ),
-                },
-                req.user
-            );
-
-        return res.status(201).json({
-            message:
-                "Pruebas psicotécnicas registradas correctamente",
-            psychotechnicalTests: tests,
-        });
-    } catch (error) {
-        return res.status(400).json({
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Error al registrar las pruebas psicotécnicas",
-        });
-    }
-};
-
-// Guarda las competencias evaluadas - Fase 5.
-export const savePersonnelCandidateCompetencyValidations = async (
-    req: AuthRequest,
-    res: Response
-) => {
-    try {
-        const { candidateId } = req.params;
-        const { competencyValidations } = req.body;
-
-        if (!req.user) {
-            return res.status(401).json({
-                message: "Usuario no autenticado",
-            });
-        }
-
-        if (
-            Number.isNaN(Number(candidateId)) ||
-            Number(candidateId) <= 0
-        ) {
-            return res.status(400).json({
-                message: "El candidato no es válido",
-            });
-        }
-
-        if (
-            !Array.isArray(competencyValidations) ||
-            competencyValidations.length === 0
-        ) {
-            return res.status(400).json({
-                message:
-                    "Debe evaluar por lo menos una competencia",
-            });
-        }
-
-        for (
-            const [index, competency]
-            of competencyValidations.entries()
-        ) {
-            if (
-                typeof competency !== "object" ||
-                competency === null
-            ) {
-                return res.status(400).json({
-                    message:
-                        `La competencia del registro ${index + 1} no es válida`,
-                });
-            }
-
-            if (
-                !Number.isInteger(
-                    Number(
-                        competency.competencyDescriptionId
-                    )
-                ) ||
-                Number(
-                    competency.competencyDescriptionId
-                ) <= 0
-            ) {
-                return res.status(400).json({
-                    message:
-                        `La competencia del registro ${index + 1} no es válida`,
-                });
-            }
-
-            if (
-                competency.result !== "Destacada" &&
-                competency.result !== "Por destacar"
-            ) {
-                return res.status(400).json({
-                    message:
-                        `El resultado de la competencia ${index + 1} no es válido`,
-                });
-            }
-        }
-
-        const validations =
-            await savePersonnelCandidateCompetencyValidationsService(
-                {
-                    candidateId:
-                        Number(candidateId),
-
-                    competencyValidations:
-                        competencyValidations.map(
-                            (competency) => ({
-                                competencyDescriptionId:
-                                    Number(
-                                        competency
-                                            .competencyDescriptionId
-                                    ),
-
-                                result:
-                                    competency.result,
-                            })
-                        ),
-                },
-                req.user
-            );
-
-        return res.status(201).json({
-            message:
-                "Competencias evaluadas registradas correctamente",
-            competencyValidations:
-                validations,
-        });
-    } catch (error) {
-        return res.status(400).json({
-            message:
-                error instanceof Error
-                    ? error.message
-                    : "Error al registrar las competencias evaluadas",
-        });
-    }
-};
-
-// Finaliza la Evaluación de Competencias - Fase 5.
+// Completa la Fase 5 - Evaluación de Competencias.
+// Recibe pruebas psicotécnicas, competencias evaluadas,
+// concepto general y resultado en una sola petición.
 export const completePersonnelCandidateCompetencyEvaluation = async (
     req: AuthRequest,
     res: Response
@@ -827,31 +598,190 @@ export const completePersonnelCandidateCompetencyEvaluation = async (
             candidateId <= 0
         ) {
             return res.status(400).json({
-                message:
-                    "El id del candidato no es válido",
+                message: "El candidato no es válido",
             });
         }
 
+        const body = req.body ?? {};
+
         const {
-            generalConcept,
+            psychotechnicalTests,
+            competencyValidations,
             isSuitable,
-        } = req.body;
+        } = body;
+
+        // ----- Pruebas psicotécnicas -----
 
         if (
-            typeof generalConcept !==
-            "string" ||
-            !generalConcept.trim()
+            !Array.isArray(psychotechnicalTests) ||
+            psychotechnicalTests.length === 0
         ) {
+            return res.status(400).json({
+                message:
+                    "Debe registrar por lo menos una prueba psicotécnica",
+            });
+        }
+
+        const normalizedTests:
+            PersonnelCandidatePsychotechnicalTestData[] = [];
+
+        for (const [index, test] of psychotechnicalTests.entries()) {
+            const registro = index + 1;
+
+            if (typeof test !== "object" || test === null) {
+                return res.status(400).json({
+                    message:
+                        `La prueba psicotécnica ${registro} no es válida`,
+                });
+            }
+
+            const appliedTest =
+                typeof test.appliedTest === "string"
+                    ? test.appliedTest.trim()
+                    : "";
+
+            const evaluationAspects =
+                typeof test.evaluationAspects === "string"
+                    ? test.evaluationAspects.trim()
+                    : "";
+
+            const resultDescription =
+                typeof test.resultDescription === "string"
+                    ? test.resultDescription.trim()
+                    : "";
+
+            if (!appliedTest) {
+                return res.status(400).json({
+                    message:
+                        `La prueba aplicada es obligatoria en el registro ${registro}`,
+                });
+            }
+
+            if (appliedTest.length > 150) {
+                return res.status(400).json({
+                    message:
+                        `La prueba aplicada no puede superar los 150 caracteres en el registro ${registro}`,
+                });
+            }
+
+            if (!evaluationAspects) {
+                return res.status(400).json({
+                    message:
+                        `Los aspectos a evaluar son obligatorios en el registro ${registro}`,
+                });
+            }
+
+            if (evaluationAspects.length > 1000) {
+                return res.status(400).json({
+                    message:
+                        `Los aspectos a evaluar no pueden superar los 1000 caracteres en el registro ${registro}`,
+                });
+            }
+
+            if (!resultDescription) {
+                return res.status(400).json({
+                    message:
+                        `La descripción de resultados es obligatoria en el registro ${registro}`,
+                });
+            }
+
+            if (resultDescription.length > 5000) {
+                return res.status(400).json({
+                    message:
+                        `La descripción de resultados no puede superar los 5000 caracteres en el registro ${registro}`,
+                });
+            }
+
+            normalizedTests.push({
+                appliedTest,
+                evaluationAspects,
+                resultDescription,
+            });
+        }
+
+        // ----- Competencias evaluadas -----
+
+        if (
+            !Array.isArray(competencyValidations) ||
+            competencyValidations.length === 0
+        ) {
+            return res.status(400).json({
+                message:
+                    "Debe evaluar por lo menos una competencia",
+            });
+        }
+
+        const allowedResults:
+            PersonnelCandidateCompetencyResult[] = [
+                "Destacada",
+                "Por destacar",
+            ];
+
+        const normalizedCompetencies:
+            PersonnelCandidateCompetencyValidationData[] = [];
+
+        for (const [index, competency] of competencyValidations.entries()) {
+            const registro = index + 1;
+
+            if (
+                typeof competency !== "object" ||
+                competency === null
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La competencia del registro ${registro} no es válida`,
+                });
+            }
+
+            const competencyDescriptionId =
+                Number(competency.competencyDescriptionId);
+
+            if (
+                !Number.isInteger(competencyDescriptionId) ||
+                competencyDescriptionId <= 0
+            ) {
+                return res.status(400).json({
+                    message:
+                        `La competencia del registro ${registro} no es válida`,
+                });
+            }
+
+            if (!allowedResults.includes(competency.result)) {
+                return res.status(400).json({
+                    message:
+                        `El resultado de la competencia ${registro} no es válido`,
+                    allowedResults,
+                });
+            }
+
+            normalizedCompetencies.push({
+                competencyDescriptionId,
+                result: competency.result,
+            });
+        }
+
+        // ----- Concepto general y resultado -----
+
+        const generalConcept =
+            typeof body.generalConcept === "string"
+                ? body.generalConcept.trim()
+                : "";
+
+        if (!generalConcept) {
             return res.status(400).json({
                 message:
                     "El concepto general es obligatorio",
             });
         }
 
-        if (
-            typeof isSuitable !==
-            "boolean"
-        ) {
+        if (generalConcept.length > 500) {
+            return res.status(400).json({
+                message:
+                    "El concepto general no puede superar los 500 caracteres",
+            });
+        }
+
+        if (typeof isSuitable !== "boolean") {
             return res.status(400).json({
                 message:
                     "Debe indicar si el postulante es apto para continuar el proceso",
@@ -862,8 +792,11 @@ export const completePersonnelCandidateCompetencyEvaluation = async (
             await completePersonnelCandidateCompetencyEvaluationService(
                 {
                     candidateId,
-                    generalConcept:
-                        generalConcept.trim(),
+                    psychotechnicalTests:
+                        normalizedTests,
+                    competencyValidations:
+                        normalizedCompetencies,
+                    generalConcept,
                     isSuitable,
                 },
                 req.user

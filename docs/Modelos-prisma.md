@@ -214,7 +214,9 @@ REQUISITION_CANDIDATES_PENDING
 REQUISITION_CANDIDATES_WITHOUT_ASSISTANT
 REQUISITION_CANDIDATES_CLOSED
 REQUISITION_CANDIDATES_REOPENED
+REQUISITION_CANDIDATES_PRESELECTED
 CANDIDATE_TECHNICAL_EVALUATION_PENDING
+CANDIDATE_TECHNICAL_EVALUATION_CONFIRMED
 ```
 
 ---
@@ -898,11 +900,10 @@ Cada candidato puede tener como máximo una validación. El registro se crea al 
 2 = Validación de cargo
 3 = Validación del postulante completada
 4 = Evaluación Técnica confirmada
+5 = Evaluación de Competencias completada
 ```
 
 `completedStep` representa la última fase completamente finalizada.
-
-En la Fase 4, `completedStep` permanece en `3` mientras las calificaciones están en registro o pendientes de aprobación. Solo cambia a `4` cuando el creador de la requisición confirma la Evaluación Técnica.
 
 ## Campos principales
 
@@ -1417,10 +1418,10 @@ Informe prueba N
 |---|---|---|
 | id | Int | Identificador único de la prueba |
 | candidateValidationId | Int | Validación general del candidato |
-| appliedTest | String | Nombre de la prueba psicotécnica aplicada |
+| appliedTest | String | Nombre de la prueba psicotécnica aplicada. Máximo 150 caracteres (`VarChar(150)`) |
 | appliedAt | DateTime | Fecha y hora de aplicación |
-| evaluationAspects | String | Aspectos que se evalúan con la prueba |
-| resultDescription | String | Descripción de los resultados de la prueba |
+| evaluationAspects | String | Aspectos que se evalúan con la prueba. Tipo `Text`; el backend permite máximo 1000 caracteres |
+| resultDescription | String | Descripción de los resultados de la prueba. Tipo `Text`; el backend permite máximo 5000 caracteres |
 | createdById | Int | Usuario que registra la prueba |
 | candidateValidation | PersonnelCandidateValidation | Validación general del candidato |
 | createdBy | User | Usuario que registró la prueba |
@@ -1490,7 +1491,7 @@ Mientras `PersonnelCandidateCompetencyValidation` registra el resultado individu
 |---|---|---|
 | id | Int | Identificador único de la evaluación |
 | candidateValidationId | Int | Validación general del candidato |
-| generalConcept | String | Concepto general de la evaluación de competencias |
+| generalConcept | String | Concepto general de la evaluación de competencias. Máximo 500 caracteres (`VarChar(500)`) |
 | isSuitable | Boolean | Indica si el postulante es apto para continuar |
 | validatedAt | DateTime | Fecha y hora de validación |
 | performedById | Int | Usuario que realizó el cierre de la fase |

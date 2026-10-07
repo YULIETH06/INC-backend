@@ -90,6 +90,12 @@ export const getPersonnelCandidateValidationsService = async (
                                 isSuitable: true,
                             },
                         },
+
+                        competencyEvaluation: {
+                            select: {
+                                isSuitable: true,
+                            },
+                        },
                     },
                 },
             },
@@ -158,6 +164,15 @@ export const getPersonnelCandidateValidationsService = async (
                 ) {
                     validationStatus =
                         "EVALUACION_TECNICA_COMPLETADA";
+                }
+
+                // Fase 5 finalizada.
+                if (
+                    candidate.validation
+                        ?.completedStep === 5
+                ) {
+                    validationStatus =
+                        "EVALUACION_COMPETENCIAS_COMPLETADA";
                 }
 
                 return {

@@ -51,6 +51,7 @@ export interface ApprovePersonnelCandidateTechnicalEvaluationData {
     candidateId: number;
     isSuitable: boolean;
 }
+
 // Datos de una prueba psicotécnica individual - Fase 5.
 export interface PersonnelCandidatePsychotechnicalTestData {
     appliedTest: string;
@@ -58,17 +59,10 @@ export interface PersonnelCandidatePsychotechnicalTestData {
     resultDescription: string;
 }
 
-// Datos para registrar múltiples pruebas psicotécnicas - Fase 5.
-export interface CreatePersonnelCandidatePsychotechnicalTestsData {
-    candidateId: number;
-    psychotechnicalTests: PersonnelCandidatePsychotechnicalTestData[];
-}
-
 // Resultado permitido para una competencia evaluada - Fase 5.
 export type PersonnelCandidateCompetencyResult =
     | "Destacada"
     | "Por destacar";
-
 
 // Datos de una competencia individual evaluada - Fase 5.
 export interface PersonnelCandidateCompetencyValidationData {
@@ -76,16 +70,12 @@ export interface PersonnelCandidateCompetencyValidationData {
     result: PersonnelCandidateCompetencyResult;
 }
 
-
-// Datos para registrar múltiples competencias - Fase 5.
-export interface SavePersonnelCandidateCompetencyValidationsData {
-    candidateId: number;
-    competencyValidations: PersonnelCandidateCompetencyValidationData[];
-}
-
-// Datos para finalizar la Evaluación de Competencias - Fase 5.
+// Datos para completar la Evaluación de Competencias - Fase 5.
+// Se guarda todo en una sola transacción, igual que la Fase 3.
 export interface CompletePersonnelCandidateCompetencyEvaluationData {
     candidateId: number;
+    psychotechnicalTests: PersonnelCandidatePsychotechnicalTestData[];
+    competencyValidations: PersonnelCandidateCompetencyValidationData[];
     generalConcept: string;
     isSuitable: boolean;
 }

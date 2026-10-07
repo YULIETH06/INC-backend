@@ -4,11 +4,9 @@ import {
     approvePersonnelCandidateTechnicalEvaluation,
     completePersonnelCandidateCompetencyEvaluation,
     completePersonnelCandidateValidation,
-    createPersonnelCandidatePsychotechnicalTests,
     createPersonnelCandidateValidation,
     getPersonnelCandidateValidationDetail,
     getPersonnelCandidateValidations,
-    savePersonnelCandidateCompetencyValidations,
     savePersonnelCandidateTechnicalEvaluation,
     updatePersonnelCandidatePositionValidation,
 } from "../../../controllers/humanTalent/candidateValidation/personnelCandidateValidation.controller.js";
@@ -70,21 +68,9 @@ router.patch(
     approvePersonnelCandidateTechnicalEvaluation
 );
 
-// Registra una prueba psicotécnica - Fase 5.
-router.post(
-    "/:candidateId/psychotechnical-tests",
-    authMiddleware,
-    createPersonnelCandidatePsychotechnicalTests
-);
-
-// Guarda las competencias evaluadas - Fase 5.
-router.post(
-    "/:candidateId/competency-validations",
-    authMiddleware,
-    savePersonnelCandidateCompetencyValidations
-);
-
-// Finaliza la Fase 5 - Evaluación de Competencias.
+// Completa la Fase 5 - Evaluación de Competencias.
+// Registra pruebas psicotécnicas, competencias, concepto general
+// y resultado en una sola petición.
 router.patch(
     "/:candidateId/competency-evaluation",
     authMiddleware,
