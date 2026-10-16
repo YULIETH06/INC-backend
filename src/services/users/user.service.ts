@@ -17,10 +17,43 @@ export const getAllUsersService = async () => {
             email: true,
             role: true,
             signatureUrl: true,
+
+            // Cargo activo del usuario.
+            positionAssignments: {
+                where: {
+                    isActive: true,
+                    endDate: null,
+                },
+                orderBy: {
+                    startDate: "desc",
+                },
+                take: 1,
+                select: {
+                    id: true,
+                    startDate: true,
+                    position: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+                },
+            },
         },
     });
 
-    return users;
+    // Devuelve el cargo activo como un objeto en lugar de una lista.
+    return users.map(
+        ({
+            positionAssignments,
+            ...user
+        }) => ({
+            ...user,
+            currentPosition:
+                positionAssignments[0] ?? null,
+        })
+    );
 };
 
 // Consulta la existencia de un usuario mediante su identificador.

@@ -15,6 +15,13 @@ import {
 } from "../../controllers/users/userBulk.controller.js";
 
 import {
+  getAssignablePositions,
+  getUserPositionAssignments,
+  assignUserPosition,
+  endUserPositionAssignment,
+} from "../../controllers/users/userPositionAssignment.controller.js";
+
+import {
   authMiddleware,
   roleMiddleware,
   uploadExcel,
@@ -45,6 +52,38 @@ router.post(
   roleMiddleware(["ADMIN"]),
   uploadExcel.single("file"),
   registerUsersBulk
+);
+
+// Obtiene los cargos activos disponibles para asignar a un usuario.
+router.get(
+  "/position-assignments/positions",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  getAssignablePositions
+);
+
+// Obtiene el cargo actual y el historial de cargos de un usuario.
+router.get(
+  "/:id/position-assignments",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  getUserPositionAssignments
+);
+
+// Asigna o cambia el cargo de un usuario.
+router.post(
+  "/:id/position-assignments",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  assignUserPosition
+);
+
+// Retira el cargo activo de un usuario.
+router.patch(
+  "/:id/position-assignments/current/end",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  endUserPositionAssignment
 );
 
 router.patch(

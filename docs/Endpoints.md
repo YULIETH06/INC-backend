@@ -525,7 +525,7 @@ GET /api/users
 
 Endpoint privado encargado de obtener todos los usuarios registrados en el sistema.
 
-Esta ruta permite al administrador visualizar los usuarios existentes y sus roles actuales.
+Esta ruta permite al administrador visualizar los usuarios existentes, su rol actual y el cargo activo de cada uno.
 
 Por seguridad, la respuesta no debe incluir la contraseña del usuario.
 
@@ -552,10 +552,28 @@ Authorization: Bearer TOKEN_ADMIN
   "message": "Usuarios obtenidos correctamente",
   "users": [
     {
+      "id": 5,
+      "name": "María Pérez",
+      "email": "maria@gmail.com",
+      "role": "USER",
+      "signatureUrl": null,
+      "currentPosition": {
+        "id": 12,
+        "startDate": "2026-10-16T19:00:00.000Z",
+        "position": {
+          "id": 8,
+          "code": "DPC-TH-0008",
+          "name": "Jefe de Producción"
+        }
+      }
+    },
+    {
       "id": 1,
       "name": "Juan",
       "email": "juan@gmail.com",
-      "role": "USER"
+      "role": "USER",
+      "signatureUrl": null,
+      "currentPosition": null
     }
   ]
 }
@@ -988,6 +1006,435 @@ Content-Type: application/json
 ```json
 {
   "message": "Error al actualizar la contraseña del usuario"
+}
+```
+
+---
+
+# Obtener cargos disponibles para asignar
+
+## Endpoint protegido para ADMIN
+
+```http
+GET /api/users/position-assignments/positions
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener todos los cargos activos que se pueden asignar a un usuario, ordenados por nombre.
+
+A diferencia de `GET /api/position-management/position-profiles`, este endpoint no filtra por área, porque se utiliza en el selector de la asignación de cargos.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Cargos obtenidos correctamente",
+  "positions": [
+    {
+      "id": 8,
+      "code": "DPC-TH-0008",
+      "name": "Jefe de Producción",
+      "homeDepartment": {
+        "id": 3,
+        "name": "Producción"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta si el usuario no es ADMIN
+
+```json
+{
+  "message": "No tienes permisos para acceder a este recurso"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al obtener los cargos disponibles"
+}
+```
+
+---
+
+# Obtener cargos de un usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+GET /api/users/:id/position-assignments
+```
+
+## Ejemplo
+
+```http
+GET /api/users/5/position-assignments
+```
+
+## Descripción
+
+Endpoint privado encargado de obtener el cargo activo de un usuario y su historial completo de cargos, ordenado del más reciente al más antiguo.
+
+`currentAssignment` es `null` cuando el usuario no tiene un cargo activo.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Cargos del usuario obtenidos correctamente",
+  "user": {
+    "id": 5,
+    "name": "María Pérez",
+    "email": "maria@gmail.com"
+  },
+  "currentAssignment": {
+    "id": 12,
+    "startDate": "2026-10-16T19:00:00.000Z",
+    "endDate": null,
+    "isActive": true,
+    "position": {
+      "id": 8,
+      "code": "DPC-TH-0008",
+      "name": "Jefe de Producción",
+      "homeDepartment": {
+        "id": 3,
+        "name": "Producción"
+      }
+    }
+  },
+  "history": [
+    {
+      "id": 12,
+      "startDate": "2026-10-16T19:00:00.000Z",
+      "endDate": null,
+      "isActive": true,
+      "position": {
+        "id": 8,
+        "code": "DPC-TH-0008",
+        "name": "Jefe de Producción",
+        "homeDepartment": {
+          "id": 3,
+          "name": "Producción"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "startDate": "2026-05-02T13:00:00.000Z",
+      "endDate": "2026-10-16T19:00:00.000Z",
+      "isActive": false,
+      "position": {
+        "id": 6,
+        "code": "DPC-TH-0006",
+        "name": "Jefe de Control de Calidad",
+        "homeDepartment": {
+          "id": 4,
+          "name": "Control de Calidad"
+        }
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Respuesta si el id no es válido
+
+```json
+{
+  "message": "El id del usuario no es válido"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al obtener los cargos del usuario"
+}
+```
+
+---
+
+# Asignar o cambiar el cargo de un usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+POST /api/users/:id/position-assignments
+```
+
+## Ejemplo
+
+```http
+POST /api/users/5/position-assignments
+```
+
+## Descripción
+
+Endpoint privado encargado de asignar un cargo a un usuario.
+
+Si el usuario no tiene cargo, se crea la asignación. Si ya tiene un cargo activo, ese cargo se cierra con `isActive: false` y `endDate` con la fecha actual, y se crea la nueva asignación. Ambas operaciones se realizan en una sola transacción.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Body
+
+```json
+{
+  "positionId": 8
+}
+```
+
+---
+
+## Validaciones implementadas
+
+* El id del usuario debe ser un número entero mayor que cero.
+* `positionId` es obligatorio y debe ser un número entero mayor que cero.
+* El usuario y el cargo deben existir.
+* El cargo debe estar activo.
+* El cargo no puede ser el mismo que el usuario ya tiene activo.
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Cargo asignado correctamente",
+  "assignment": {
+    "id": 12,
+    "startDate": "2026-10-16T19:00:00.000Z",
+    "endDate": null,
+    "isActive": true,
+    "position": {
+      "id": 8,
+      "code": "DPC-TH-0008",
+      "name": "Jefe de Producción",
+      "homeDepartment": {
+        "id": 3,
+        "name": "Producción"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Respuesta si no se envía el cargo
+
+```json
+{
+  "message": "El cargo es obligatorio"
+}
+```
+
+---
+
+## Respuesta si el id del cargo no es válido
+
+```json
+{
+  "message": "El id del cargo no es válido"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta si el cargo no existe
+
+```json
+{
+  "message": "El cargo no existe"
+}
+```
+
+---
+
+## Respuesta si el cargo no está activo
+
+```json
+{
+  "message": "El cargo seleccionado no está activo"
+}
+```
+
+---
+
+## Respuesta si el usuario ya tiene ese cargo
+
+```json
+{
+  "message": "El usuario ya tiene asignado este cargo"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al asignar el cargo al usuario"
+}
+```
+
+---
+
+# Retirar el cargo de un usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+PATCH /api/users/:id/position-assignments/current/end
+```
+
+## Ejemplo
+
+```http
+PATCH /api/users/5/position-assignments/current/end
+```
+
+## Descripción
+
+Endpoint privado encargado de retirar el cargo activo de un usuario sin asignarle uno nuevo.
+
+La asignación no se elimina: queda con `isActive: false` y `endDate` con la fecha actual, y se conserva en el historial del usuario.
+
+No requiere body.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Cargo retirado correctamente"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta si el usuario no tiene cargo activo
+
+```json
+{
+  "message": "El usuario no tiene un cargo activo para retirar"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al retirar el cargo del usuario"
 }
 ```
 
@@ -12034,6 +12481,10 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/users/signature                                                                                                                        | Sube la firma del usuario autenticado                      | Usuario autenticado                                             |
 | POST   | /api/auth/register                                                                                                                          | Registra un nuevo usuario                                  | Público                                                         |
 | POST   | /api/users/bulk                                                                                                          | Registra usuarios mediante carga masiva desde Excel        | ADMIN                                                           |
+| GET    | /api/users/position-assignments/positions | Obtiene los cargos activos disponibles para asignar | ADMIN |
+| GET    | /api/users/:id/position-assignments | Obtiene el cargo activo y el historial de cargos de un usuario | ADMIN |
+| POST   | /api/users/:id/position-assignments | Asigna o cambia el cargo de un usuario | ADMIN |
+| PATCH  | /api/users/:id/position-assignments/current/end | Retira el cargo activo de un usuario | ADMIN |
 | PATCH  | /api/auth/password                                                                                                                          | Cambia la contraseña del usuario autenticado               | USER / ADMIN / AGENT                                            |
 | POST   | /api/auth/login                                                                                                                            | Inicia sesión y genera token JWT                           | Público                                                         |
 | GET    | /api/profile                                                                                                                                | Obtiene el perfil del usuario autenticado                  | Usuario autenticado                                             |
