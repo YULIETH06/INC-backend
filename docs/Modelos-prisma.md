@@ -303,6 +303,7 @@ La relación entre un usuario y un cargo se maneja mediante `UserPositionAssignm
 | responsibleForDepartments   | Department[]                          | Departamentos donde este cargo es responsable                                  |
 | userAssignments             | UserPositionAssignment[]              | Usuarios asignados histórica o actualmente a este cargo                        |
 | requisitions                | PersonnelRequisition[]                | Requisiciones donde se solicita este cargo                                     |
+| ownedRequisitions           | PersonnelRequisition[]                | Requisiciones de las que este cargo es responsable                             |
 | requisitionApprovals        | PersonnelRequisitionApproval[]        | Aprobaciones de requisición donde este cargo debe aprobar                      |
 | hiringConfirmationApprovals | PersonnelHiringConfirmationApproval[] | Aprobaciones de contratación donde este cargo debe aprobar                     |
 | humanTalentAnalystConfigs   | HumanTalentWorkflowConfig[]           | Configuraciones donde este cargo actúa como primer VoBo de Talento Humano      |
@@ -441,6 +442,16 @@ isActive: true
 
 Con esto, el sistema sabe que cuando una requisición necesita aprobación del cargo `Jefe de Producción`, debe notificar al usuario que tenga activa esa asignación.
 
+## Traslado al cambiar de cargo
+
+Los procesos pertenecen al cargo, no a la persona. Al cambiar o retirar el cargo de un usuario:
+
+* Las aprobaciones sin decidir de ese cargo se trasladan al nuevo ocupante o quedan sin responsable si el cargo queda vacío.
+* Las requisiciones cuyo `ownerPositionId` es ese cargo pasan a ser responsabilidad del nuevo ocupante.
+* El historial (`createdById` y `decidedById`) no cambia.
+
+Los cargos responsables de procesos (responsables de área, cargos de Talento Humano y cargos autorizados para crear requisiciones) solo pueden tener un usuario activo. El detalle está en la sección "Traslado de procesos al cambiar un cargo" de `Endpoints.md`.
+
 ---
 
 # Modelo City
@@ -539,6 +550,8 @@ El flujo de aprobación de la requisición se genera a partir del departamento s
 | status                         | PersonnelRequisitionStatus             | Estado general de la requisición                                             |
 | createdById                    | Int                                    | Usuario que creó la requisición                                              |
 | createdBy                      | User                                   | Relación con el usuario creador                                              |
+| ownerPositionId                | Int?                                   | Cargo responsable de la requisición. Es el cargo del creador al momento de crearla. Las acciones y notificaciones del creador las recibe quien tenga hoy este cargo |
+| ownerPosition                  | PositionProfile?                       | Relación con el cargo responsable                                            |
 | approvals                      | PersonnelRequisitionApproval[]         | Pasos de aprobación de la requisición                                        |
 | hiringConfirmation             | PersonnelHiringConfirmation?           | Confirmación de contratación asociada                                        |
 | candidateSubmissionStatus      | CandidateSubmissionStatus              | Estado del proceso de cargue y presentación de candidatos                    |
@@ -1129,7 +1142,7 @@ responsiblePosition
 | approverPosition     | PositionProfile         | Relación con el cargo aprobador                           |
 | approverAssignmentId | Int?                    | Asignación usuario-cargo usada para resolver el aprobador |
 | approverAssignment   | UserPositionAssignment? | Relación con la asignación del aprobador                  |
-| approverUserId       | Int?                    | Usuario asignado para aprobar                             |
+| approverUserId       | Int?                    | Usuario asignado para aprobar. Es null cuando el cargo aprobador está vacío. Al cambiar el ocupante del cargo, las aprobaciones sin decidir se trasladan al nuevo ocupante |
 | approverUser         | User?                   | Relación con el usuario aprobador asignado                |
 | decision             | ApprovalDecision?       | Decisión tomada: aprobada, rechazada o cancelada          |
 | comment              | String?                 | Comentario opcional de la decisión                        |
@@ -1284,7 +1297,7 @@ En el flujo actual:
 | approverPosition     | PositionProfile             | Relación con el cargo aprobador                           |
 | approverAssignmentId | Int?                        | Asignación usuario-cargo usada para resolver el aprobador |
 | approverAssignment   | UserPositionAssignment?     | Relación con la asignación del aprobador                  |
-| approverUserId       | Int?                        | Usuario asignado para aprobar                             |
+| approverUserId       | Int?                        | Usuario asignado para aprobar. Es null cuando el cargo aprobador está vacío. Al cambiar el ocupante del cargo, las aprobaciones sin decidir se trasladan al nuevo ocupante |
 | approverUser         | User?                       | Relación con el usuario aprobador                         |
 | decision             | ApprovalDecision?           | Decisión tomada                                           |
 | comment              | String?                     | Comentario opcional de la decisión                        |

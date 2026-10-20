@@ -10,6 +10,11 @@ import {
 } from "../../../helpers/humanTalent/requisitions/requisitionApprovalFlow.helper.js";
 import { validatePersonnelRequisitionCreator } from "../../../helpers/humanTalent/requisitions/requisitionCreator.helper.js";
 import {
+    buildRequisitionOwnerWhere,
+    getActivePositionIdsByUser,
+    getRequisitionOwnerUserId,
+} from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+import {
     notifyRequisitionNextApprovalService,
     notifyRequisitionPendingApprovalService,
     notifyRequisitionReadyForHumanTalentService,
@@ -83,7 +88,9 @@ export const createPersonnelRequisitionService = async ({
     }
 
     // Valida que el usuario tenga un cargo autorizado para crear requisiciones.
-    await validatePersonnelRequisitionCreator(prisma, createdById);
+    // Ese cargo queda como cargo responsable de la requisición.
+    const creatorAssignment =
+        await validatePersonnelRequisitionCreator(prisma, createdById);
 
     // Limpia y valida la descripción del motivo seleccionado.
     const cleanOtherReason = otherReason?.trim();
@@ -134,7 +141,9 @@ export const createPersonnelRequisitionService = async ({
     type RequisitionNotificationToSend =
         | {
             type: "PENDING_APPROVAL";
-            userId: number;
+
+            // Null cuando el cargo del primer aprobador está vacío.
+            userId: number | null;
             requisitionId: number;
             createdByName: string;
             positionName: string;
@@ -142,7 +151,9 @@ export const createPersonnelRequisitionService = async ({
         }
         | {
             type: "READY_FOR_HUMAN_TALENT";
-            userId: number;
+
+            // Null cuando el cargo de Analista de Talento Humano está vacío.
+            userId: number | null;
             requisitionId: number;
             positionName: string;
             departmentName: string;
@@ -192,6 +203,7 @@ export const createPersonnelRequisitionService = async ({
                     ? "EN_APROBACION"
                     : "PENDIENTE_CONFIRMACION_TALENTO_HUMANO",
                 createdById,
+                ownerPositionId: creatorAssignment.position.id,
             },
         });
 
@@ -257,15 +269,11 @@ export const createPersonnelRequisitionService = async ({
                     },
                 });
 
-            if (!humanTalentAssignment) {
-                throw new Error(
-                    "No existe un usuario activo asignado al primer VoBo de Talento Humano"
-                );
-            }
-
+            // Si el cargo de Analista está vacío, la requisición queda
+            // esperando y la verá quien reciba el cargo.
             notificationToSend = {
                 type: "READY_FOR_HUMAN_TALENT",
-                userId: humanTalentAssignment.userId,
+                userId: humanTalentAssignment?.userId ?? null,
                 requisitionId: createdRequisition.id,
                 positionName: position.name,
                 departmentName: department.name,
@@ -315,7 +323,10 @@ export const createPersonnelRequisitionService = async ({
         };
     });
 
-    if (result.notificationToSend?.type === "PENDING_APPROVAL") {
+    if (
+        result.notificationToSend?.type === "PENDING_APPROVAL" &&
+        result.notificationToSend.userId !== null
+    ) {
         await notifyRequisitionPendingApprovalService(
             result.notificationToSend.userId,
             result.notificationToSend.requisitionId,
@@ -325,7 +336,10 @@ export const createPersonnelRequisitionService = async ({
         );
     }
 
-    if (result.notificationToSend?.type === "READY_FOR_HUMAN_TALENT") {
+    if (
+        result.notificationToSend?.type === "READY_FOR_HUMAN_TALENT" &&
+        result.notificationToSend.userId !== null
+    ) {
         await notifyRequisitionReadyForHumanTalentService(
             result.notificationToSend.userId,
             result.notificationToSend.requisitionId,
@@ -374,55 +388,44 @@ export const getPersonnelRequisitionsService = async (
 
     const isHumanTalentAnalyst = await isActiveHumanTalentAnalyst(user.id);
 
+    // La visibilidad depende de los cargos que el usuario tiene hoy.
+    // Quien deja un cargo deja de ver las requisiciones de ese cargo.
+    const activePositionIds =
+        await getActivePositionIdsByUser(prisma, user.id);
+
     const where =
         user.role === "ADMIN"
             ? {}
             : {
                 OR: [
-                    // Requisiciones creadas por el usuario.
-                    {
-                        createdById: user.id,
-                    },
+                    // Requisiciones de las que el usuario es responsable hoy.
+                    buildRequisitionOwnerWhere(
+                        user.id,
+                        activePositionIds
+                    ),
 
-                    // Requisiciones donde el usuario es aprobador o ya tomó una decisión.
+                    // Requisiciones donde uno de sus cargos participa como aprobador.
                     {
                         approvals: {
                             some: {
-                                OR: [
-                                    {
-                                        approverUserId: user.id,
-                                    },
-                                    {
-                                        decidedById: user.id,
-                                    },
-                                ],
+                                approverPositionId: {
+                                    in: activePositionIds,
+                                },
                             },
                         },
                     },
 
-                    // Requisiciones donde el usuario participa en la confirmación de contratación.
+                    // Requisiciones donde uno de sus cargos participa en la confirmación de contratación.
                     {
                         hiringConfirmation: {
                             is: {
-                                OR: [
-                                    {
-                                        createdById: user.id,
-                                    },
-                                    {
-                                        approvals: {
-                                            some: {
-                                                OR: [
-                                                    {
-                                                        approverUserId: user.id,
-                                                    },
-                                                    {
-                                                        decidedById: user.id,
-                                                    },
-                                                ],
-                                            },
+                                approvals: {
+                                    some: {
+                                        approverPositionId: {
+                                            in: activePositionIds,
                                         },
                                     },
-                                ],
+                                },
                             },
                         },
                     },
@@ -712,29 +715,40 @@ export const getPersonnelRequisitionByIdService = async (
         requisition.status === "PENDIENTE_CONFIRMACION_TALENTO_HUMANO" &&
         !requisition.hiringConfirmation;
 
+    // La visibilidad depende de los cargos que el usuario tiene hoy.
+    const activePositionIds =
+        await getActivePositionIdsByUser(prisma, user.id);
+
+    // Indica si el usuario es hoy el responsable de la requisición.
+    const isCurrentOwner = requisition.ownerPositionId
+        ? activePositionIds.includes(requisition.ownerPositionId)
+        : requisition.createdById === user.id;
+
     const canView =
         user.role === "ADMIN" ||
-        requisition.createdById === user.id ||
+        isCurrentOwner ||
         canViewAsHumanTalentAnalyst ||
         requisition.approvals.some((approval) => {
-            return (
-                approval.approverUserId === user.id ||
-                approval.decidedById === user.id
+            return activePositionIds.includes(
+                approval.approverPositionId
             );
         }) ||
-        requisition.hiringConfirmation?.createdById === user.id ||
-        requisition.hiringConfirmation?.approvals.some((approval) => {
-            return (
-                approval.approverUserId === user.id ||
-                approval.decidedById === user.id
-            );
-        });
+        Boolean(
+            requisition.hiringConfirmation?.approvals.some((approval) => {
+                return activePositionIds.includes(
+                    approval.approverPositionId
+                );
+            })
+        );
 
     if (!canView) {
         throw new Error("No tienes permisos para ver esta requisición");
     }
 
-    return requisition;
+    return {
+        ...requisition,
+        isCurrentOwner,
+    };
 };
 
 // Aprueba, rechaza o cancela el paso actual de una requisición.
@@ -754,7 +768,9 @@ export const decidePersonnelRequisitionService = async (
     type RequisitionDecisionNotification =
         | {
             type: "REJECTED";
-            userId: number;
+
+            // Responsable actual de la requisición. Null si su cargo está vacío.
+            userId: number | null;
             requisitionId: number;
             decidedByName: string;
             decision: "RECHAZADA" | "CANCELADA";
@@ -762,13 +778,17 @@ export const decidePersonnelRequisitionService = async (
         }
         | {
             type: "NEXT_APPROVAL";
-            userId: number;
+
+            // Null cuando el cargo del siguiente aprobador está vacío.
+            userId: number | null;
             requisitionId: number;
             decidedByName: string;
         }
         | {
             type: "READY_FOR_HUMAN_TALENT";
-            userId: number;
+
+            // Null cuando el cargo de Analista de Talento Humano está vacío.
+            userId: number | null;
             requisitionId: number;
             positionName: string;
             departmentName: string;
@@ -881,7 +901,10 @@ export const decidePersonnelRequisitionService = async (
 
             notificationToSend = {
                 type: "REJECTED",
-                userId: currentRequisition.createdById,
+                userId: await getRequisitionOwnerUserId(
+                    tx,
+                    currentRequisition
+                ),
                 requisitionId,
                 decidedByName: "El aprobador actual",
                 decision,
@@ -910,12 +933,8 @@ export const decidePersonnelRequisitionService = async (
                 },
             });
 
-            if (!nextApproval.approverUserId) {
-                throw new Error(
-                    "El siguiente paso no tiene un usuario aprobador asignado"
-                );
-            }
-
+            // Si el cargo del siguiente aprobador está vacío, el paso queda
+            // esperando y se notificará a quien reciba el cargo.
             notificationToSend = {
                 type: "NEXT_APPROVAL",
                 userId: nextApproval.approverUserId,
@@ -975,15 +994,11 @@ export const decidePersonnelRequisitionService = async (
                 },
             });
 
-        if (!humanTalentAssignment) {
-            throw new Error(
-                "No existe un usuario activo asignado al primer VoBo de Talento Humano"
-            );
-        }
-
+        // Si el cargo de Analista está vacío, la requisición queda
+        // esperando y la verá quien reciba el cargo.
         notificationToSend = {
             type: "READY_FOR_HUMAN_TALENT",
-            userId: humanTalentAssignment.userId,
+            userId: humanTalentAssignment?.userId ?? null,
             requisitionId,
             positionName: currentRequisition.position.name,
             departmentName: currentRequisition.department.name,
@@ -995,7 +1010,10 @@ export const decidePersonnelRequisitionService = async (
         };
     });
 
-    if (result.notificationToSend?.type === "REJECTED") {
+    if (
+        result.notificationToSend?.type === "REJECTED" &&
+        result.notificationToSend.userId !== null
+    ) {
         await notifyRequisitionRejectedService(
             result.notificationToSend.userId,
             result.notificationToSend.requisitionId,
@@ -1005,7 +1023,10 @@ export const decidePersonnelRequisitionService = async (
         );
     }
 
-    if (result.notificationToSend?.type === "NEXT_APPROVAL") {
+    if (
+        result.notificationToSend?.type === "NEXT_APPROVAL" &&
+        result.notificationToSend.userId !== null
+    ) {
         await notifyRequisitionNextApprovalService(
             result.notificationToSend.userId,
             result.notificationToSend.requisitionId,
@@ -1013,7 +1034,10 @@ export const decidePersonnelRequisitionService = async (
         );
     }
 
-    if (result.notificationToSend?.type === "READY_FOR_HUMAN_TALENT") {
+    if (
+        result.notificationToSend?.type === "READY_FOR_HUMAN_TALENT" &&
+        result.notificationToSend.userId !== null
+    ) {
         await notifyRequisitionReadyForHumanTalentService(
             result.notificationToSend.userId,
             result.notificationToSend.requisitionId,

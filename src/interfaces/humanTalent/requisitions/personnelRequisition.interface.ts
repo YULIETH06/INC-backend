@@ -65,6 +65,9 @@ export interface RequisitionApprovalFlowStep {
   approvalOrder: number;
   departmentId: number;
   approverPositionId: number;
-  approverAssignmentId: number;
-  approverUserId: number;
+
+  // Pueden ser null cuando el cargo aprobador no tiene un usuario activo.
+  // El paso se asigna automáticamente cuando alguien recibe el cargo.
+  approverAssignmentId: number | null;
+  approverUserId: number | null;
 }

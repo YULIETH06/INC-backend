@@ -246,16 +246,19 @@ src/
 │   └── index.socket.ts
 │
 ├── helpers/
-│   └── humanTalent/
-│       ├── candidateSubmission/
-│       │   └── personnelCandidateManager.helper.ts
-│       ├── candidateValidation/
-│       │   └── personnelCandidateValidationAccess.helper.ts
-│       └── requisitions/
-│           ├── departmentHierarchy.helper.ts
-│           ├── hiringConfirmationApprovalFlow.helper.ts
-│           ├── requisitionApprovalFlow.helper.ts
-│           └── requisitionCreator.helper.ts
+│   ├── humanTalent/
+│   │   ├── candidateSubmission/
+│   │   │   └── personnelCandidateManager.helper.ts
+│   │   ├── candidateValidation/
+│   │   │   └── personnelCandidateValidationAccess.helper.ts
+│   │   └── requisitions/
+│   │       ├── departmentHierarchy.helper.ts
+│   │       ├── hiringConfirmationApprovalFlow.helper.ts
+│   │       ├── requisitionApprovalFlow.helper.ts
+│   │       ├── requisitionCreator.helper.ts
+│   │       └── requisitionOwner.helper.ts
+│   └── users/
+│       └── positionAssignmentTransfer.helper.ts
 │
 └── utils/
     └── validators.ts
@@ -270,7 +273,7 @@ src/
 | config      | Configuraciones generales del proyecto, cliente Prisma y configuración de Socket.IO |
 | constants   | Constantes de negocio reutilizables y valores compartidos entre módulos             |
 | controllers | Controladores de las peticiones HTTP, organizados por módulo y proceso              |
-| helpers     | Funciones auxiliares de negocio específicas de cada proceso                         |
+| helpers     | Funciones auxiliares de negocio específicas de cada proceso. `requisitionOwner.helper.ts` resuelve el responsable actual de una requisición y los cargos activos del usuario; `positionAssignmentTransfer.helper.ts` traslada las aprobaciones pendientes cuando cambia el ocupante de un cargo y define qué cargos son responsables de procesos |
 | interfaces  | Interfaces y tipados TypeScript reutilizables                                       |
 | middlewares | Middlewares personalizados para autenticación, validaciones y cargas de archivos    |
 | routes      | Definición y agrupación de rutas de la API por módulo y proceso                     |

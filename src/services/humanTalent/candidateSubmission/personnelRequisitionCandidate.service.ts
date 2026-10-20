@@ -10,6 +10,11 @@ import {
     validatePersonnelCandidateManager
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 import {
+    getRequisitionOwnerUserId,
+    isRequisitionOwner,
+} from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+
+import {
     notifyCandidatesPreselectedService,
     notifyCandidatesReopenedService,
     notifyCandidatesUploadedService,
@@ -540,6 +545,7 @@ export const closePersonnelRequisitionCandidatesService = async (
                 id: true,
                 status: true,
                 createdById: true,
+                ownerPositionId: true,
                 candidateSubmissionStatus: true,
                 candidateSubmissionDeadlineAt: true,
                 candidateSubmissionClosedAt: true,
@@ -773,12 +779,20 @@ export const closePersonnelRequisitionCandidatesService = async (
             return updated;
         });
 
-    // Notifica al usuario que creó la requisición.
-    await notifyCandidatesUploadedService(
-        requisition.createdById,
-        requisition.id,
-        requisition.position.name
-    );
+    // Notifica al responsable actual de la requisición.
+    const ownerUserId =
+        await getRequisitionOwnerUserId(
+            prisma,
+            requisition
+        );
+
+    if (ownerUserId !== null) {
+        await notifyCandidatesUploadedService(
+            ownerUserId,
+            requisition.id,
+            requisition.position.name
+        );
+    }
 
     return updatedRequisition;
 };
@@ -803,6 +817,7 @@ export const reopenPersonnelRequisitionCandidatesService = async (
                 id: true,
                 status: true,
                 createdById: true,
+                ownerPositionId: true,
                 candidateSubmissionStatus: true,
 
                 position: {
@@ -908,13 +923,21 @@ export const reopenPersonnelRequisitionCandidatesService = async (
             return updated;
         });
 
-    // Notifica al mismo usuario creador que recibe
-    // la notificación cuando el cargue es cerrado.
-    await notifyCandidatesReopenedService(
-        requisition.createdById,
-        requisition.id,
-        requisition.position.name
-    );
+    // Notifica al responsable actual de la requisición,
+    // el mismo que recibe la notificación cuando el cargue es cerrado.
+    const ownerUserId =
+        await getRequisitionOwnerUserId(
+            prisma,
+            requisition
+        );
+
+    if (ownerUserId !== null) {
+        await notifyCandidatesReopenedService(
+            ownerUserId,
+            requisition.id,
+            requisition.position.name
+        );
+    }
 
     return updatedRequisition;
 };
@@ -1311,6 +1334,7 @@ export const preselectPersonnelRequisitionCandidatesService =
                     id: true,
                     status: true,
                     createdById: true,
+                    ownerPositionId: true,
                     candidateSubmissionStatus: true,
 
                     position: {
@@ -1342,14 +1366,18 @@ export const preselectPersonnelRequisitionCandidatesService =
             );
         }
 
-        // Solo el usuario que creó la requisición
-        // puede confirmar la preselección.
-        if (
-            requisition.createdById !==
-            authenticatedUser.id
-        ) {
+        // Solo el responsable actual de la requisición
+        // (quien tiene hoy el cargo responsable) puede confirmar la preselección.
+        const canPreselect =
+            await isRequisitionOwner(
+                prisma,
+                authenticatedUser.id,
+                requisition
+            );
+
+        if (!canPreselect) {
             throw new Error(
-                "Solo el creador de la requisición puede preseleccionar candidatos"
+                "Solo el responsable de la requisición puede preseleccionar candidatos"
             );
         }
 
