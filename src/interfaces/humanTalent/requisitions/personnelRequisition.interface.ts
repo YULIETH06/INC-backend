@@ -65,6 +65,6 @@ export interface RequisitionApprovalFlowStep {
   approvalOrder: number;
   departmentId: number;
   approverPositionId: number;
-  approverAssignmentId: number;
-  approverUserId: number;
+  approverAssignmentId: number | null;
+  approverUserId: number | null;
 }

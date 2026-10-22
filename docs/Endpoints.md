@@ -1228,7 +1228,9 @@ POST /api/users/5/position-assignments
 
 Endpoint privado encargado de asignar un cargo a un usuario.
 
-Si el usuario no tiene cargo, se crea la asignación. Si ya tiene un cargo activo, ese cargo se cierra con `isActive: false` y `endDate` con la fecha actual, y se crea la nueva asignación. Ambas operaciones se realizan en una sola transacción.
+Si el usuario no tiene cargo, se crea la asignación. Si ya tiene un cargo activo, ese cargo se cierra con `isActive: false` y `endDate` con la fecha actual, y se crea la nueva asignación.
+
+En la misma transacción, las aprobaciones pendientes del cargo anterior quedan sin responsable (o pasan a quien lo ocupe) y las aprobaciones pendientes del cargo nuevo se asignan al usuario. Después de la transacción se notifican los pasos que ya son su turno.
 
 ---
 
@@ -1264,6 +1266,7 @@ Content-Type: application/json
 * El usuario y el cargo deben existir.
 * El cargo debe estar activo.
 * El cargo no puede ser el mismo que el usuario ya tiene activo.
+* Si el cargo es responsable de procesos, no puede tenerlo otro usuario activo.
 
 ---
 
@@ -1352,6 +1355,16 @@ Content-Type: application/json
 
 ---
 
+## Respuesta si el cargo responsable ya está ocupado
+
+```json
+{
+  "message": "El cargo Jefe de Producción es responsable de procesos y ya está asignado a María Pérez. Retírale el cargo antes de asignarlo a otra persona."
+}
+```
+
+---
+
 ## Respuesta en caso de error
 
 ```json
@@ -1382,7 +1395,7 @@ Endpoint privado encargado de retirar el cargo activo de un usuario sin asignarl
 
 La asignación no se elimina: queda con `isActive: false` y `endDate` con la fecha actual, y se conserva en el historial del usuario.
 
-No requiere body.
+Las aprobaciones pendientes del cargo retirado quedan sin responsable hasta que alguien reciba el cargo. El usuario deja de ver las requisiciones de ese cargo.
 
 ---
 
@@ -6089,6 +6102,7 @@ Al crear una requisición, el sistema:
 
 * Valida que el usuario esté autenticado.
 * Valida que el usuario tenga un cargo autorizado para crear requisiciones.
+* Guarda ese cargo como cargo responsable de la requisición (`ownerPositionId`).
 * Valida que el área, cargo y ciudad existan y estén activos.
 * Registra la revisión del perfil de cargo utilizada para crear la requisición.
 * Valida las reglas de contratación.
@@ -6097,6 +6111,7 @@ Al crear una requisición, el sistema:
 * Asigna el paso actual de aprobación.
 * Envía la notificación al primer aprobador correspondiente.
 * Si el creador hace parte del flujo, se ajustan los pasos según la jerarquía configurada.
+* Si un cargo aprobador está vacío, su paso se crea sin responsable y se asigna automáticamente cuando alguien recibe el cargo.
 
 ---
 
@@ -6112,7 +6127,7 @@ Content-Type: application/json
 ## Acceso permitido
 
 ```txt
-ADMIN y Usuarios autenticados con cargos autorizados para crear requisiciones.
+Usuarios autenticados con un cargo activo autorizado para crear requisiciones.
 ```
 
 ---
@@ -6523,8 +6538,10 @@ Las requisiciones se devuelven ordenadas desde la más reciente hasta la más an
 Reglas principales:
 
 * `ADMIN` puede ver todas las requisiciones.
-* El usuario creador puede ver sus propias requisiciones.
-* Los usuarios aprobadores pueden ver las requisiciones donde participan o participaron.
+* La visibilidad depende de los cargos que el usuario tiene hoy, no de quién creó o aprobó la requisición.
+* Quien tiene hoy el cargo responsable (`ownerPositionId`) ve la requisición.
+* Quien tiene hoy un cargo aprobador de la requisición o de su confirmación de contratación la ve, incluidas las decisiones ya tomadas por quien ocupaba el cargo antes.
+* Quien deja un cargo deja de ver las requisiciones de ese cargo.
 * El Analista de Talento Humano puede ver requisiciones en estado `PENDIENTE_CONFIRMACION_TALENTO_HUMANO` que aún no tienen confirmación creada.
 * El Jefe de Talento Humano puede ver las requisiciones de personal confirmadas asignadas dentro del flujo de Talento Humano.
 
@@ -6665,6 +6682,8 @@ GET /api/human-talent/requisitions/1
 Endpoint privado encargado de obtener el detalle completo de una requisición de personal.
 
 Este endpoint devuelve la información completa de la requisición, incluyendo sus relaciones principales y los datos necesarios para visualizar el detalle o generar el formato imprimible.
+
+El acceso sigue las mismas reglas del listado: depende de los cargos que el usuario tiene hoy. La respuesta incluye `ownerPositionId` y el campo calculado `isCurrentOwner`, que indica si el usuario autenticado es hoy el responsable de la requisición. El frontend lo utiliza para mostrar la preselección de candidatos.
 
 Este endpoint devuelve:
 
@@ -7205,13 +7224,9 @@ CANCELADA
 
 ---
 
-## Respuesta si el siguiente paso no tiene usuario aprobador
+## Siguiente paso sin usuario aprobador
 
-```json
-{
-  "message": "El siguiente paso no tiene un usuario aprobador asignado"
-}
-```
+Si el cargo del siguiente aprobador está vacío, la requisición avanza igual y el paso queda esperando sin notificación. Cuando alguien recibe el cargo, el paso se le asigna y se le notifica.
 
 ---
 
@@ -7225,13 +7240,9 @@ CANCELADA
 
 ---
 
-## Respuesta si no existe usuario activo para el primer VoBo de Talento Humano
+## Analista de Talento Humano vacío
 
-```json
-{
-  "message": "No existe un usuario activo asignado al primer VoBo de Talento Humano"
-}
-```
+Si el cargo de Analista de Talento Humano está vacío al terminar la aprobación jerárquica, la requisición pasa igual a `PENDIENTE_CONFIRMACION_TALENTO_HUMANO` sin notificación. La verá quien reciba el cargo.
 
 ---
 
@@ -8150,13 +8161,9 @@ CANCELADA
 
 ---
 
-## Respuesta si el siguiente paso no tiene usuario aprobador
+## Siguiente paso sin usuario aprobador
 
-```json
-{
-  "message": "El siguiente paso no tiene un usuario aprobador asignado"
-}
-```
+Si el cargo del Jefe de Talento Humano está vacío, la confirmación avanza igual y el paso queda esperando sin notificación. Cuando alguien recibe el cargo, el paso se le asigna y se le notifica.
 
 ---
 
@@ -9905,11 +9912,13 @@ Los identificadores repetidos enviados en la misma solicitud se normalizan antes
 
 ---
 
-## Respuesta si el usuario no es el creador de la requisición
+## Respuesta si el usuario no es el responsable de la requisición
+
+Solo puede preseleccionar quien tiene hoy el cargo responsable de la requisición (`ownerPositionId`).
 
 ```json
 {
-  "message": "Solo el creador de la requisición puede preseleccionar candidatos"
+  "message": "Solo el responsable de la requisición puede preseleccionar candidatos"
 }
 ```
 
@@ -11432,11 +11441,13 @@ Usuario autenticado que creó la requisición.
 
 ---
 
-## Respuesta si el usuario no es el creador de la requisición
+## Respuesta si el usuario no es el responsable de la requisición
+
+Solo puede confirmar quien tiene hoy el cargo responsable de la requisición (`ownerPositionId`).
 
 ```json
 {
-  "message": "Solo el usuario que creó la requisición puede validar la Evaluación Técnica"
+  "message": "Solo el responsable de la requisición puede validar la Evaluación Técnica"
 }
 ```
 
@@ -12583,14 +12594,14 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | Crear requisición                     | Usuario con cargo autorizado | Primer aprobador           | REQUISITION_PENDING_APPROVAL             |
 | Aprobar paso de requisición           | Aprobador actual             | Siguiente aprobador        | REQUISITION_PENDING_APPROVAL             |
 | Finalizar aprobación jerárquica       | Último aprobador             | Analista de Talento Humano | HIRING_CONFIRMATION_PENDING              |
-| Rechazar o cancelar requisición       | Aprobador actual             | Usuario creador            | REQUISITION_REJECTED                     |
+| Rechazar o cancelar requisición       | Aprobador actual             | Responsable actual         | REQUISITION_REJECTED                     |
 | Crear confirmación de contratación    | Analista de Talento Humano   | Jefe de Talento Humano     | HIRING_CONFIRMATION_PENDING              |
-| Aprobar completamente la confirmación | Jefe de Talento Humano       | Usuario creador            | HIRING_CONFIRMATION_APPROVED             |
+| Aprobar completamente la confirmación | Jefe de Talento Humano       | Responsable actual         | HIRING_CONFIRMATION_APPROVED             |
 | Habilitar cargue con Analista activo  | Jefe de Talento Humano       | Analista de Talento Humano | REQUISITION_CANDIDATES_PENDING           |
 | Habilitar cargue sin Analista activo  | Jefe de Talento Humano       | Jefe de Talento Humano     | REQUISITION_CANDIDATES_WITHOUT_ASSISTANT |
-| Cerrar cargue de candidatos           | Analista de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_CLOSED            |
-| Reabrir cargue de candidatos          | Analista de Talento Humano   | Usuario creador            | REQUISITION_CANDIDATES_REOPENED          |
+| Cerrar cargue de candidatos           | Analista de Talento Humano   | Responsable actual         | REQUISITION_CANDIDATES_CLOSED            |
+| Reabrir cargue de candidatos          | Analista de Talento Humano   | Responsable actual         | REQUISITION_CANDIDATES_REOPENED          |
 | Rechazar o cancelar confirmación      | Aprobador actual TH          | Usuario creador            | HIRING_CONFIRMATION_REJECTED             |
-| Completar las dos calificaciones técnicas | Analista de Talento Humano   | Usuario creador            | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
+| Completar las dos calificaciones técnicas | Analista de Talento Humano   | Responsable actual         | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
 
 ---

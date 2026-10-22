@@ -5,6 +5,7 @@ import type {
 
 import {
   USER_POSITION_ASSIGNMENT_ERRORS,
+  UserPositionAssignmentRuleError,
   assignUserPositionService,
   endUserPositionAssignmentService,
   getAssignablePositionsService,
@@ -47,6 +48,13 @@ const handleKnownError = (
 ) => {
   if (!(error instanceof Error)) {
     return null;
+  }
+
+  // Reglas del negocio con mensajes que dependen de los datos.
+  if (error instanceof UserPositionAssignmentRuleError) {
+    return res.status(400).json({
+      message: error.message,
+    });
   }
 
   if (notFoundErrors.includes(error.message)) {

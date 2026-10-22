@@ -354,6 +354,8 @@ model PositionProfile {
 
   requisitions PersonnelRequisition[] @relation("RequestedPosition")
 
+  ownedRequisitions PersonnelRequisition[] @relation("RequisitionOwnerPosition")
+
   requisitionApprovals PersonnelRequisitionApproval[] @relation("RequisitionApproverPosition")
 
   hiringConfirmationApprovals PersonnelHiringConfirmationApproval[] @relation("HiringApproverPosition")
@@ -484,6 +486,9 @@ model PersonnelRequisition {
   createdById Int
   createdBy   User @relation("CreatedRequisitions", fields: [createdById], references: [id])
 
+  ownerPositionId Int?
+  ownerPosition   PositionProfile? @relation("RequisitionOwnerPosition", fields: [ownerPositionId], references: [id])
+
   approvals          PersonnelRequisitionApproval[]
   hiringConfirmation PersonnelHiringConfirmation?
 
@@ -508,6 +513,7 @@ model PersonnelRequisition {
   @@index([positionRevisionId])
   @@index([cityId])
   @@index([createdById])
+  @@index([ownerPositionId])
   @@index([status])
   @@index([candidateSubmissionStatus])
 }

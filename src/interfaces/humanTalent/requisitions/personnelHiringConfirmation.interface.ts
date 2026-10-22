@@ -34,7 +34,7 @@ export interface HumanTalentActiveAssignment {
 export interface HiringConfirmationApprovalFlowStep {
     approvalOrder: number;
     approverPositionId: number;
-    approverAssignmentId: number;
-    approverUserId: number;
+    approverAssignmentId: number | null;
+    approverUserId: number | null;
     isAutoApproved: boolean;
 }

@@ -9,10 +9,12 @@ import {
 } from "../../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
 
 // Busca el usuario activo que tiene asignado un cargo.
+// Devuelve null cuando el cargo está vacío: el paso queda sin responsable
+// y se asigna automáticamente cuando alguien recibe el cargo.
 const findActiveAssignmentByPosition = async (
     prismaExecutor: PrismaExecutor,
     positionId: number
-): Promise<ActivePositionAssignment> => {
+): Promise<ActivePositionAssignment | null> => {
     const assignment = await prismaExecutor.userPositionAssignment.findFirst({
         where: {
             positionId,
@@ -27,12 +29,6 @@ const findActiveAssignmentByPosition = async (
             startDate: "desc",
         },
     });
-
-    if (!assignment) {
-        throw new Error(
-            "No existe un usuario activo asignado al cargo responsable del flujo."
-        );
-    }
 
     return assignment;
 };
@@ -75,8 +71,8 @@ export const buildRequisitionApprovalFlow = async (
             approvalOrder,
             departmentId: department.id,
             approverPositionId: department.responsiblePositionId,
-            approverAssignmentId: assignment.id,
-            approverUserId: assignment.userId,
+            approverAssignmentId: assignment?.id ?? null,
+            approverUserId: assignment?.userId ?? null,
         });
 
         currentDepartmentId = department.parentDepartmentId;

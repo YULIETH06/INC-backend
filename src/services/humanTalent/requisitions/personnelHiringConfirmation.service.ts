@@ -5,6 +5,10 @@ import {
     buildHiringConfirmationApprovalFlow,
 } from "../../../helpers/humanTalent/requisitions/hiringConfirmationApprovalFlow.helper.js";
 
+import {
+    getRequisitionOwnerUserId,
+} from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+
 import type {
     CreatePersonnelHiringConfirmationData,
     DecidePersonnelHiringConfirmationData,
@@ -56,7 +60,9 @@ export const createPersonnelHiringConfirmationService = async ({
 }: CreatePersonnelHiringConfirmationData) => {
     type HiringConfirmationNotificationToSend = {
         type: "PENDING";
-        userId: number;
+
+        // Null cuando el cargo del siguiente aprobador está vacío.
+        userId: number | null;
         requisitionId: number;
         positionName: string;
         departmentName: string;
@@ -360,7 +366,8 @@ export const createPersonnelHiringConfirmationService = async ({
 
     if (
         result.notificationToSend?.type ===
-        "PENDING"
+        "PENDING" &&
+        result.notificationToSend.userId !== null
     ) {
         await notifyHiringConfirmationPendingService(
             result.notificationToSend.userId,
@@ -383,7 +390,9 @@ export const decidePersonnelHiringConfirmationService = async ({
     type HiringConfirmationDecisionNotification =
         | {
             type: "REJECTED";
-            userId: number;
+
+            // Responsable actual de la requisición. Null si su cargo está vacío.
+            userId: number | null;
             requisitionId: number;
             decidedByName: string;
             decision:
@@ -393,7 +402,9 @@ export const decidePersonnelHiringConfirmationService = async ({
         }
         | {
             type: "PENDING";
-            userId: number;
+
+            // Null cuando el cargo del siguiente aprobador está vacío.
+            userId: number | null;
             requisitionId: number;
             positionName: string;
             departmentName: string;
@@ -401,8 +412,8 @@ export const decidePersonnelHiringConfirmationService = async ({
         | {
             type: "APPROVED";
 
-            // Usuario creador de la requisición.
-            userId: number;
+            // Responsable actual de la requisición. Null si su cargo está vacío.
+            userId: number | null;
 
             requisitionId: number;
             positionName: string;
@@ -436,6 +447,7 @@ export const decidePersonnelHiringConfirmationService = async ({
                             select: {
                                 id: true,
                                 createdById: true,
+                                ownerPositionId: true,
                                 department: {
                                     select: {
                                         name: true,
@@ -558,9 +570,10 @@ export const decidePersonnelHiringConfirmationService = async ({
                 notificationToSend = {
                     type: "REJECTED",
                     userId:
-                        hiringConfirmation
-                            .requisition
-                            .createdById,
+                        await getRequisitionOwnerUserId(
+                            tx,
+                            hiringConfirmation.requisition
+                        ),
                     requisitionId:
                         hiringConfirmation
                             .requisition.id,
@@ -610,14 +623,8 @@ export const decidePersonnelHiringConfirmationService = async ({
                     },
                 });
 
-                if (
-                    !nextApproval.approverUserId
-                ) {
-                    throw new Error(
-                        "El siguiente paso no tiene un usuario aprobador asignado"
-                    );
-                }
-
+                // Si el cargo del siguiente aprobador está vacío, el paso queda
+                // esperando y se notificará a quien reciba el cargo.
                 notificationToSend = {
                     type: "PENDING",
                     userId:
@@ -713,8 +720,10 @@ export const decidePersonnelHiringConfirmationService = async ({
                 type: "APPROVED",
 
                 userId:
-                    hiringConfirmation.requisition
-                        .createdById,
+                    await getRequisitionOwnerUserId(
+                        tx,
+                        hiringConfirmation.requisition
+                    ),
 
                 requisitionId:
                     hiringConfirmation.requisition.id,
@@ -820,7 +829,8 @@ export const decidePersonnelHiringConfirmationService = async ({
 
     if (
         result.notificationToSend?.type ===
-        "REJECTED"
+        "REJECTED" &&
+        result.notificationToSend.userId !== null
     ) {
         await notifyHiringConfirmationRejectedService(
             result.notificationToSend.userId,
@@ -833,7 +843,8 @@ export const decidePersonnelHiringConfirmationService = async ({
 
     if (
         result.notificationToSend?.type ===
-        "PENDING"
+        "PENDING" &&
+        result.notificationToSend.userId !== null
     ) {
         await notifyHiringConfirmationPendingService(
             result.notificationToSend.userId,
@@ -847,12 +858,14 @@ export const decidePersonnelHiringConfirmationService = async ({
         result.notificationToSend?.type ===
         "APPROVED"
     ) {
-        // Notifica al creador que la requisición
+        // Notifica al responsable actual que la requisición
         // fue aprobada completamente.
-        await notifyHiringConfirmationApprovedService(
-            result.notificationToSend.userId,
-            result.notificationToSend.requisitionId
-        );
+        if (result.notificationToSend.userId !== null) {
+            await notifyHiringConfirmationApprovedService(
+                result.notificationToSend.userId,
+                result.notificationToSend.requisitionId
+            );
+        }
 
         if (
             result.notificationToSend

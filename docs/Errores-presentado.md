@@ -200,6 +200,119 @@ Prisma v6
 
 ---
 
+# Incidente #003 — Migración fallida en la tabla de revisiones de cargo
+
+## Fecha
+
+2026-10-21
+
+---
+
+## Descripción del incidente
+
+Al ejecutar `npx prisma migrate dev` para aplicar las migraciones de la rama `ajuste-traslado-cargos`, Prisma detectó diferencias entre la base de datos y el historial de migraciones, y propuso reiniciar la base de datos, lo que habría borrado todos los datos.
+
+La causa fue una migración anterior, `20260929214600_remove_revision_unique_constraint`, que falló a mitad de su ejecución y cuya carpeta no existe en el repositorio.
+
+---
+
+## Error presentado
+
+### Mensaje obtenido
+
+```txt
+- The migration `20260929214600_remove_revision_unique_constraint` failed.
+- Drift detected: Your database schema is not in sync with your migration history.
+
+[*] Changed the `positionprofilerevision` table
+  [-] Removed foreign key on columns (positionProfileId)
+  [-] Removed unique index on columns (positionProfileId, revisionNumber)
+
+- The migrations recorded in the database diverge from the local migrations directory.
+  Last common migration: `20260915154400`.
+  Migrations applied to the database but absent from the migrations directory are:
+  20260929214600_remove_revision_unique_constraint
+
+We need to reset the MySQL database "th-development" at "localhost:3306"
+All data will be lost.
+```
+
+---
+
+## Causa identificada
+
+La migración `20260929214600_remove_revision_unique_constraint` alcanzó a eliminar la llave foránea y el índice único de `PositionProfileRevision`, y luego falló con el error `1005: Can't create table personnelrequisitionapproval (errno: 121 "Duplicate key on write or update")`.
+
+Quedó registrada como fallida en la tabla `_prisma_migrations`, pero su carpeta no existe en el repositorio. Como `schema.prisma` mantiene `@@unique([positionProfileId, revisionNumber])`, la base de datos quedó distinta a lo que esperan las migraciones.
+
+---
+
+# Solución aplicada
+
+> No se ejecutó `prisma migrate reset`, porque borra todos los datos de la base de datos.
+
+## 1. Respaldo de la base de datos
+
+Desde HeidiSQL: clic derecho sobre la base de datos → **Exportar base de datos como SQL**, con Tablas **Crear**, Datos **Insertar** y salida en un **Archivo .sql individual**.
+
+---
+
+## 2. Validación de duplicados
+
+Antes de volver a crear el índice único se verificó que no existieran revisiones repetidas:
+
+```sql
+SELECT positionProfileId, revisionNumber, COUNT(*) AS cantidad
+FROM `positionprofilerevision`
+GROUP BY positionProfileId, revisionNumber
+HAVING COUNT(*) > 1;
+```
+
+La consulta no devolvió filas.
+
+---
+
+## 3. Restauración del índice único y la llave foránea
+
+```sql
+CREATE UNIQUE INDEX `PositionProfileRevision_positionProfileId_revisionNumber_key`
+ON `positionprofilerevision`(`positionProfileId`, `revisionNumber`);
+
+ALTER TABLE `positionprofilerevision`
+ADD CONSTRAINT `PositionProfileRevision_positionProfileId_fkey`
+FOREIGN KEY (`positionProfileId`) REFERENCES `positionprofile`(`id`)
+ON DELETE RESTRICT ON UPDATE CASCADE;
+```
+
+---
+
+## 4. Eliminación del registro de la migración fallida
+
+```sql
+DELETE FROM `th-development`.`_prisma_migrations`
+WHERE migration_name = '20260929214600_remove_revision_unique_constraint';
+```
+
+Se debe indicar el nombre de la base de datos en la consulta cuando HeidiSQL no tiene una base seleccionada; de lo contrario se obtiene el error `1046: No database selected`.
+
+---
+
+## 5. Aplicación de las migraciones pendientes
+
+```bash
+npx prisma migrate dev
+```
+
+---
+
+## Observaciones
+
+- Una migración que falla debe resolverse en el momento y no eliminarse del repositorio sin limpiar su registro en `_prisma_migrations`.
+- Cuando Prisma propone reiniciar la base de datos, se debe responder `N` y analizar la causa antes de continuar.
+- Siempre se debe sacar un respaldo antes de modificar manualmente la estructura de la base de datos.
+
+---
+
 # Próximos incidentes
 
-## Incidente #003 — Pendiente
+## Incidente #004 — Pendiente

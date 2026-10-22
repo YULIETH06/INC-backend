@@ -14,6 +14,11 @@ import {
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 
 import {
+    getRequisitionOwnerUserId,
+    isRequisitionOwner,
+} from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+
+import {
     notifyCandidateTechnicalEvaluationConfirmedService,
     notifyCandidateTechnicalEvaluationPendingService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
@@ -82,6 +87,7 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
                     select: {
                         id: true,
                         createdById: true,
+                        ownerPositionId: true,
                         position: {
                             select: {
                                 name: true,
@@ -358,14 +364,22 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
             },
         });
 
-    // Cuando ambas notas quedan listas, notifica al creador de la requisición.
+    // Cuando ambas notas quedan listas, notifica al responsable actual de la requisición.
     if (isEvaluationComplete) {
-        await notifyCandidateTechnicalEvaluationPendingService(
-            candidate.requisition.createdById,
-            candidate.requisition.id,
-            candidate.name,
-            candidate.requisition.position.name
-        );
+        const ownerUserId =
+            await getRequisitionOwnerUserId(
+                prisma,
+                candidate.requisition
+            );
+
+        if (ownerUserId !== null) {
+            await notifyCandidateTechnicalEvaluationPendingService(
+                ownerUserId,
+                candidate.requisition.id,
+                candidate.name,
+                candidate.requisition.position.name
+            );
+        }
     }
 
     return evaluation;
@@ -399,6 +413,7 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
                     select: {
                         id: true,
                         createdById: true,
+                        ownerPositionId: true,
 
                         position: {
                             select: {
@@ -443,13 +458,18 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
         );
     }
 
-    // Solo el usuario que creó la requisición puede confirmar esta fase.
-    if (
-        candidate.requisition.createdById !==
-        authenticatedUser.id
-    ) {
+    // Solo el responsable actual de la requisición
+    // (quien tiene hoy el cargo responsable) puede confirmar esta fase.
+    const canApprove =
+        await isRequisitionOwner(
+            prisma,
+            authenticatedUser.id,
+            candidate.requisition
+        );
+
+    if (!canApprove) {
         throw new Error(
-            "Solo el usuario que creó la requisición puede validar la Evaluación Técnica"
+            "Solo el responsable de la requisición puede validar la Evaluación Técnica"
         );
     }
 
@@ -556,8 +576,28 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
         }
     );
 
-    // Notifica al Analista de Talento Humano que registró las calificaciones.
+    // Notifica a quien tiene hoy el cargo de Analista de Talento Humano.
+    // Si el cargo está vacío, notifica a quien registró las calificaciones.
+    const activeHumanTalentAnalyst =
+        await prisma.userPositionAssignment.findFirst({
+            where: {
+                isActive: true,
+                endDate: null,
+                position: {
+                    isActive: true,
+                    code: "DPC-TH-0118",
+                },
+            },
+            select: {
+                userId: true,
+            },
+            orderBy: {
+                startDate: "desc",
+            },
+        });
+
     await notifyCandidateTechnicalEvaluationConfirmedService(
+        activeHumanTalentAnalyst?.userId ??
         technicalEvaluation.enteredById,
         candidate.requisition.id,
         candidate.name,

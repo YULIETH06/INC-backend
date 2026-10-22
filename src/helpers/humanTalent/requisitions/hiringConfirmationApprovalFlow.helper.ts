@@ -8,10 +8,12 @@ import type {
 } from "../../../interfaces/humanTalent/requisitions/personnelHiringConfirmation.interface.js";
 
 // Busca el usuario activo que tiene asignado un cargo dentro del flujo de Talento Humano.
+// Devuelve null cuando el cargo está vacío: el paso queda sin responsable
+// y se asigna automáticamente cuando alguien recibe el cargo.
 const findActiveHumanTalentAssignment = async (
     prismaExecutor: PrismaExecutor,
     positionId: number
-): Promise<HumanTalentActiveAssignment> => {
+): Promise<HumanTalentActiveAssignment | null> => {
     const assignment = await prismaExecutor.userPositionAssignment.findFirst({
         where: {
             positionId,
@@ -26,12 +28,6 @@ const findActiveHumanTalentAssignment = async (
             startDate: "desc",
         },
     });
-
-    if (!assignment) {
-        throw new Error(
-            "No existe un usuario activo asignado a uno de los cargos del flujo de Talento Humano."
-        );
-    }
 
     return assignment;
 };
@@ -72,15 +68,15 @@ export const buildHiringConfirmationApprovalFlow = async (
         {
             approvalOrder: 1,
             approverPositionId: humanTalentConfig.analystPositionId,
-            approverAssignmentId: analystAssignment.id,
-            approverUserId: analystAssignment.userId,
-            isAutoApproved: analystAssignment.userId === createdById,
+            approverAssignmentId: analystAssignment?.id ?? null,
+            approverUserId: analystAssignment?.userId ?? null,
+            isAutoApproved: analystAssignment?.userId === createdById,
         },
         {
             approvalOrder: 2,
             approverPositionId: humanTalentConfig.chiefPositionId,
-            approverAssignmentId: chiefAssignment.id,
-            approverUserId: chiefAssignment.userId,
+            approverAssignmentId: chiefAssignment?.id ?? null,
+            approverUserId: chiefAssignment?.userId ?? null,
             isAutoApproved: false,
         },
     ];

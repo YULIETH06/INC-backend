@@ -8,6 +8,12 @@ import {
     validatePersonnelCandidateValidationAccess,
 } from "../../../helpers/humanTalent/candidateValidation/personnelCandidateValidationAccess.helper.js";
 
+import {
+    buildRequisitionOwnerWhere,
+    getActivePositionIdsByUser,
+    isRequisitionOwner,
+} from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+
 // Obtiene los candidatos preseleccionados disponibles para validación de cargo y postulante.
 export const getPersonnelCandidateValidationsService = async (
     authenticatedUser: PersonnelCandidateAuthenticatedUser
@@ -26,13 +32,18 @@ export const getPersonnelCandidateValidationsService = async (
                 requisition: {
                     status: "APROBADA",
 
+                    // Quien no ve todas las validaciones solo ve las requisiciones
+                    // de las que es responsable hoy por su cargo.
                     ...(
                         access.canViewAllValidations
                             ? {}
-                            : {
-                                createdById:
-                                    authenticatedUser.id,
-                            }
+                            : buildRequisitionOwnerWhere(
+                                authenticatedUser.id,
+                                await getActivePositionIdsByUser(
+                                    prisma,
+                                    authenticatedUser.id
+                                )
+                            )
                     ),
                 },
             },
@@ -212,13 +223,18 @@ export const getPersonnelCandidateValidationDetailService = async (
                 requisition: {
                     status: "APROBADA",
 
+                    // Quien no ve todas las validaciones solo ve las requisiciones
+                    // de las que es responsable hoy por su cargo.
                     ...(
                         access.canViewAllValidations
                             ? {}
-                            : {
-                                createdById:
-                                    authenticatedUser.id,
-                            }
+                            : buildRequisitionOwnerWhere(
+                                authenticatedUser.id,
+                                await getActivePositionIdsByUser(
+                                    prisma,
+                                    authenticatedUser.id
+                                )
+                            )
                     ),
                 },
             },
@@ -243,6 +259,7 @@ export const getPersonnelCandidateValidationDetailService = async (
                         candidateSubmissionStatus: true,
                         positionRevisionId: true,
                         createdById: true,
+                        ownerPositionId: true,
 
                         createdBy: {
                             select: {
@@ -477,8 +494,12 @@ export const getPersonnelCandidateValidationDetailService = async (
         canManageValidation:
             access.canManageValidation,
 
+        // El responsable actual de la requisición confirma la Evaluación Técnica.
         canApproveTechnicalEvaluation:
-            candidate.requisition.createdById ===
-            authenticatedUser.id,
+            await isRequisitionOwner(
+                prisma,
+                authenticatedUser.id,
+                candidate.requisition
+            ),
     };
 };
