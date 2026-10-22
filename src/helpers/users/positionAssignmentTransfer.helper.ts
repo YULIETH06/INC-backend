@@ -93,8 +93,7 @@ export const isResponsiblePosition = async (
 };
 
 // Asigna las aprobaciones pendientes de un cargo a quien lo ocupa hoy.
-// Si el cargo queda vacío, las aprobaciones quedan sin responsable
-// hasta que alguien reciba el cargo.
+// Si el cargo queda vacío, las aprobaciones quedan sin responsable hasta que alguien reciba el cargo.
 // Devuelve las notificaciones de los pasos que ya son el turno del nuevo ocupante.
 export const syncPendingApprovalsForPosition = async (
     prismaExecutor: PrismaExecutor,

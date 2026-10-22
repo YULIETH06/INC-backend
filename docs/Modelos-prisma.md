@@ -442,16 +442,6 @@ isActive: true
 
 Con esto, el sistema sabe que cuando una requisición necesita aprobación del cargo `Jefe de Producción`, debe notificar al usuario que tenga activa esa asignación.
 
-## Traslado al cambiar de cargo
-
-Los procesos pertenecen al cargo, no a la persona. Al cambiar o retirar el cargo de un usuario:
-
-* Las aprobaciones sin decidir de ese cargo se trasladan al nuevo ocupante o quedan sin responsable si el cargo queda vacío.
-* Las requisiciones cuyo `ownerPositionId` es ese cargo pasan a ser responsabilidad del nuevo ocupante.
-* El historial (`createdById` y `decidedById`) no cambia.
-
-Los cargos responsables de procesos (responsables de área, cargos de Talento Humano y cargos autorizados para crear requisiciones) solo pueden tener un usuario activo. El detalle está en la sección "Traslado de procesos al cambiar un cargo" de `Endpoints.md`.
-
 ---
 
 # Modelo City

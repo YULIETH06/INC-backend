@@ -1011,36 +1011,6 @@ Content-Type: application/json
 
 ---
 
-# Traslado de procesos al cambiar un cargo
-
-## Descripción
-
-Los procesos de Talento Humano pertenecen al **cargo**, no a la persona. Cuando a un usuario se le cambia o se le retira un cargo, lo que está en curso pasa a quien ocupe el cargo.
-
-| Qué se traslada | Cómo funciona |
-| --------------- | ------------- |
-| Aprobaciones pendientes de requisiciones | Las aprobaciones sin decidir (`decision = null`) de requisiciones en `PENDIENTE_APROBACION` o `EN_APROBACION` cuyo `approverPositionId` es el cargo se asignan al nuevo ocupante (`approverAssignmentId` y `approverUserId`). |
-| Aprobaciones pendientes de contratación | Lo mismo para las aprobaciones sin decidir de confirmaciones de contratación en `PENDIENTE_APROBACION`. |
-| Responsabilidad de las requisiciones | Cada requisición guarda su cargo responsable en `ownerPositionId`. Las acciones del creador (preseleccionar candidatos, confirmar la Evaluación Técnica y recibir sus notificaciones) las realiza quien tenga hoy ese cargo. |
-| Visibilidad | Los listados y el detalle se calculan con los cargos que el usuario tiene hoy. Quien deja un cargo deja de ver las requisiciones de ese cargo. |
-
-El traslado de aprobaciones se realiza en la misma transacción de la asignación o del retiro del cargo. Si el cargo queda vacío, las aprobaciones quedan sin responsable (`approverUserId = null`) y se asignan automáticamente cuando alguien recibe el cargo. Si alguna aprobación ya era el turno del cargo, el nuevo ocupante recibe la notificación correspondiente.
-
-El historial no cambia: `createdById` conserva quién creó la requisición y `decidedById` quién tomó cada decisión.
-
-## Cargos responsables
-
-Un cargo es responsable de procesos cuando cumple alguna de estas condiciones:
-
-* Es el cargo responsable de un área o departamento (`Department.responsiblePositionId`).
-* Es el cargo de Analista o Jefe en la configuración activa de Talento Humano (`HumanTalentWorkflowConfig`).
-* Es un cargo autorizado para crear requisiciones (`ALLOWED_REQUISITION_CREATOR_POSITION_CODES`).
-* Es el cargo de Analista de Talento Humano que gestiona candidatos (`DPC-TH-0118`).
-
-Estos cargos solo pueden tener **un usuario activo**. Para asignarlo a otra persona, primero se retira a quien lo ocupa.
-
----
-
 # Obtener cargos disponibles para asignar
 
 ## Endpoint protegido para ADMIN
@@ -1426,8 +1396,6 @@ Endpoint privado encargado de retirar el cargo activo de un usuario sin asignarl
 La asignación no se elimina: queda con `isActive: false` y `endDate` con la fecha actual, y se conserva en el historial del usuario.
 
 Las aprobaciones pendientes del cargo retirado quedan sin responsable hasta que alguien reciba el cargo. El usuario deja de ver las requisiciones de ese cargo.
-
-No requiere body.
 
 ---
 
@@ -6133,7 +6101,7 @@ Endpoint privado encargado de crear una nueva requisición de personal desde el 
 Al crear una requisición, el sistema:
 
 * Valida que el usuario esté autenticado.
-* Valida que el usuario tenga un cargo autorizado para crear requisiciones. El rol `ADMIN` no es suficiente: solo los cargos autorizados pueden crear requisiciones.
+* Valida que el usuario tenga un cargo autorizado para crear requisiciones.
 * Guarda ese cargo como cargo responsable de la requisición (`ownerPositionId`).
 * Valida que el área, cargo y ciudad existan y estén activos.
 * Registra la revisión del perfil de cargo utilizada para crear la requisición.
@@ -6571,7 +6539,7 @@ Reglas principales:
 
 * `ADMIN` puede ver todas las requisiciones.
 * La visibilidad depende de los cargos que el usuario tiene hoy, no de quién creó o aprobó la requisición.
-* Quien tiene hoy el cargo responsable (`ownerPositionId`) ve la requisición. Las requisiciones antiguas sin cargo responsable las ve el usuario que las creó.
+* Quien tiene hoy el cargo responsable (`ownerPositionId`) ve la requisición.
 * Quien tiene hoy un cargo aprobador de la requisición o de su confirmación de contratación la ve, incluidas las decisiones ya tomadas por quien ocupaba el cargo antes.
 * Quien deja un cargo deja de ver las requisiciones de ese cargo.
 * El Analista de Talento Humano puede ver requisiciones en estado `PENDIENTE_CONFIRMACION_TALENTO_HUMANO` que aún no tienen confirmación creada.
@@ -12635,7 +12603,5 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | Reabrir cargue de candidatos          | Analista de Talento Humano   | Responsable actual         | REQUISITION_CANDIDATES_REOPENED          |
 | Rechazar o cancelar confirmación      | Aprobador actual TH          | Usuario creador            | HIRING_CONFIRMATION_REJECTED             |
 | Completar las dos calificaciones técnicas | Analista de Talento Humano   | Responsable actual         | CANDIDATE_TECHNICAL_EVALUATION_PENDING |
-
-El **responsable actual** es quien tiene hoy el cargo responsable de la requisición (`ownerPositionId`). En las requisiciones antiguas sin cargo responsable, es el usuario que la creó. Si el cargo está vacío, la notificación no se envía.
 
 ---

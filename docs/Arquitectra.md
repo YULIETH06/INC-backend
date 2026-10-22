@@ -273,7 +273,7 @@ src/
 | config      | Configuraciones generales del proyecto, cliente Prisma y configuración de Socket.IO |
 | constants   | Constantes de negocio reutilizables y valores compartidos entre módulos             |
 | controllers | Controladores de las peticiones HTTP, organizados por módulo y proceso              |
-| helpers     | Funciones auxiliares de negocio específicas de cada proceso. `requisitionOwner.helper.ts` resuelve el responsable actual de una requisición y los cargos activos del usuario; `positionAssignmentTransfer.helper.ts` traslada las aprobaciones pendientes cuando cambia el ocupante de un cargo y define qué cargos son responsables de procesos |
+| helpers     | Funciones auxiliares de negocio específicas de cada proceso. |
 | interfaces  | Interfaces y tipados TypeScript reutilizables                                       |
 | middlewares | Middlewares personalizados para autenticación, validaciones y cargas de archivos    |
 | routes      | Definición y agrupación de rutas de la API por módulo y proceso                     |

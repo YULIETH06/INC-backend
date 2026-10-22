@@ -486,8 +486,6 @@ model PersonnelRequisition {
   createdById Int
   createdBy   User @relation("CreatedRequisitions", fields: [createdById], references: [id])
 
-  // Cargo responsable de la requisición. Es el cargo del creador al momento de crearla.
-  // Las acciones y notificaciones del creador las recibe quien tenga hoy este cargo.
   ownerPositionId Int?
   ownerPosition   PositionProfile? @relation("RequisitionOwnerPosition", fields: [ownerPositionId], references: [id])
 

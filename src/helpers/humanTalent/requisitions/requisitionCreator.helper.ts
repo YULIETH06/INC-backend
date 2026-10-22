@@ -6,8 +6,6 @@ import type { PrismaExecutor } from "../../../interfaces/humanTalent/requisition
 
 
 // Valida que el usuario tenga un cargo activo autorizado para crear requisiciones.
-// Solo los cargos autorizados pueden crear requisiciones; el rol ADMIN no es suficiente.
-// Devuelve la asignación, porque su cargo queda como cargo responsable de la requisición.
 export const validatePersonnelRequisitionCreator = async (
     prismaExecutor: PrismaExecutor,
     userId: number
