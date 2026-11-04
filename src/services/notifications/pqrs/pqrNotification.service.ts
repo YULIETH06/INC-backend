@@ -9,6 +9,9 @@ export const getAdminsAndAgentsService = async () => {
             role: {
                 in: [Role.ADMIN, Role.AGENT],
             },
+
+            // Los usuarios desactivados no reciben notificaciones.
+            isActive: true,
         },
         select: {
             id: true,
@@ -26,6 +29,7 @@ export const getAdminsService = async () => {
     const admins = await prisma.user.findMany({
         where: {
             role: Role.ADMIN,
+            isActive: true,
         },
         select: {
             id: true,

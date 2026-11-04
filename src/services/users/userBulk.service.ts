@@ -302,12 +302,12 @@ export const registerUsersBulkService = async (
         };
     }
 
-    // Consulta los correos que ya existen
-    // en la base de datos.
+    // Consulta los correos que ya pertenecen a un usuario activo.
+    // El correo de un usuario desactivado sí puede volver a registrarse.
     const existingUsers =
         await prisma.user.findMany({
             where: {
-                email: {
+                activeEmail: {
                     in: validUsers.map(
                         (user) =>
                             user.correo
@@ -315,20 +315,24 @@ export const registerUsersBulkService = async (
                 },
             },
             select: {
-                email: true,
+                activeEmail: true,
             },
         });
 
+    // La comparación no distingue mayúsculas, igual que la base de datos.
     const existingEmails = new Set(
         existingUsers.map(
-            (user) => user.email
+            (user) =>
+                user.activeEmail?.toLowerCase()
         )
     );
 
     // Valida usuarios existentes.
     validUsers.forEach((user) => {
         if (
-            existingEmails.has(user.correo)
+            existingEmails.has(
+                user.correo.toLowerCase()
+            )
         ) {
             errors.push({
                 row: user.rowNumber,
@@ -376,6 +380,7 @@ export const registerUsersBulkService = async (
                     return {
                         name: user.nombre,
                         email: user.correo,
+                        activeEmail: user.correo,
                         password:
                             hashedPassword,
                         role: user.rol,
@@ -395,7 +400,7 @@ export const registerUsersBulkService = async (
     const createdUsers =
         await prisma.user.findMany({
             where: {
-                email: {
+                activeEmail: {
                     in: validUsers.map(
                         (user) =>
                             user.correo

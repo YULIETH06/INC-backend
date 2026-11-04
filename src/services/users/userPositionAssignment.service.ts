@@ -1,6 +1,7 @@
 import prisma from "../../config/client.js";
 
 import {
+    endActiveAssignmentsForUser,
     isResponsiblePosition,
     sendTransferredApprovalNotifications,
     syncPendingApprovalsForPosition,
@@ -17,11 +18,12 @@ export const USER_POSITION_ASSIGNMENT_ERRORS = {
     POSITION_INACTIVE: "El cargo seleccionado no está activo",
     SAME_POSITION: "El usuario ya tiene asignado este cargo",
     NO_ACTIVE_ASSIGNMENT: "El usuario no tiene un cargo activo para retirar",
+    USER_INACTIVE: "No se puede asignar un cargo a un usuario desactivado",
 } as const;
 
 // Error de regla del negocio con un mensaje que depende de los datos,
 // por ejemplo el nombre del cargo o del usuario que ya lo ocupa.
-export class UserPositionAssignmentRuleError extends Error {}
+export class UserPositionAssignmentRuleError extends Error { }
 
 // Información del cargo que se devuelve en cada asignación.
 const assignmentSelect = {
@@ -133,12 +135,20 @@ export const assignUserPositionService = async (
             },
             select: {
                 id: true,
+                isActive: true,
             },
         });
 
         if (!user) {
             throw new Error(
                 USER_POSITION_ASSIGNMENT_ERRORS.USER_NOT_FOUND
+            );
+        }
+
+        // Un usuario desactivado no puede recibir cargos.
+        if (!user.isActive) {
+            throw new Error(
+                USER_POSITION_ASSIGNMENT_ERRORS.USER_INACTIVE
             );
         }
 
@@ -313,55 +323,21 @@ export const endUserPositionAssignmentService = async (
             );
         }
 
-        const activeAssignments =
-            await tx.userPositionAssignment.findMany({
-                where: {
-                    userId,
-                    ...activeAssignmentWhere,
-                },
-                select: {
-                    id: true,
-                    positionId: true,
-                },
-            });
+        // Retira los cargos activos y deja sin responsable sus aprobaciones
+        // pendientes hasta que alguien reciba el cargo.
+        const endResult =
+            await endActiveAssignmentsForUser(
+                tx,
+                userId
+            );
 
-        if (activeAssignments.length === 0) {
+        if (endResult.endedAssignments === 0) {
             throw new Error(
                 USER_POSITION_ASSIGNMENT_ERRORS.NO_ACTIVE_ASSIGNMENT
             );
         }
 
-        await tx.userPositionAssignment.updateMany({
-            where: {
-                id: {
-                    in: activeAssignments.map(
-                        (assignment) => assignment.id
-                    ),
-                },
-            },
-            data: {
-                isActive: false,
-                endDate: new Date(),
-            },
-        });
-
-        // Las aprobaciones pendientes de los cargos retirados quedan sin responsable
-        // hasta que alguien reciba el cargo.
-        const notifications: TransferredApprovalNotification[] = [];
-
-        for (const assignment of activeAssignments) {
-            notifications.push(
-                ...(await syncPendingApprovalsForPosition(
-                    tx,
-                    assignment.positionId
-                ))
-            );
-        }
-
-        return {
-            endedAssignments: activeAssignments.length,
-            notifications,
-        };
+        return endResult;
     });
 
     await sendTransferredApprovalNotifications(

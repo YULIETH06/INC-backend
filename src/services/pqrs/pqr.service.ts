@@ -323,6 +323,10 @@ export const assignPqrService = async (
     throw new Error("El usuario seleccionado no tiene rol AGENT");
   }
 
+  if (!agent.isActive) {
+    throw new Error("El agente seleccionado está desactivado");
+  }
+
   const previousAgentId = pqrExists.assignedToId;
 
   const pqr = await prisma.pQR.update({

@@ -15,6 +15,12 @@ import {
 } from "../../controllers/users/userBulk.controller.js";
 
 import {
+  activateUser,
+  deactivateUser,
+  updateUserEmail,
+} from "../../controllers/users/userAccount.controller.js";
+
+import {
   getAssignablePositions,
   getUserPositionAssignments,
   assignUserPosition,
@@ -84,6 +90,31 @@ router.patch(
   authMiddleware,
   roleMiddleware(["ADMIN"]),
   endUserPositionAssignment
+);
+
+// Desactiva un usuario: no puede iniciar sesión, se le retiran sus cargos
+// y su correo queda libre para un nuevo registro.
+router.patch(
+  "/:id/deactivate",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  deactivateUser
+);
+
+// Activa nuevamente un usuario desactivado.
+router.patch(
+  "/:id/activate",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  activateUser
+);
+
+// Cambia el correo de un usuario.
+router.patch(
+  "/:id/email",
+  authMiddleware,
+  roleMiddleware(["ADMIN"]),
+  updateUserEmail
 );
 
 router.patch(

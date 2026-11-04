@@ -301,3 +301,67 @@ export const sendTransferredApprovalNotifications = async (
         }
     }
 };
+
+
+// Retira todos los cargos activos de un usuario y deja sin responsable
+// las aprobaciones pendientes de esos cargos.
+// Se usa al retirar un cargo y al desactivar un usuario.
+// Debe ejecutarse dentro de una transacción; las notificaciones
+// devueltas se envían después con sendTransferredApprovalNotifications.
+export const endActiveAssignmentsForUser = async (
+    prismaExecutor: PrismaExecutor,
+    userId: number
+): Promise<{
+    endedAssignments: number;
+    notifications: TransferredApprovalNotification[];
+}> => {
+    const activeAssignments =
+        await prismaExecutor.userPositionAssignment.findMany({
+            where: {
+                userId,
+                isActive: true,
+                endDate: null,
+            },
+            select: {
+                id: true,
+                positionId: true,
+            },
+        });
+
+    if (activeAssignments.length === 0) {
+        return {
+            endedAssignments: 0,
+            notifications: [],
+        };
+    }
+
+    await prismaExecutor.userPositionAssignment.updateMany({
+        where: {
+            id: {
+                in: activeAssignments.map(
+                    (assignment) => assignment.id
+                ),
+            },
+        },
+        data: {
+            isActive: false,
+            endDate: new Date(),
+        },
+    });
+
+    const notifications: TransferredApprovalNotification[] = [];
+
+    for (const assignment of activeAssignments) {
+        notifications.push(
+            ...(await syncPendingApprovalsForPosition(
+                prismaExecutor,
+                assignment.positionId
+            ))
+        );
+    }
+
+    return {
+        endedAssignments: activeAssignments.length,
+        notifications,
+    };
+};

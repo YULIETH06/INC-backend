@@ -10,6 +10,7 @@ import type {
 import {
   changePasswordService,
   loginUserService,
+  USER_INACTIVE_MESSAGE,
   registerUserService,
 } from "../../services/auth/auth.service.js";
 
@@ -84,6 +85,17 @@ export const loginUser = async (
       "Credenciales inválidas"
     ) {
       return res.status(400).json({
+        message: error.message,
+      });
+    }
+
+    // El usuario existe, pero fue desactivado por el administrador.
+    if (
+      error instanceof Error &&
+      error.message ===
+      USER_INACTIVE_MESSAGE
+    ) {
+      return res.status(403).json({
         message: error.message,
       });
     }

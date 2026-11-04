@@ -17,6 +17,8 @@ export const getAllUsersService = async () => {
             email: true,
             role: true,
             signatureUrl: true,
+            isActive: true,
+            deactivatedAt: true,
 
             // Cargo activo del usuario.
             positionAssignments: {
@@ -95,9 +97,11 @@ export const updateUserRoleService = async (
 };
 
 export const getAgentsService = async () => {
+    // Solo los agentes activos pueden recibir PQR.
     const agents = await prisma.user.findMany({
         where: {
             role: Role.AGENT,
+            isActive: true,
         },
         orderBy: {
             name: "asc",
