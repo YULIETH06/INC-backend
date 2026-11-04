@@ -12,6 +12,10 @@ import {
   isValidEmail,
 } from "../../utils/validators.js";
 
+// Mensaje para un usuario desactivado que intenta usar el sistema.
+export const USER_INACTIVE_MESSAGE =
+  "Tu usuario está desactivado. Comunícate con el administrador.";
+
 // Registra un usuario individual.
 export const registerUserService = async ({
   name,
@@ -62,12 +66,12 @@ export const registerUserService = async ({
     );
   }
 
-  // Consulta únicamente el identificador para comprobar
-  // si el correo ya se encuentra registrado.
+  // Comprueba si el correo ya pertenece a un usuario activo.
+  // El correo de un usuario desactivado sí puede volver a registrarse.
   const userExists =
     await prisma.user.findUnique({
       where: {
-        email: cleanEmail,
+        activeEmail: cleanEmail,
       },
       select: {
         id: true,
@@ -93,6 +97,7 @@ export const registerUserService = async ({
       data: {
         name: cleanName,
         email: cleanEmail,
+        activeEmail: cleanEmail,
         password:
           hashedPassword,
       },
@@ -114,11 +119,14 @@ export const loginUserService = async (
   email: string,
   password: string
 ) => {
-  // Consulta únicamente la información necesaria
-  // para autenticar al usuario y obtener sus cargos activos.
+  const cleanEmail =
+    email?.trim() ?? "";
+
+  // Solo los usuarios activos tienen correo activo, por lo que
+  // un usuario desactivado no puede iniciar sesión.
   const user = await prisma.user.findUnique({
     where: {
-      email,
+      activeEmail: cleanEmail,
     },
     select: {
       id: true,
@@ -147,6 +155,34 @@ export const loginUserService = async (
   });
 
   if (!user) {
+    // Si las credenciales corresponden a un usuario desactivado,
+    // se informa el motivo en lugar de un error genérico.
+    const inactiveUser =
+      await prisma.user.findFirst({
+        where: {
+          email: cleanEmail,
+          isActive: false,
+        },
+        select: {
+          password: true,
+        },
+        orderBy: {
+          deactivatedAt: "desc",
+        },
+      });
+
+    if (
+      inactiveUser &&
+      await bcrypt.compare(
+        password,
+        inactiveUser.password
+      )
+    ) {
+      throw new Error(
+        USER_INACTIVE_MESSAGE
+      );
+    }
+
     throw new Error(
       "Credenciales inválidas"
     );

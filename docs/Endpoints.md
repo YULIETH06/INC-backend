@@ -45,7 +45,7 @@ Funciones implementadas:
 * Validación de nombre.
 * Validación de formato de correo electrónico.
 * Validación de longitud mínima de contraseña.
-* Verificación de email existente.
+* Verificación de que el correo no pertenezca a un usuario activo. El correo de un usuario desactivado sí puede volver a registrarse.
 * Encriptación segura de contraseña con bcrypt.
 * Registro en MySQL mediante Prisma.
 * Protección de contraseña en respuestas.
@@ -157,6 +157,8 @@ Funciones implementadas:
 ---
 
 ## Respuesta si el usuario ya existe
+
+Se presenta cuando el correo pertenece a un usuario **activo**.
 
 ```json
 {
@@ -527,6 +529,8 @@ Endpoint privado encargado de obtener todos los usuarios registrados en el siste
 
 Esta ruta permite al administrador visualizar los usuarios existentes, su rol actual y el cargo activo de cada uno.
 
+Los campos `isActive` y `deactivatedAt` indican si el usuario está activo y desde cuándo está desactivado.
+
 Por seguridad, la respuesta no debe incluir la contraseña del usuario.
 
 ---
@@ -557,6 +561,8 @@ Authorization: Bearer TOKEN_ADMIN
       "email": "maria@gmail.com",
       "role": "USER",
       "signatureUrl": null,
+      "isActive": true,
+      "deactivatedAt": null,
       "currentPosition": {
         "id": 12,
         "startDate": "2026-10-16T19:00:00.000Z",
@@ -573,6 +579,8 @@ Authorization: Bearer TOKEN_ADMIN
       "email": "juan@gmail.com",
       "role": "USER",
       "signatureUrl": null,
+      "isActive": true,
+      "deactivatedAt": null,
       "currentPosition": null
     }
   ]
@@ -614,6 +622,8 @@ GET /api/users/agents
 Endpoint privado encargado de obtener únicamente los usuarios con rol `AGENT`.
 
 Esta ruta permite al administrador consultar la lista de agentes disponibles para asignar o reasignar una PQR.
+
+Solo devuelve agentes **activos**. Los agentes desactivados no pueden recibir PQR.
 
 ---
 
@@ -1011,6 +1021,351 @@ Content-Type: application/json
 
 ---
 
+# Desactivar usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+PATCH /api/users/:id/deactivate
+```
+
+## Ejemplo
+
+```http
+PATCH /api/users/5/deactivate
+```
+
+## Descripción
+
+Endpoint privado encargado de desactivar un usuario.
+
+Al desactivar un usuario, en una sola transacción:
+
+* Se marca como desactivado (`isActive: false`) y se registra la fecha en `deactivatedAt`.
+* Se libera su correo (`activeEmail: null`), para que otro usuario pueda registrarse con él.
+* Se le retiran sus cargos activos y sus aprobaciones pendientes quedan sin responsable hasta que alguien reciba el cargo.
+
+---
+
+## Body
+
+Este endpoint no requiere body.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Usuario desactivado correctamente",
+  "user": {
+    "id": 5,
+    "name": "María Pérez",
+    "email": "maria@gmail.com",
+    "role": "USER",
+    "isActive": false,
+    "deactivatedAt": "2026-10-27T21:00:00.000Z"
+  },
+  "endedAssignments": 1
+}
+```
+
+`endedAssignments` indica cuántos cargos se le retiraron.
+
+---
+
+## Respuesta si el ADMIN intenta desactivarse a sí mismo
+
+```json
+{
+  "message": "No puedes desactivar tu propio usuario"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+Código HTTP: `404`.
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta si el usuario ya está desactivado
+
+```json
+{
+  "message": "El usuario ya está desactivado"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al desactivar el usuario"
+}
+```
+
+---
+
+# Activar usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+PATCH /api/users/:id/activate
+```
+
+## Ejemplo
+
+```http
+PATCH /api/users/5/activate
+```
+
+## Descripción
+
+Endpoint privado encargado de activar nuevamente un usuario desactivado.
+
+El usuario vuelve a ocupar su correo (`activeEmail`), por lo que solo es posible si ningún otro usuario activo lo está usando. Los cargos que tenía no se restauran: si los necesita, se asignan de nuevo.
+
+---
+
+## Body
+
+Este endpoint no requiere body.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Usuario activado correctamente",
+  "user": {
+    "id": 5,
+    "name": "María Pérez",
+    "email": "maria@gmail.com",
+    "role": "USER",
+    "isActive": true,
+    "deactivatedAt": null
+  }
+}
+```
+
+---
+
+## Respuesta si otro usuario activo usa el correo
+
+Código HTTP: `409`.
+
+```json
+{
+  "message": "Ya existe un usuario activo con el correo maria@gmail.com. Cámbiale el correo antes de activarlo."
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+Código HTTP: `404`.
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta si el usuario ya está activo
+
+```json
+{
+  "message": "El usuario ya está activo"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al activar el usuario"
+}
+```
+
+---
+
+# Cambiar correo de un usuario
+
+## Endpoint protegido para ADMIN
+
+```http
+PATCH /api/users/:id/email
+```
+
+## Ejemplo
+
+```http
+PATCH /api/users/5/email
+```
+
+## Descripción
+
+Endpoint privado encargado de cambiar el correo de cualquier usuario, activo o desactivado.
+
+* Si el usuario está **activo**, el nuevo correo no puede pertenecer a otro usuario activo y se actualizan `email` y `activeEmail`.
+* Si el usuario está **desactivado**, solo se actualiza `email`. La disponibilidad del correo se valida cuando se active.
+
+El correo se guarda en minúsculas y sin espacios al inicio ni al final.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Body
+
+```json
+{
+  "email": "maria.perez@gmail.com"
+}
+```
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Correo del usuario actualizado correctamente",
+  "user": {
+    "id": 5,
+    "name": "María Pérez",
+    "email": "maria.perez@gmail.com",
+    "role": "USER",
+    "isActive": true,
+    "deactivatedAt": null
+  }
+}
+```
+
+---
+
+## Respuesta si no se envía el correo
+
+```json
+{
+  "message": "El correo es obligatorio"
+}
+```
+
+---
+
+## Respuesta si el correo no tiene formato válido
+
+```json
+{
+  "message": "El correo electrónico no tiene un formato válido"
+}
+```
+
+---
+
+## Respuesta si el correo es igual al actual
+
+```json
+{
+  "message": "El nuevo correo debe ser diferente al correo actual"
+}
+```
+
+---
+
+## Respuesta si otro usuario activo usa el correo
+
+Código HTTP: `409`.
+
+```json
+{
+  "message": "Ya existe un usuario activo con el correo maria.perez@gmail.com"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+Código HTTP: `404`.
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al actualizar el correo del usuario"
+}
+```
+
+---
+
 # Obtener cargos disponibles para asignar
 
 ## Endpoint protegido para ADMIN
@@ -1355,6 +1710,16 @@ Content-Type: application/json
 
 ---
 
+## Respuesta si el usuario está desactivado
+
+```json
+{
+  "message": "No se puede asignar un cargo a un usuario desactivado"
+}
+```
+
+---
+
 ## Respuesta si el cargo responsable ya está ocupado
 
 ```json
@@ -1510,6 +1875,20 @@ Funciones implementadas:
 ```json
 {
   "message": "Credenciales inválidas"
+}
+```
+
+---
+
+## Respuesta si el usuario está desactivado
+
+Se presenta cuando el correo y la contraseña son correctos, pero el usuario fue desactivado por el administrador. Si la contraseña es incorrecta, se responde `Credenciales inválidas`, para no revelar que existe una cuenta desactivada con ese correo.
+
+Código HTTP: `403`.
+
+```json
+{
+  "message": "Tu usuario está desactivado. Comunícate con el administrador."
 }
 ```
 
@@ -2416,6 +2795,16 @@ Cuando un ADMIN asigna o reasigna una PQR, el sistema genera notificaciones seg�
 ```json
 {
   "message": "El usuario seleccionado no tiene rol AGENT"
+}
+```
+
+---
+
+## Respuesta si el agente está desactivado
+
+```json
+{
+  "message": "El agente seleccionado está desactivado"
 }
 ```
 
@@ -12489,6 +12878,9 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | GET    | /api/users/agents                                                                                                                           | Obtiene únicamente los usuarios con rol AGENT              | ADMIN                                                           |
 | PATCH  | /api/users/:id/role                                                                                                                         | Cambia el rol de un usuario                                | ADMIN                                                           |
 | PATCH  | /api/users/:id/password                                                                                                                     | Restablece la contraseña de un usuario                     | ADMIN                                                           |
+| PATCH  | /api/users/:id/deactivate | Desactiva un usuario, le retira sus cargos y libera su correo | ADMIN |
+| PATCH  | /api/users/:id/activate | Activa nuevamente un usuario desactivado | ADMIN |
+| PATCH  | /api/users/:id/email | Cambia el correo de un usuario | ADMIN |
 | PATCH  | /api/users/signature                                                                                                                        | Sube la firma del usuario autenticado                      | Usuario autenticado                                             |
 | POST   | /api/auth/register                                                                                                                          | Registra un nuevo usuario                                  | Público                                                         |
 | POST   | /api/users/bulk                                                                                                          | Registra usuarios mediante carga masiva desde Excel        | ADMIN                                                           |

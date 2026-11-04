@@ -160,7 +160,7 @@ const main = async () => {
 
         const user = await prisma.user.upsert({
             where: {
-                email: testUser.email,
+                activeEmail: testUser.email,
             },
             update: {
                 name: testUser.name,
@@ -170,6 +170,7 @@ const main = async () => {
             create: {
                 name: testUser.name,
                 email: testUser.email,
+                activeEmail: testUser.email,
                 password: defaultPasswordHash,
                 role: testUser.role,
             },

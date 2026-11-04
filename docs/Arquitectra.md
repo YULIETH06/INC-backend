@@ -99,6 +99,7 @@ src/
 │   └── users/
 │       ├── profile.controller.ts
 │       ├── user.controller.ts
+│       ├── userAccount.controller.ts
 │       ├── userBulk.controller.ts
 │       └── userPositionAssignment.controller.ts
 │
@@ -235,6 +236,7 @@ src/
 │   │
 │   └── users/
 │       ├── user.service.ts
+│       ├── userAccount.service.ts
 │       ├── userBulk.service.ts
 │       └── userPositionAssignment.service.ts
 │

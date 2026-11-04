@@ -37,9 +37,12 @@ Esto permite manejar:
 | -------------------------------------- | ------------------------------------- | --------------------------------------------------------------------- |
 | id                                     | Int                                   | Identificador único del usuario                                       |
 | name                                   | String                                | Nombre del usuario                                                    |
-| email                                  | String                                | Correo electrónico único del usuario                                  |
+| email                                  | String                                | Correo electrónico del usuario. Se conserva aunque el usuario esté desactivado; no es único |
+| activeEmail                            | String?                               | Correo del usuario mientras está activo; es null cuando está desactivado. Es único, por lo que no puede haber dos usuarios activos con el mismo correo |
 | password                               | String                                | Contraseña encriptada del usuario                                     |
 | role                                   | Role                                  | Rol general del sistema: USER, ADMIN o AGENT                          |
+| isActive                               | Boolean                               | Indica si el usuario está activo. Un usuario desactivado no puede iniciar sesión |
+| deactivatedAt                          | DateTime?                             | Fecha en que el usuario fue desactivado                               |
 | signatureUrl                           | String?                               | Ruta de la imagen de la firma registrada por el usuario               |
 | pqrsCreated                            | PQR[]                                 | PQR creadas por el usuario                                            |
 | pqrsAssigned                           | PQR[]                                 | PQR asignadas al usuario cuando actúa como agente                     |
@@ -64,6 +67,21 @@ Esto permite manejar:
 | personnelCandidateCompetencyEvaluations | PersonnelCandidateCompetencyEvaluation[] | Evaluaciones generales de competencias realizadas por el usuario |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
+
+## Estado del usuario y correo activo
+
+Un usuario puede estar activo o desactivado. El correo solo es único entre los usuarios **activos**:
+
+| Campo | Usuario activo | Usuario desactivado |
+| ----- | -------------- | ------------------- |
+| `email` | Su correo | Su correo (se conserva para el historial) |
+| `activeEmail` | Su correo | `null` |
+| `isActive` | `true` | `false` |
+| `deactivatedAt` | `null` | Fecha de desactivación |
+
+El índice único de `activeEmail` impide dos usuarios activos con el mismo correo. Como MySQL permite varios valores `null` en un índice único, el correo de un usuario desactivado queda libre para un nuevo registro.
+
+Por eso, el registro, el login y la carga masiva buscan por `activeEmail`, no por `email`. El detalle del flujo está en `Flujos/Flujo-usuarios.md`.
 
 ---
 
