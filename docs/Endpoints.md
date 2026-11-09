@@ -5098,7 +5098,7 @@ OBSOLETA
 
 | Estado   | Descripción                                                                       |
 | -------- | --------------------------------------------------------------------------------- |
-| BORRADOR | Revisión en construcción. Puede modificarse, publicarse o eliminarse lógicamente. |
+| BORRADOR | Revisión en construcción. Puede modificarse o publicarse.                         |
 | VIGENTE  | Revisión actualmente activa para el perfil de cargo.                              |
 | OBSOLETA | Revisión anterior que se conserva como parte del historial.                       |
 
@@ -5109,12 +5109,10 @@ OBSOLETA
 * Una nueva revisión siempre se crea en estado `BORRADOR`.
 * Solo puede existir una revisión activa en estado `BORRADOR` por perfil de cargo.
 * El número de revisión se genera automáticamente de forma consecutiva.
-* Los números de revisiones eliminadas no se reutilizan.
-* Solo las revisiones en estado `BORRADOR` pueden modificarse o eliminarse.
+* Solo las revisiones en estado `BORRADOR` pueden modificarse.
 * Solo una revisión en estado `BORRADOR` puede publicarse.
 * Al publicar una revisión, la revisión `VIGENTE` anterior pasa automáticamente a estado `OBSOLETA`.
 * Solo puede existir una revisión `VIGENTE` por perfil de cargo.
-* Las revisiones se eliminan de forma lógica mediante el campo `deletedAt`.
 * Para publicar una revisión, todos los requisitos fijos deben tener al menos una descripción activa.
 
 ---
@@ -5639,90 +5637,6 @@ Para eliminar la observación:
 ```json
 {
   "message": "Solo se puede actualizar una revisión en estado BORRADOR"
-}
-```
-
----
-
-## Respuesta si la revisión no existe
-
-```json
-{
-  "message": "La revisión del perfil de cargo no existe"
-}
-```
-
----
-
-# Eliminar revisión en borrador
-
-## Endpoint protegido
-
-```http
-DELETE /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId
-```
-
-## Ejemplo
-
-```http
-DELETE /api/position-management/position-profiles/13/revisions/1
-```
-
-## Descripción
-
-Endpoint privado encargado de eliminar lógicamente una revisión.
-
-La eliminación solo se permite cuando la revisión se encuentra en estado `BORRADOR`.
-
-Las revisiones en estado `VIGENTE` u `OBSOLETA` no pueden eliminarse.
-
----
-
-## Header requerido
-
-```http
-Authorization: Bearer TOKEN
-```
-
----
-
-## Body
-
-Este endpoint no requiere body.
-
----
-
-## Respuesta exitosa
-
-```json
-{
-  "message": "Revisión del perfil de cargo eliminada correctamente",
-  "revision": {
-    "id": 1,
-    "positionProfileId": 13,
-    "revisionNumber": 1,
-    "revisionDate": "2026-08-03T17:30:00.000Z",
-    "status": "BORRADOR",
-    "changeObservation": "Creación inicial",
-    "deletedAt": "2026-08-04T13:30:00.000Z",
-    "updatedAt": "2026-08-04T13:30:00.000Z",
-    "positionProfile": {
-      "id": 13,
-      "code": "GERENTE_FINANCIERO",
-      "name": "Gerente Financiero",
-      "homeDepartmentId": 13
-    }
-  }
-}
-```
-
----
-
-## Respuesta si la revisión no está en borrador
-
-```json
-{
-  "message": "Solo se puede eliminar una revisión en estado BORRADOR"
 }
 ```
 
@@ -12918,7 +12832,6 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | GET    | /api/position-management/position-profiles/:positionProfileId/revisions                                                                     | Obtiene las revisiones activas de un perfil de cargo       | Usuario autenticado                                             |
 | GET    | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId                                                         | Obtiene el detalle de una revisión y sus requisitos        | Usuario autenticado                                             |
 | PATCH  | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId                                                         | Actualiza la observación de una revisión en borrador       | Usuario autenticado                                             |
-| DELETE | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId                                                         | Elimina lógicamente una revisión en borrador               | Usuario autenticado                                             |
 | PATCH  | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/publish                                                 | Publica una revisión y la convierte en vigente             | Usuario autenticado                                             |
 | POST   | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/requirements/:requirementId/descriptions                | Agrega una descripción a un requisito de la revisión       | Usuario autenticado                                             |
 | PATCH  | /api/position-management/position-profiles/:positionProfileId/revisions/:revisionId/requirements/:requirementId/descriptions/:descriptionId | Actualiza una descripción de un requisito                  | Usuario autenticado                                             |

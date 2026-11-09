@@ -15,7 +15,6 @@ import {
     createPositionProfileRevisionService,
     createPositionRequirementDescriptionService,
     deletePositionCompetencyDescriptionService,
-    deletePositionProfileRevisionService,
     deletePositionRequirementDescriptionService,
     getCurrentPositionProfileRevisionService,
     getPositionProfileRevisionDetailService,
@@ -1223,100 +1222,6 @@ export const updatePositionProfileRevision = async (
         return res.status(500).json({
             message:
                 "Error al actualizar la revisión del perfil de cargo",
-            error:
-                error instanceof Error
-                    ? error.message
-                    : "Error desconocido",
-        });
-    }
-};
-
-// Elimina lógicamente una revisión de perfil de cargo en borrador.
-export const deletePositionProfileRevision = async (
-    req: AuthRequest,
-    res: Response
-) => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                message: "Usuario no autenticado",
-            });
-        }
-
-        const positionProfileId = Number(
-            req.params.positionProfileId
-        );
-
-        const revisionId = Number(
-            req.params.revisionId
-        );
-
-        if (
-            !Number.isInteger(positionProfileId) ||
-            positionProfileId <= 0
-        ) {
-            return res.status(400).json({
-                message:
-                    "El id del perfil de cargo no es válido",
-            });
-        }
-
-        if (
-            !Number.isInteger(revisionId) ||
-            revisionId <= 0
-        ) {
-            return res.status(400).json({
-                message:
-                    "El id de la revisión no es válido",
-            });
-        }
-
-        const revision =
-            await deletePositionProfileRevisionService(
-                positionProfileId,
-                revisionId
-            );
-
-        return res.status(200).json({
-            message:
-                "Revisión del perfil de cargo eliminada correctamente",
-            revision,
-        });
-    } catch (error) {
-        if (error instanceof Error) {
-            if (
-                error.message ===
-                "La revisión del perfil de cargo no existe"
-            ) {
-                return res.status(404).json({
-                    message: error.message,
-                });
-            }
-
-            if (
-                error.message ===
-                "Solo se puede eliminar una revisión en estado BORRADOR"
-            ) {
-                return res.status(409).json({
-                    message: error.message,
-                });
-            }
-
-            if (
-                error.message ===
-                "El id del perfil de cargo no es válido" ||
-                error.message ===
-                "El id de la revisión no es válido"
-            ) {
-                return res.status(400).json({
-                    message: error.message,
-                });
-            }
-        }
-
-        return res.status(500).json({
-            message:
-                "Error al eliminar la revisión del perfil de cargo",
             error:
                 error instanceof Error
                     ? error.message

@@ -5,7 +5,6 @@ import {
     createPositionProfileRevision,
     createPositionRequirementDescription,
     deletePositionCompetencyDescription,
-    deletePositionProfileRevision,
     deletePositionRequirementDescription,
     getCurrentPositionProfileRevision,
     getPositionProfileRevisionDetail,
@@ -102,13 +101,6 @@ router.patch(
     "/:positionProfileId/revisions/:revisionId/requirements/:requirementId/descriptions/:descriptionId",
     authMiddleware,
     updatePositionRequirementDescription
-);
-
-// Elimina lógicamente una revisión en estado borrador.
-router.delete(
-    "/:positionProfileId/revisions/:revisionId",
-    authMiddleware,
-    deletePositionProfileRevision
 );
 
 export default router;
