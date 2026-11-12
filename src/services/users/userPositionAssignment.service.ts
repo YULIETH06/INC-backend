@@ -11,6 +11,19 @@ import type {
     TransferredApprovalNotification,
 } from "../../helpers/users/positionAssignmentTransfer.helper.js";
 
+import {
+    createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
 // Mensajes de error usados por el servicio y el controlador.
 export const USER_POSITION_ASSIGNMENT_ERRORS = {
     USER_NOT_FOUND: "El usuario no existe",
@@ -126,7 +139,8 @@ export const getUserPositionAssignmentsService = async (
 // Si el usuario ya tenía un cargo activo, se cierra y queda en el historial.
 export const assignUserPositionService = async (
     userId: number,
-    positionId: number
+    positionId: number,
+    auditActor: AuditActor
 ) => {
     const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({
@@ -135,6 +149,7 @@ export const assignUserPositionService = async (
             },
             select: {
                 id: true,
+                name: true,
                 isActive: true,
             },
         });
@@ -184,6 +199,11 @@ export const assignUserPositionService = async (
                 },
                 select: {
                     positionId: true,
+                    position: {
+                        select: {
+                            name: true,
+                        },
+                    },
                 },
                 orderBy: {
                     startDate: "desc",
@@ -261,6 +281,21 @@ export const assignUserPositionService = async (
                 select: assignmentSelect,
             });
 
+        // Registra la asignación en la auditoría.
+        const previousPositionText =
+            currentAssignment
+                ? ` (antes: ${currentAssignment.position.name})`
+                : "";
+
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USER_POSITION_ASSIGNED,
+            entityType: "User",
+            entityId: userId,
+            description: `Asignó a ${user.name} el cargo ${position.name}${previousPositionText}`,
+        });
+
         // Traslada las aprobaciones pendientes del cargo anterior
         // a quien lo ocupe ahora (o las deja sin responsable si quedó vacío),
         // y las del cargo nuevo al usuario que lo recibe.
@@ -305,7 +340,8 @@ export const assignUserPositionService = async (
 
 // Retira el cargo activo del usuario sin asignarle uno nuevo.
 export const endUserPositionAssignmentService = async (
-    userId: number
+    userId: number,
+    auditActor: AuditActor
 ) => {
     const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({
@@ -314,6 +350,17 @@ export const endUserPositionAssignmentService = async (
             },
             select: {
                 id: true,
+                name: true,
+                positionAssignments: {
+                    where: activeAssignmentWhere,
+                    select: {
+                        position: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
             },
         });
 
@@ -336,6 +383,21 @@ export const endUserPositionAssignmentService = async (
                 USER_POSITION_ASSIGNMENT_ERRORS.NO_ACTIVE_ASSIGNMENT
             );
         }
+
+        // Registra el retiro en la auditoría.
+        const positionNames =
+            user.positionAssignments
+                .map((assignment) => assignment.position.name)
+                .join(", ");
+
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USER_POSITION_ENDED,
+            entityType: "User",
+            entityId: userId,
+            description: `Retiró a ${user.name} del cargo ${positionNames}`,
+        });
 
         return endResult;
     });

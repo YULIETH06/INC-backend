@@ -6,6 +6,77 @@ import type {
 
 import prisma from "../../config/client.js";
 
+import type {
+    PrismaExecutor,
+} from "../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
+
+import {
+    createAuditLog,
+    shortenAuditText,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
+import type {
+    AuditAction,
+} from "../../constants/audit/auditLog.constants.js";
+
+// Arma el texto "cargo – revisión N" con el que inicia cada descripción de la auditoría.
+const getRevisionAuditLabel = async (
+    prismaExecutor: PrismaExecutor,
+    revisionId: number
+) => {
+    const revision =
+        await prismaExecutor.positionProfileRevision.findUnique({
+            where: {
+                id: revisionId,
+            },
+            select: {
+                revisionNumber: true,
+                positionProfile: {
+                    select: {
+                        name: true,
+                    },
+                },
+            },
+        });
+
+    return revision
+        ? `${revision.positionProfile.name} – revisión ${revision.revisionNumber}`
+        : `Revisión #${revisionId}`;
+};
+
+// Registra en la auditoría una acción sobre una revisión de perfil de cargo.
+const registerRevisionAudit = async (
+    prismaExecutor: PrismaExecutor,
+    auditActor: AuditActor,
+    action: AuditAction,
+    revisionId: number,
+    detail: string
+) => {
+    const revisionLabel =
+        await getRevisionAuditLabel(
+            prismaExecutor,
+            revisionId
+        );
+
+    await createAuditLog(prismaExecutor, {
+        actor: auditActor,
+        module: AUDIT_MODULES.POSITION_MANAGEMENT,
+        action,
+        entityType: "PositionProfileRevision",
+        entityId: revisionId,
+        description: `${revisionLabel}: ${detail}`,
+    });
+};
+
 // Obtiene la revisión vigente de un perfil de cargo.
 export const getCurrentPositionProfileRevisionService = async (
     positionProfileId: number
@@ -65,7 +136,8 @@ export const getCurrentPositionProfileRevisionService = async (
 // Crea una nueva revisión en borrador para un perfil de cargo.
 export const createPositionProfileRevisionService = async (
     positionProfileId: number,
-    changeObservation?: string
+    changeObservation: string | undefined,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -165,33 +237,44 @@ export const createPositionProfileRevisionService = async (
              * revisionDate se genera automáticamente.
              * La revisión siempre inicia como BORRADOR.
              */
-            return transaction.positionProfileRevision.create({
-                data: {
-                    positionProfileId,
-                    revisionNumber: nextRevisionNumber,
-                    status: "BORRADOR",
-                    changeObservation:
-                        normalizedChangeObservation,
-                },
-                select: {
-                    id: true,
-                    positionProfileId: true,
-                    revisionNumber: true,
-                    revisionDate: true,
-                    status: true,
-                    changeObservation: true,
-                    deletedAt: true,
-                    updatedAt: true,
-                    positionProfile: {
-                        select: {
-                            id: true,
-                            code: true,
-                            name: true,
-                            homeDepartmentId: true,
+            const createdRevision =
+                await transaction.positionProfileRevision.create({
+                    data: {
+                        positionProfileId,
+                        revisionNumber: nextRevisionNumber,
+                        status: "BORRADOR",
+                        changeObservation:
+                            normalizedChangeObservation,
+                    },
+                    select: {
+                        id: true,
+                        positionProfileId: true,
+                        revisionNumber: true,
+                        revisionDate: true,
+                        status: true,
+                        changeObservation: true,
+                        deletedAt: true,
+                        updatedAt: true,
+                        positionProfile: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                                homeDepartmentId: true,
+                            },
                         },
                     },
-                },
-            });
+                });
+
+            await registerRevisionAudit(
+                transaction,
+                auditActor,
+                AUDIT_ACTIONS.POSITION_REVISION_CREATED,
+                createdRevision.id,
+                "nueva revisión en borrador"
+            );
+
+            return createdRevision;
         },
         {
             isolationLevel:
@@ -266,7 +349,8 @@ export const createPositionRequirementDescriptionService = async (
     positionProfileId: number,
     revisionId: number,
     requirementId: number,
-    description: string
+    description: string,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -360,27 +444,40 @@ export const createPositionRequirementDescriptionService = async (
         );
     }
 
-    return prisma.positionRequirementDescription.create({
-        data: {
-            revisionId,
-            requirementId,
-            description: normalizedDescription,
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            requirementId: true,
-            description: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-            requirement: {
+    return prisma.$transaction(async (tx) => {
+        const createdDescription =
+            await tx.positionRequirementDescription.create({
+                data: {
+                    revisionId,
+                    requirementId,
+                    description: normalizedDescription,
+                },
                 select: {
                     id: true,
-                    name: true,
+                    revisionId: true,
+                    requirementId: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    requirement: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        await registerRevisionAudit(
+            tx,
+            auditActor,
+            AUDIT_ACTIONS.POSITION_REQUIREMENT_ADDED,
+            revisionId,
+            `${requirement.name}: ${shortenAuditText(normalizedDescription)}`
+        );
+
+        return createdDescription;
     });
 };
 
@@ -535,7 +632,8 @@ export const updatePositionRequirementDescriptionService = async (
     revisionId: number,
     requirementId: number,
     descriptionId: number,
-    description: string
+    description: string,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -607,6 +705,12 @@ export const updatePositionRequirementDescriptionService = async (
                 id: true,
                 revisionId: true,
                 requirementId: true,
+                description: true,
+                requirement: {
+                    select: {
+                        name: true,
+                    },
+                },
                 revision: {
                     select: {
                         status: true,
@@ -634,28 +738,47 @@ export const updatePositionRequirementDescriptionService = async (
         );
     }
 
-    return prisma.positionRequirementDescription.update({
-        where: {
-            id: descriptionId,
-        },
-        data: {
-            description: normalizedDescription,
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            requirementId: true,
-            description: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-            requirement: {
+    return prisma.$transaction(async (tx) => {
+        const updatedDescription =
+            await tx.positionRequirementDescription.update({
+                where: {
+                    id: descriptionId,
+                },
+                data: {
+                    description: normalizedDescription,
+                },
                 select: {
                     id: true,
-                    name: true,
+                    revisionId: true,
+                    requirementId: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    requirement: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        // Solo se registra si el texto realmente cambió.
+        if (
+            requirementDescription.description !==
+            normalizedDescription
+        ) {
+            await registerRevisionAudit(
+                tx,
+                auditActor,
+                AUDIT_ACTIONS.POSITION_REQUIREMENT_UPDATED,
+                revisionId,
+                `${requirementDescription.requirement.name}: ${shortenAuditText(requirementDescription.description, 80)} → ${shortenAuditText(normalizedDescription, 80)}`
+            );
+        }
+
+        return updatedDescription;
     });
 };
 
@@ -664,7 +787,8 @@ export const deletePositionRequirementDescriptionService = async (
     positionProfileId: number,
     revisionId: number,
     requirementId: number,
-    descriptionId: number
+    descriptionId: number,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -722,6 +846,12 @@ export const deletePositionRequirementDescriptionService = async (
                 id: true,
                 revisionId: true,
                 requirementId: true,
+                description: true,
+                requirement: {
+                    select: {
+                        name: true,
+                    },
+                },
                 revision: {
                     select: {
                         status: true,
@@ -749,28 +879,41 @@ export const deletePositionRequirementDescriptionService = async (
         );
     }
 
-    return prisma.positionRequirementDescription.update({
-        where: {
-            id: descriptionId,
-        },
-        data: {
-            deletedAt: new Date(),
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            requirementId: true,
-            description: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-            requirement: {
+    return prisma.$transaction(async (tx) => {
+        const deletedDescription =
+            await tx.positionRequirementDescription.update({
+                where: {
+                    id: descriptionId,
+                },
+                data: {
+                    deletedAt: new Date(),
+                },
                 select: {
                     id: true,
-                    name: true,
+                    revisionId: true,
+                    requirementId: true,
+                    description: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    requirement: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        await registerRevisionAudit(
+            tx,
+            auditActor,
+            AUDIT_ACTIONS.POSITION_REQUIREMENT_DELETED,
+            revisionId,
+            `${requirementDescription.requirement.name}: eliminó "${shortenAuditText(requirementDescription.description)}"`
+        );
+
+        return deletedDescription;
     });
 };
 
@@ -779,7 +922,8 @@ export const createPositionCompetencyDescriptionService = async (
     positionProfileId: number,
     revisionId: number,
     competencyTypeId: number,
-    competency: string
+    competency: string,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -900,28 +1044,40 @@ export const createPositionCompetencyDescriptionService = async (
         );
     }
 
-    return prisma.positionCompetencyDescription.create({
-        data: {
-            revisionId,
-            competencyTypeId,
-            competency: normalizedCompetency,
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            competencyTypeId: true,
-            competency: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-
-            competencyType: {
+    return prisma.$transaction(async (tx) => {
+        const createdCompetency =
+            await tx.positionCompetencyDescription.create({
+                data: {
+                    revisionId,
+                    competencyTypeId,
+                    competency: normalizedCompetency,
+                },
                 select: {
                     id: true,
-                    name: true,
+                    revisionId: true,
+                    competencyTypeId: true,
+                    competency: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    competencyType: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        await registerRevisionAudit(
+            tx,
+            auditActor,
+            AUDIT_ACTIONS.POSITION_COMPETENCY_ADDED,
+            revisionId,
+            `${competencyType.name}: ${shortenAuditText(normalizedCompetency)}`
+        );
+
+        return createdCompetency;
     });
 };
 
@@ -930,7 +1086,8 @@ export const updatePositionCompetencyDescriptionService = async (
     positionProfileId: number,
     revisionId: number,
     competencyDescriptionId: number,
-    competency: string
+    competency: string,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -1021,6 +1178,11 @@ export const updatePositionCompetencyDescriptionService = async (
                 id: true,
                 competencyTypeId: true,
                 competency: true,
+                competencyType: {
+                    select: {
+                        name: true,
+                    },
+                },
             },
         });
 
@@ -1058,29 +1220,47 @@ export const updatePositionCompetencyDescriptionService = async (
         );
     }
 
-    return prisma.positionCompetencyDescription.update({
-        where: {
-            id: competencyDescriptionId,
-        },
-        data: {
-            competency: normalizedCompetency,
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            competencyTypeId: true,
-            competency: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-
-            competencyType: {
+    return prisma.$transaction(async (tx) => {
+        const updatedCompetency =
+            await tx.positionCompetencyDescription.update({
+                where: {
+                    id: competencyDescriptionId,
+                },
+                data: {
+                    competency: normalizedCompetency,
+                },
                 select: {
                     id: true,
-                    name: true,
+                    revisionId: true,
+                    competencyTypeId: true,
+                    competency: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    competencyType: {
+                        select: {
+                            id: true,
+                            name: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        // Solo se registra si el texto realmente cambió.
+        if (
+            existingCompetency.competency !==
+            normalizedCompetency
+        ) {
+            await registerRevisionAudit(
+                tx,
+                auditActor,
+                AUDIT_ACTIONS.POSITION_COMPETENCY_UPDATED,
+                revisionId,
+                `${existingCompetency.competencyType.name}: ${shortenAuditText(existingCompetency.competency, 80)} → ${shortenAuditText(normalizedCompetency, 80)}`
+            );
+        }
+
+        return updatedCompetency;
     });
 };
 
@@ -1088,7 +1268,8 @@ export const updatePositionCompetencyDescriptionService = async (
 export const deletePositionCompetencyDescriptionService = async (
     positionProfileId: number,
     revisionId: number,
-    competencyDescriptionId: number
+    competencyDescriptionId: number,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -1163,6 +1344,12 @@ export const deletePositionCompetencyDescriptionService = async (
             },
             select: {
                 id: true,
+                competency: true,
+                competencyType: {
+                    select: {
+                        name: true,
+                    },
+                },
             },
         });
 
@@ -1175,20 +1362,33 @@ export const deletePositionCompetencyDescriptionService = async (
     /*
      * Eliminación lógica.
      */
-    return prisma.positionCompetencyDescription.update({
-        where: {
-            id: competencyDescriptionId,
-        },
-        data: {
-            deletedAt: new Date(),
-        },
-        select: {
-            id: true,
-            revisionId: true,
-            competencyTypeId: true,
-            competency: true,
-            deletedAt: true,
-        },
+    return prisma.$transaction(async (tx) => {
+        const deletedCompetency =
+            await tx.positionCompetencyDescription.update({
+                where: {
+                    id: competencyDescriptionId,
+                },
+                data: {
+                    deletedAt: new Date(),
+                },
+                select: {
+                    id: true,
+                    revisionId: true,
+                    competencyTypeId: true,
+                    competency: true,
+                    deletedAt: true,
+                },
+            });
+
+        await registerRevisionAudit(
+            tx,
+            auditActor,
+            AUDIT_ACTIONS.POSITION_COMPETENCY_DELETED,
+            revisionId,
+            `${existingCompetency.competencyType.name}: eliminó "${shortenAuditText(existingCompetency.competency)}"`
+        );
+
+        return deletedCompetency;
     });
 };
 
@@ -1196,7 +1396,8 @@ export const deletePositionCompetencyDescriptionService = async (
 export const updatePositionProfileRevisionService = async (
     positionProfileId: number,
     revisionId: number,
-    changeObservation: string | null
+    changeObservation: string | null,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -1263,39 +1464,53 @@ export const updatePositionProfileRevisionService = async (
         );
     }
 
-    return prisma.positionProfileRevision.update({
-        where: {
-            id: revisionId,
-        },
-        data: {
-            changeObservation:
-                normalizedChangeObservation,
-        },
-        select: {
-            id: true,
-            positionProfileId: true,
-            revisionNumber: true,
-            revisionDate: true,
-            status: true,
-            changeObservation: true,
-            deletedAt: true,
-            updatedAt: true,
-            positionProfile: {
+    return prisma.$transaction(async (tx) => {
+        const updatedRevision =
+            await tx.positionProfileRevision.update({
+                where: {
+                    id: revisionId,
+                },
+                data: {
+                    changeObservation:
+                        normalizedChangeObservation,
+                },
                 select: {
                     id: true,
-                    code: true,
-                    name: true,
-                    homeDepartmentId: true,
+                    positionProfileId: true,
+                    revisionNumber: true,
+                    revisionDate: true,
+                    status: true,
+                    changeObservation: true,
+                    deletedAt: true,
+                    updatedAt: true,
+                    positionProfile: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                            homeDepartmentId: true,
+                        },
+                    },
                 },
-            },
-        },
+            });
+
+        await registerRevisionAudit(
+            tx,
+            auditActor,
+            AUDIT_ACTIONS.POSITION_REVISION_UPDATED,
+            revisionId,
+            "actualizó la observación del cambio"
+        );
+
+        return updatedRevision;
     });
 };
 
 // Publica una revisión de perfil de cargo en estado BORRADOR.
 export const publishPositionProfileRevisionService = async (
     positionProfileId: number,
-    revisionId: number
+    revisionId: number,
+    auditActor: AuditActor
 ) => {
     if (
         !Number.isInteger(positionProfileId) ||
@@ -1465,49 +1680,63 @@ export const publishPositionProfileRevisionService = async (
              * La revisión vigente anterior del mismo cargo,
              * si existe, pasa a estado OBSOLETA.
              */
-            await transaction.positionProfileRevision.updateMany({
-                where: {
-                    positionProfileId,
-                    status: "VIGENTE",
-                    deletedAt: null,
-                    id: {
-                        not: revisionId,
+            const obsoleteResult =
+                await transaction.positionProfileRevision.updateMany({
+                    where: {
+                        positionProfileId,
+                        status: "VIGENTE",
+                        deletedAt: null,
+                        id: {
+                            not: revisionId,
+                        },
                     },
-                },
-                data: {
-                    status: "OBSOLETA",
-                },
-            });
+                    data: {
+                        status: "OBSOLETA",
+                    },
+                });
 
             /*
              * La revisión seleccionada pasa a estado VIGENTE.
              */
-            return transaction.positionProfileRevision.update({
-                where: {
-                    id: revisionId,
-                },
-                data: {
-                    status: "VIGENTE",
-                },
-                select: {
-                    id: true,
-                    positionProfileId: true,
-                    revisionNumber: true,
-                    revisionDate: true,
-                    status: true,
-                    changeObservation: true,
-                    deletedAt: true,
-                    updatedAt: true,
-                    positionProfile: {
-                        select: {
-                            id: true,
-                            code: true,
-                            name: true,
-                            homeDepartmentId: true,
+            const publishedRevision =
+                await transaction.positionProfileRevision.update({
+                    where: {
+                        id: revisionId,
+                    },
+                    data: {
+                        status: "VIGENTE",
+                    },
+                    select: {
+                        id: true,
+                        positionProfileId: true,
+                        revisionNumber: true,
+                        revisionDate: true,
+                        status: true,
+                        changeObservation: true,
+                        deletedAt: true,
+                        updatedAt: true,
+                        positionProfile: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                                homeDepartmentId: true,
+                            },
                         },
                     },
-                },
-            });
+                });
+
+            await registerRevisionAudit(
+                transaction,
+                auditActor,
+                AUDIT_ACTIONS.POSITION_REVISION_PUBLISHED,
+                revisionId,
+                obsoleteResult.count > 0
+                    ? "publicada (la revisión anterior quedó obsoleta)"
+                    : "publicada"
+            );
+
+            return publishedRevision;
         },
         {
             isolationLevel:

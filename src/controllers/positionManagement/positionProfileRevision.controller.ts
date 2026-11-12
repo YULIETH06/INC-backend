@@ -1,6 +1,9 @@
 import type { Response } from "express";
 
 import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
+
+import { getAuditActor } from "../../helpers/audit/auditLog.helper.js";
+
 import type {
     CreatePositionCompetencyDescriptionBody,
     CreatePositionProfileRevisionBody,
@@ -64,7 +67,8 @@ export const createPositionProfileRevision = async (
         const revision =
             await createPositionProfileRevisionService(
                 positionProfileId,
-                changeObservation
+                changeObservation,
+                getAuditActor(req)
             );
 
         return res.status(201).json({
@@ -318,7 +322,8 @@ export const createPositionRequirementDescription = async (
                 positionProfileId,
                 revisionId,
                 requirementId,
-                description
+                description,
+                getAuditActor(req)
             );
 
         return res.status(201).json({
@@ -445,7 +450,8 @@ export const createPositionCompetencyDescription = async (
                 positionProfileId,
                 revisionId,
                 competencyTypeId,
-                competency
+                competency,
+                getAuditActor(req)
             );
 
         return res.status(201).json({
@@ -577,7 +583,8 @@ export const updatePositionCompetencyDescription = async (
                 positionProfileId,
                 revisionId,
                 competencyDescriptionId,
-                competency
+                competency,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -696,7 +703,8 @@ export const deletePositionCompetencyDescription = async (
             await deletePositionCompetencyDescriptionService(
                 positionProfileId,
                 revisionId,
-                competencyDescriptionId
+                competencyDescriptionId,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -921,7 +929,8 @@ export const updatePositionRequirementDescription = async (
                 revisionId,
                 requirementId,
                 descriptionId,
-                description
+                description,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -1053,7 +1062,8 @@ export const deletePositionRequirementDescription = async (
                 positionProfileId,
                 revisionId,
                 requirementId,
-                descriptionId
+                descriptionId,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -1177,7 +1187,8 @@ export const updatePositionProfileRevision = async (
             await updatePositionProfileRevisionService(
                 positionProfileId,
                 revisionId,
-                body.changeObservation
+                body.changeObservation,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -1273,7 +1284,8 @@ export const publishPositionProfileRevision = async (
         const revision =
             await publishPositionProfileRevisionService(
                 positionProfileId,
-                revisionId
+                revisionId,
+                getAuditActor(req)
             );
 
         return res.status(200).json({

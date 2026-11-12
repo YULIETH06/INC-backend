@@ -14,6 +14,10 @@ import {
   registerUserService,
 } from "../../services/auth/auth.service.js";
 
+import {
+  getAuditActor,
+} from "../../helpers/audit/auditLog.helper.js";
+
 // Registra un usuario individual.
 export const registerUser = async (
   req: Request,
@@ -156,7 +160,8 @@ export const changePassword = async (
     await changePasswordService(
       req.user.id,
       currentPassword,
-      newPassword
+      newPassword,
+      getAuditActor(req)
     );
 
     return res.status(200).json({

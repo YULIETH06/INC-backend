@@ -11,6 +11,19 @@ import {
     isValidEmail,
 } from "../../utils/validators.js";
 
+import {
+    createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
 // Error de una regla de la cuenta del usuario.
 // Incluye el código HTTP que debe responder el controlador.
 export class UserAccountError extends Error {
@@ -57,9 +70,9 @@ const getEmailInUseMessage = (
 // y su correo queda libre para que otro usuario pueda registrarse con él.
 export const deactivateUserService = async (
     userId: number,
-    authenticatedUserId: number
+    auditActor: AuditActor
 ) => {
-    if (userId === authenticatedUserId) {
+    if (userId === auditActor.userId) {
         throw new UserAccountError(
             "No puedes desactivar tu propio usuario"
         );
@@ -72,6 +85,7 @@ export const deactivateUserService = async (
             },
             select: {
                 id: true,
+                name: true,
                 isActive: true,
             },
         });
@@ -111,6 +125,18 @@ export const deactivateUserService = async (
             select: userAccountSelect,
         });
 
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USER_DEACTIVATED,
+            entityType: "User",
+            entityId: userId,
+            description:
+                endedAssignments > 0
+                    ? `Desactivó a ${user.name} y se le ${endedAssignments === 1 ? "retiró 1 cargo" : `retiraron ${endedAssignments} cargos`}`
+                    : `Desactivó a ${user.name}`,
+        });
+
         return {
             user: updatedUser,
             endedAssignments,
@@ -131,7 +157,8 @@ export const deactivateUserService = async (
 // Activa nuevamente un usuario desactivado.
 // Solo es posible si ningún otro usuario activo utiliza su correo.
 export const activateUserService = async (
-    userId: number
+    userId: number,
+    auditActor: AuditActor
 ) => {
     const user = await prisma.user.findUnique({
         where: {
@@ -139,6 +166,7 @@ export const activateUserService = async (
         },
         select: {
             id: true,
+            name: true,
             email: true,
             isActive: true,
         },
@@ -174,16 +202,29 @@ export const activateUserService = async (
     }
 
     try {
-        return await prisma.user.update({
-            where: {
-                id: userId,
-            },
-            data: {
-                isActive: true,
-                deactivatedAt: null,
-                activeEmail: user.email,
-            },
-            select: userAccountSelect,
+        return await prisma.$transaction(async (tx) => {
+            const updatedUser = await tx.user.update({
+                where: {
+                    id: userId,
+                },
+                data: {
+                    isActive: true,
+                    deactivatedAt: null,
+                    activeEmail: user.email,
+                },
+                select: userAccountSelect,
+            });
+
+            await createAuditLog(tx, {
+                actor: auditActor,
+                module: AUDIT_MODULES.USERS,
+                action: AUDIT_ACTIONS.USER_ACTIVATED,
+                entityType: "User",
+                entityId: userId,
+                description: `Activó a ${user.name}`,
+            });
+
+            return updatedUser;
         });
     } catch (error) {
         // Otro usuario tomó el correo entre la validación y la actualización.
@@ -202,7 +243,8 @@ export const activateUserService = async (
 // Si el usuario está activo, el correo no puede pertenecer a otro usuario activo.
 export const updateUserEmailService = async (
     userId: number,
-    email: string
+    email: string,
+    auditActor: AuditActor
 ) => {
     const cleanEmail = email.trim().toLowerCase();
 
@@ -224,6 +266,7 @@ export const updateUserEmailService = async (
         },
         select: {
             id: true,
+            name: true,
             email: true,
             isActive: true,
         },
@@ -261,19 +304,32 @@ export const updateUserEmailService = async (
     }
 
     try {
-        return await prisma.user.update({
-            where: {
-                id: userId,
-            },
-            data: {
-                email: cleanEmail,
+        return await prisma.$transaction(async (tx) => {
+            const updatedUser = await tx.user.update({
+                where: {
+                    id: userId,
+                },
+                data: {
+                    email: cleanEmail,
 
-                // Solo los usuarios activos ocupan el correo.
-                activeEmail: user.isActive
-                    ? cleanEmail
-                    : null,
-            },
-            select: userAccountSelect,
+                    // Solo los usuarios activos ocupan el correo.
+                    activeEmail: user.isActive
+                        ? cleanEmail
+                        : null,
+                },
+                select: userAccountSelect,
+            });
+
+            await createAuditLog(tx, {
+                actor: auditActor,
+                module: AUDIT_MODULES.USERS,
+                action: AUDIT_ACTIONS.USER_EMAIL_CHANGED,
+                entityType: "User",
+                entityId: userId,
+                description: `${user.name}: ${user.email} → ${cleanEmail}`,
+            });
+
+            return updatedUser;
         });
     } catch (error) {
         // Otro usuario tomó el correo entre la validación y la actualización.

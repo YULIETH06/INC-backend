@@ -6,6 +6,26 @@ import {
     Role,
 } from "@prisma/client";
 
+import {
+    createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
+// Nombre legible de cada rol para la auditoría.
+const roleLabels: Record<Role, string> = {
+    ADMIN: "Administrador",
+    AGENT: "Agente",
+    USER: "Usuario",
+};
+
 export const getAllUsersService = async () => {
     const users = await prisma.user.findMany({
         orderBy: {
@@ -76,24 +96,53 @@ export const getUserByIdService = async (
 
 export const updateUserRoleService = async (
     id: number,
-    role: Role
+    role: Role,
+    auditActor: AuditActor
 ) => {
-    const user = await prisma.user.update({
-        where: {
-            id,
-        },
-        data: {
-            role,
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-        },
-    });
+    return prisma.$transaction(async (tx) => {
+        // Rol anterior, para registrar el cambio.
+        const currentUser = await tx.user.findUnique({
+            where: {
+                id,
+            },
+            select: {
+                name: true,
+                role: true,
+            },
+        });
 
-    return user;
+        const user = await tx.user.update({
+            where: {
+                id,
+            },
+            data: {
+                role,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+            },
+        });
+
+        // Solo se registra si el rol realmente cambió.
+        if (
+            currentUser &&
+            currentUser.role !== role
+        ) {
+            await createAuditLog(tx, {
+                actor: auditActor,
+                module: AUDIT_MODULES.USERS,
+                action: AUDIT_ACTIONS.USER_ROLE_CHANGED,
+                entityType: "User",
+                entityId: id,
+                description: `${currentUser.name}: ${roleLabels[currentUser.role]} → ${roleLabels[role]}`,
+            });
+        }
+
+        return user;
+    });
 };
 
 export const getAgentsService = async () => {
@@ -121,7 +170,8 @@ export const getAgentsService = async () => {
 // Restablece la contraseña de un usuario desde la administración.
 export const resetUserPasswordService = async (
     userId: number,
-    newPassword: string
+    newPassword: string,
+    auditActor: AuditActor
 ) => {
     const user = await prisma.user.findUnique({
         where: {
@@ -129,6 +179,7 @@ export const resetUserPasswordService = async (
         },
         select: {
             id: true,
+            name: true,
             password: true,
         },
     });
@@ -153,28 +204,40 @@ export const resetUserPasswordService = async (
         10
     );
 
-    const updatedUser = await prisma.user.update({
-        where: {
-            id: userId,
-        },
-        data: {
-            password: hashedPassword,
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-        },
-    });
+    return prisma.$transaction(async (tx) => {
+        const updatedUser = await tx.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                password: hashedPassword,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+            },
+        });
 
-    return updatedUser;
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USER_PASSWORD_RESET,
+            entityType: "User",
+            entityId: userId,
+            description: `Restableció la contraseña de ${user.name}`,
+        });
+
+        return updatedUser;
+    });
 };
 
 // Actualiza la firma del usuario autenticado.
 export const updateUserSignatureService = async (
     userId: number,
-    signatureUrl: string
+    signatureUrl: string,
+    auditActor: AuditActor
 ) => {
     const currentUser = await prisma.user.findUnique({
         where: {
@@ -196,21 +259,32 @@ export const updateUserSignatureService = async (
         );
     }
 
-    const user = await prisma.user.update({
-        where: {
-            id: userId,
-        },
-        data: {
-            signatureUrl,
-        },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            signatureUrl: true,
-        },
-    });
+    return prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                signatureUrl,
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                signatureUrl: true,
+            },
+        });
 
-    return user;
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USER_SIGNATURE_UPDATED,
+            entityType: "User",
+            entityId: userId,
+            description: "Registró su firma",
+        });
+
+        return user;
+    });
 };

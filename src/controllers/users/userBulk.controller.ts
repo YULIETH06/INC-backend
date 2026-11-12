@@ -1,7 +1,14 @@
 import type {
-    Request,
     Response,
 } from "express";
+
+import type {
+    AuthRequest,
+} from "../../interfaces/auth/auth.interface.js";
+
+import {
+    getAuditActor,
+} from "../../helpers/audit/auditLog.helper.js";
 
 import {
     registerUsersBulkService,
@@ -9,7 +16,7 @@ import {
 
 // Permite registrar usuarios mediante carga masiva.
 export const registerUsersBulk = async (
-    req: Request,
+    req: AuthRequest,
     res: Response
 ) => {
     try {
@@ -22,7 +29,8 @@ export const registerUsersBulk = async (
 
         const result =
             await registerUsersBulkService(
-                req.file.buffer
+                req.file.buffer,
+                getAuditActor(req)
             );
 
         return res.status(201).json({

@@ -12,6 +12,14 @@ import {
   getUserPositionAssignmentsService,
 } from "../../services/users/userPositionAssignment.service.js";
 
+import type {
+  AuthRequest,
+} from "../../interfaces/auth/auth.interface.js";
+
+import {
+  getAuditActor,
+} from "../../helpers/audit/auditLog.helper.js";
+
 // Errores que corresponden a un registro inexistente.
 const notFoundErrors: string[] = [
   USER_POSITION_ASSIGNMENT_ERRORS.USER_NOT_FOUND,
@@ -139,7 +147,7 @@ export const getUserPositionAssignments = async (
 
 // Asigna o cambia el cargo de un usuario.
 export const assignUserPosition = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
   try {
@@ -179,7 +187,8 @@ export const assignUserPosition = async (
     const assignment =
       await assignUserPositionService(
         userId,
-        positionId
+        positionId,
+        getAuditActor(req)
       );
 
     return res.status(201).json({
@@ -204,7 +213,7 @@ export const assignUserPosition = async (
 
 // Retira el cargo activo de un usuario.
 export const endUserPositionAssignment = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
   try {
@@ -220,7 +229,8 @@ export const endUserPositionAssignment = async (
     }
 
     await endUserPositionAssignmentService(
-      userId
+      userId,
+      getAuditActor(req)
     );
 
     return res.status(200).json({

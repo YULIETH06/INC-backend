@@ -15,6 +15,19 @@ import {
     isValidEmail,
 } from "../../utils/validators.js";
 
+import {
+    createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
 // Valida que el archivo Excel tenga las columnas requeridas.
 const validateBulkUserColumns = (
     sheet: XLSX.WorkSheet
@@ -77,7 +90,8 @@ const getTotalBulkErrors = (
 // Registra usuarios mediante carga masiva
 // desde un archivo Excel.
 export const registerUsersBulkService = async (
-    fileBuffer: Buffer
+    fileBuffer: Buffer,
+    auditActor: AuditActor
 ) => {
     const workbook = XLSX.read(fileBuffer, {
         type: "buffer",
@@ -389,10 +403,21 @@ export const registerUsersBulkService = async (
             )
         );
 
-    // Registra todos los usuarios
-    // en una sola operación.
-    await prisma.user.createMany({
-        data: usersToCreate,
+    // Registra todos los usuarios en una sola operación
+    // y la acción en la auditoría, dentro de la misma transacción.
+    await prisma.$transaction(async (tx) => {
+        await tx.user.createMany({
+            data: usersToCreate,
+        });
+
+        await createAuditLog(tx, {
+            actor: auditActor,
+            module: AUDIT_MODULES.USERS,
+            action: AUDIT_ACTIONS.USERS_BULK_UPLOADED,
+            entityType: "User",
+            entityId: null,
+            description: `Cargó ${usersToCreate.length} ${usersToCreate.length === 1 ? "usuario" : "usuarios"} desde un archivo`,
+        });
     });
 
     // Consulta los usuarios creados

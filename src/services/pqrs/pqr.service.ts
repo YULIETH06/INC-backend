@@ -12,6 +12,25 @@ import {
   notifyAgentAboutUnassignedPqrService,
 } from "../notifications/pqrs/pqrNotification.service.js";
 
+import {
+  createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+  AUDIT_ACTIONS,
+  AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
+import type {
+  AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
+import {
+  PQR_CASE_TYPE_LABELS,
+  PQR_PRIORITY_LABELS,
+  PQR_STATUS_LABELS,
+} from "../../constants/pqrs/pqr.constants.js";
+
 // Cuenta los mensajes no revisados de una PQR para un usuario específico.
 const getUnreadMessagesCount = async (
   pqrId: number,
@@ -59,47 +78,63 @@ const addUnreadMessagesCountToPqrs = async <T extends { id: number }>(
 };
 
 // Crea una nueva PQR asociada al usuario autenticado
-export const createPqrService = async ({
-  caseType,
-  description,
-  userId,
-  file,
-}: CreatePqrData) => {
-  const pqr = await prisma.pQR.create({
-    data: {
-      caseType,
-      description,
-      userId,
-    },
-    include: {
-      // usuario que creó la PQR
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
+export const createPqrService = async (
+  {
+    caseType,
+    description,
+    userId,
+    file,
+  }: CreatePqrData,
+  auditActor: AuditActor
+) => {
+  const pqr = await prisma.$transaction(async (tx) => {
+    const createdPqr = await tx.pQR.create({
+      data: {
+        caseType,
+        description,
+        userId,
+      },
+      include: {
+        // usuario que creó la PQR
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  // Crea siempre el primer mensaje del chat con la descripción de la PQR.
-  await prisma.pqrMessage.create({
-    data: {
-      content: description,
-      pqrId: pqr.id,
-      senderId: userId,
+    // Crea siempre el primer mensaje del chat con la descripción de la PQR.
+    await tx.pqrMessage.create({
+      data: {
+        content: description,
+        pqrId: createdPqr.id,
+        senderId: userId,
 
-      // Si el usuario adjunta archivo, se asocia al primer mensaje.
-      ...(file && {
-        attachments: {
-          create: buildPqrAttachmentData({
-            file,
-          }),
-        },
-      }),
-    },
+        // Si el usuario adjunta archivo, se asocia al primer mensaje.
+        ...(file && {
+          attachments: {
+            create: buildPqrAttachmentData({
+              file,
+            }),
+          },
+        }),
+      },
+    });
+
+    await createAuditLog(tx, {
+      actor: auditActor,
+      module: AUDIT_MODULES.PQRS,
+      action: AUDIT_ACTIONS.PQR_CREATED,
+      entityType: "PQR",
+      entityId: createdPqr.id,
+      description: `PQR #${createdPqr.id} – ${PQR_CASE_TYPE_LABELS[caseType]}`,
+    });
+
+    return createdPqr;
   });
 
   // Notifica a ADMIN y AGENT que existe una nueva PQR
@@ -166,7 +201,8 @@ export const getAllPqrsService = async () => {
 // Cambia el estado de una PQR
 export const updatePqrStatusService = async (
   id: number,
-  status: PqrStatus
+  status: PqrStatus,
+  auditActor: AuditActor
 ) => {
   const currentPqr = await prisma.pQR.findUnique({
     where: {
@@ -178,13 +214,29 @@ export const updatePqrStatusService = async (
     return null;
   }
 
-  const pqr = await prisma.pQR.update({
-    where: {
-      id,
-    },
-    data: {
-      status,
-    },
+  const pqr = await prisma.$transaction(async (tx) => {
+    const updatedPqr = await tx.pQR.update({
+      where: {
+        id,
+      },
+      data: {
+        status,
+      },
+    });
+
+    // Solo se registra si el estado realmente cambió.
+    if (currentPqr.status !== status) {
+      await createAuditLog(tx, {
+        actor: auditActor,
+        module: AUDIT_MODULES.PQRS,
+        action: AUDIT_ACTIONS.PQR_STATUS_CHANGED,
+        entityType: "PQR",
+        entityId: id,
+        description: `PQR #${id}: ${PQR_STATUS_LABELS[currentPqr.status]} → ${PQR_STATUS_LABELS[status]}`,
+      });
+    }
+
+    return updatedPqr;
   });
 
   // Notifica al USER solo cuando la PQR cambia a CERRADA
@@ -225,46 +277,58 @@ export const getAvailablePqrsService = async () => {
 // Permite que un AGENT tome una PQR sin cambiar su estado
 export const takePqrService = async (
   pqrId: number,
-  agentId: number
+  agentId: number,
+  auditActor: AuditActor
 ) => {
-  const result = await prisma.pQR.updateMany({
-    where: {
-      id: pqrId,
-      assignedToId: null,
-    },
-    data: {
-      assignedToId: agentId,
-    },
-  });
+  const pqr = await prisma.$transaction(async (tx) => {
+    const result = await tx.pQR.updateMany({
+      where: {
+        id: pqrId,
+        assignedToId: null,
+      },
+      data: {
+        assignedToId: agentId,
+      },
+    });
 
-  if (result.count === 0) {
-    return null;
-  }
+    if (result.count === 0) {
+      return null;
+    }
 
-  const pqr = await prisma.pQR.findUnique({
-    where: {
-      id: pqrId,
-    },
-    include: {
-      // usuario que creó la PQR
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
+    await createAuditLog(tx, {
+      actor: auditActor,
+      module: AUDIT_MODULES.PQRS,
+      action: AUDIT_ACTIONS.PQR_TAKEN,
+      entityType: "PQR",
+      entityId: pqrId,
+      description: `Tomó la PQR #${pqrId}`,
+    });
+
+    return tx.pQR.findUnique({
+      where: {
+        id: pqrId,
+      },
+      include: {
+        // usuario que creó la PQR
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        // agente que tomó la PQR
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
         },
       },
-      // agente que tomó la PQR
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-    },
+    });
   });
 
   if (!pqr || !pqr.assignedTo) {
@@ -285,7 +349,7 @@ export const takePqrService = async (
   await notifyUserAboutTakenPqrService(
     pqr.user.id,
     pqr.id
-  )
+  );
 
   return pqr;
 };
@@ -293,11 +357,19 @@ export const takePqrService = async (
 // Permite que un ADMIN asigne o reasigne una PQR a un AGENT específico.
 export const assignPqrService = async (
   pqrId: number,
-  agentId: number
+  agentId: number,
+  auditActor: AuditActor
 ) => {
   const pqrExists = await prisma.pQR.findUnique({
     where: {
       id: pqrId,
+    },
+    include: {
+      assignedTo: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 
@@ -329,31 +401,49 @@ export const assignPqrService = async (
 
   const previousAgentId = pqrExists.assignedToId;
 
-  const pqr = await prisma.pQR.update({
-    where: {
-      id: pqrId,
-    },
-    data: {
-      assignedToId: agentId,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
+  const pqr = await prisma.$transaction(async (tx) => {
+    const updatedPqr = await tx.pQR.update({
+      where: {
+        id: pqrId,
+      },
+      data: {
+        assignedToId: agentId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
         },
       },
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-    },
+    });
+
+    // Solo se registra si el agente realmente cambió.
+    if (previousAgentId !== agentId) {
+      await createAuditLog(tx, {
+        actor: auditActor,
+        module: AUDIT_MODULES.PQRS,
+        action: AUDIT_ACTIONS.PQR_AGENT_ASSIGNED,
+        entityType: "PQR",
+        entityId: pqrId,
+        description: pqrExists.assignedTo
+          ? `PQR #${pqrId} reasignada de ${pqrExists.assignedTo.name} a ${agent.name}`
+          : `PQR #${pqrId} asignada a ${agent.name}`,
+      });
+    }
+
+    return updatedPqr;
   });
 
   // Notifica al nuevo AGENT que recibió la PQR.
@@ -382,10 +472,20 @@ export const assignPqrService = async (
 };
 
 // Permite que un ADMIN quite el AGENT asignado de una PQR.
-export const unassignPqrService = async (pqrId: number) => {
+export const unassignPqrService = async (
+  pqrId: number,
+  auditActor: AuditActor
+) => {
   const pqrExists = await prisma.pQR.findUnique({
     where: {
       id: pqrId,
+    },
+    include: {
+      assignedTo: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 
@@ -403,31 +503,44 @@ export const unassignPqrService = async (pqrId: number) => {
 
   const previousAgentId = pqrExists.assignedToId;
 
-  const pqr = await prisma.pQR.update({
-    where: {
-      id: pqrId,
-    },
-    data: {
-      assignedToId: null,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
+  const pqr = await prisma.$transaction(async (tx) => {
+    const updatedPqr = await tx.pQR.update({
+      where: {
+        id: pqrId,
+      },
+      data: {
+        assignedToId: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
         },
       },
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-    },
+    });
+
+    await createAuditLog(tx, {
+      actor: auditActor,
+      module: AUDIT_MODULES.PQRS,
+      action: AUDIT_ACTIONS.PQR_AGENT_UNASSIGNED,
+      entityType: "PQR",
+      entityId: pqrId,
+      description: `Quitó a ${pqrExists.assignedTo?.name ?? "el agente"} de la PQR #${pqrId}`,
+    });
+
+    return updatedPqr;
   });
 
   // Notifica al AGENT que fue retirado de la PQR.
@@ -503,54 +616,96 @@ export const getPqrWithAssignedService = async (pqrId: number) => {
 // Cambia la prioridad de una PQR.
 export const updatePqrPriorityService = async (
   pqrId: number,
-  priority: PqrPriority
+  priority: PqrPriority,
+  auditActor: AuditActor
 ) => {
-  const pqr = await prisma.pQR.update({
-    where: {
-      id: pqrId,
-    },
-    data: {
-      priority,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    // Prioridad anterior, para registrar el cambio.
+    const currentPqr = await tx.pQR.findUnique({
+      where: {
+        id: pqrId,
+      },
+      select: {
+        priority: true,
+      },
+    });
 
-  return pqr;
+    const pqr = await tx.pQR.update({
+      where: {
+        id: pqrId,
+      },
+      data: {
+        priority,
+      },
+    });
+
+    // Solo se registra si la prioridad realmente cambió.
+    if (
+      currentPqr &&
+      currentPqr.priority !== priority
+    ) {
+      await createAuditLog(tx, {
+        actor: auditActor,
+        module: AUDIT_MODULES.PQRS,
+        action: AUDIT_ACTIONS.PQR_PRIORITY_CHANGED,
+        entityType: "PQR",
+        entityId: pqrId,
+        description: `PQR #${pqrId}: ${currentPqr.priority ? PQR_PRIORITY_LABELS[currentPqr.priority] : "Sin prioridad"} → ${PQR_PRIORITY_LABELS[priority]}`,
+      });
+    }
+
+    return pqr;
+  });
 };
 
 // Permite calificar una PQR cerrada
 export const ratePqrService = async (
   pqrId: number,
-  data: RatePqrData
+  data: RatePqrData,
+  auditActor: AuditActor
 ) => {
-  const pqr = await prisma.pQR.update({
-    where: {
-      id: pqrId,
-    },
-    data: {
-      rating: data.rating,
-      ratingComment: data.ratingComment ?? null,
-      ratedAt: new Date(),
-    },
-    include: {
-      // usuario que creó y calificó la PQR
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
+  const pqr = await prisma.$transaction(async (tx) => {
+    const ratedPqr = await tx.pQR.update({
+      where: {
+        id: pqrId,
+      },
+      data: {
+        rating: data.rating,
+        ratingComment: data.ratingComment ?? null,
+        ratedAt: new Date(),
+      },
+      include: {
+        // usuario que creó y calificó la PQR
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
+        },
+        // agente asignado a la PQR
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+          },
         },
       },
-      // agente asignado a la PQR
-      assignedTo: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-    },
+    });
+
+    await createAuditLog(tx, {
+      actor: auditActor,
+      module: AUDIT_MODULES.PQRS,
+      action: AUDIT_ACTIONS.PQR_RATED,
+      entityType: "PQR",
+      entityId: pqrId,
+      description: `Calificó la PQR #${pqrId} con ${data.rating} ${data.rating === 1 ? "estrella" : "estrellas"}`,
+    });
+
+    return ratedPqr;
   });
 
   // Notifica a los ADMIN y al AGENT asignado que la PQR fue calificada

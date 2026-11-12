@@ -1,4 +1,7 @@
 import type { Response } from "express";
+
+import { PqrStatus, PqrCaseType, PqrPriority } from "@prisma/client";
+
 import {
   createPqrService,
   getMyPqrsService,
@@ -14,8 +17,10 @@ import {
   assignPqrService,
   unassignPqrService,
 } from "../../services/pqrs/pqr.service.js";
+
 import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
-import { PqrStatus, PqrCaseType, PqrPriority } from "@prisma/client";
+
+import { getAuditActor } from "../../helpers/audit/auditLog.helper.js";
 
 export const createPqr = async (
   req: AuthRequest,
@@ -63,12 +68,15 @@ export const createPqr = async (
       });
     }
 
-    const pqr = await createPqrService({
-      caseType,
-      description,
-      userId: req.user.id,
-      file: req.file,
-    });
+    const pqr = await createPqrService(
+      {
+        caseType,
+        description,
+        userId: req.user.id,
+        file: req.file,
+      },
+      getAuditActor(req)
+    );
 
     return res.status(201).json({
       message: "PQR creada correctamente",
@@ -173,7 +181,8 @@ export const updatePqrStatus = async (
 
     const pqr = await updatePqrStatusService(
       pqrId,
-      status
+      status,
+      getAuditActor(req)
     );
 
     return res.json({
@@ -250,7 +259,11 @@ export const takePqrController = async (
       });
     }
 
-    const pqr = await takePqrService(pqrId, agentId);
+    const pqr = await takePqrService(
+      pqrId,
+      agentId,
+      getAuditActor(req)
+    );
 
     if (!pqr) {
       return res.status(400).json({
@@ -299,7 +312,11 @@ export const assignPqrController = async (
       });
     }
 
-    const pqr = await assignPqrService(pqrId, cleanAgentId);
+    const pqr = await assignPqrService(
+      pqrId,
+      cleanAgentId,
+      getAuditActor(req)
+    );
 
     return res.status(200).json({
       message: "Responsable de la PQR actualizado correctamente",
@@ -331,7 +348,10 @@ export const unassignPqrController = async (
       });
     }
 
-    const pqr = await unassignPqrService(pqrId);
+    const pqr = await unassignPqrService(
+      pqrId,
+      getAuditActor(req)
+    );
 
     return res.status(200).json({
       message: "PQR desasignada correctamente",
@@ -440,7 +460,11 @@ export const updatePqrPriorityController = async (
       });
     }
 
-    const pqr = await updatePqrPriorityService(pqrId, priority);
+    const pqr = await updatePqrPriorityService(
+      pqrId,
+      priority,
+      getAuditActor(req)
+    );
 
     return res.status(200).json({
       message: "Prioridad de la PQR actualizada correctamente",
@@ -525,10 +549,14 @@ export const ratePqrController = async (
       });
     }
 
-    const pqr = await ratePqrService(pqrId, {
-      rating: ratingValue,
-      ratingComment: ratingComment?.trim(),
-    });
+    const pqr = await ratePqrService(
+      pqrId,
+      {
+        rating: ratingValue,
+        ratingComment: ratingComment?.trim(),
+      },
+      getAuditActor(req)
+    );
 
     return res.status(200).json({
       message: "PQR calificada correctamente",

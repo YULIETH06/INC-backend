@@ -7,14 +7,47 @@ import type {
   RegisterUserData,
 } from "../../interfaces/auth/auth.interface.js";
 
+import type {
+  AuditActor,
+} from "../../interfaces/audit/auditLog.interface.js";
+
 import {
   containsOnlyLetters,
   isValidEmail,
 } from "../../utils/validators.js";
 
+import {
+  createAuditLog,
+} from "../../helpers/audit/auditLog.helper.js";
+
+import {
+  AUDIT_ACTIONS,
+  AUDIT_MODULES,
+} from "../../constants/audit/auditLog.constants.js";
+
 // Mensaje para un usuario desactivado que intenta usar el sistema.
 export const USER_INACTIVE_MESSAGE =
   "Tu usuario está desactivado. Comunícate con el administrador.";
+
+// Registra en la auditoría un intento fallido de inicio de sesión.
+const registerFailedLogin = async (
+  email: string,
+  description: string,
+  userId: number | null = null
+) => {
+  await createAuditLog(prisma, {
+    actor: {
+      userId: null,
+      email,
+      role: null,
+    },
+    module: AUDIT_MODULES.AUTH,
+    action: AUDIT_ACTIONS.LOGIN_FAILED,
+    entityType: "User",
+    entityId: userId,
+    description,
+  });
+};
 
 // Registra un usuario individual.
 export const registerUserService = async ({
@@ -90,26 +123,45 @@ export const registerUserService = async ({
       10
     );
 
-  // Crea el usuario y retorna únicamente
-  // los datos seguros necesarios para la respuesta.
+  // Crea el usuario y registra la acción en la auditoría.
   const user =
-    await prisma.user.create({
-      data: {
-        name: cleanName,
-        email: cleanEmail,
-        activeEmail: cleanEmail,
-        password:
-          hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    await prisma.$transaction(
+      async (tx) => {
+        const createdUser =
+          await tx.user.create({
+            data: {
+              name: cleanName,
+              email: cleanEmail,
+              activeEmail: cleanEmail,
+              password:
+                hashedPassword,
+            },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+
+        await createAuditLog(tx, {
+          actor: {
+            userId: createdUser.id,
+            email: createdUser.email,
+            role: createdUser.role,
+          },
+          module: AUDIT_MODULES.AUTH,
+          action: AUDIT_ACTIONS.USER_REGISTERED,
+          entityType: "User",
+          entityId: createdUser.id,
+          description: "Creó su cuenta",
+        });
+
+        return createdUser;
+      }
+    );
 
   return user;
 };
@@ -164,6 +216,7 @@ export const loginUserService = async (
           isActive: false,
         },
         select: {
+          id: true,
           password: true,
         },
         orderBy: {
@@ -171,17 +224,40 @@ export const loginUserService = async (
         },
       });
 
-    if (
-      inactiveUser &&
+    if (!inactiveUser) {
+      await registerFailedLogin(
+        cleanEmail,
+        "El correo no está registrado"
+      );
+
+      throw new Error(
+        "Credenciales inválidas"
+      );
+    }
+
+    const validInactivePassword =
       await bcrypt.compare(
         password,
         inactiveUser.password
-      )
-    ) {
+      );
+
+    if (validInactivePassword) {
+      await registerFailedLogin(
+        cleanEmail,
+        "Usuario desactivado",
+        inactiveUser.id
+      );
+
       throw new Error(
         USER_INACTIVE_MESSAGE
       );
     }
+
+    await registerFailedLogin(
+      cleanEmail,
+      "Contraseña incorrecta",
+      inactiveUser.id
+    );
 
     throw new Error(
       "Credenciales inválidas"
@@ -196,6 +272,12 @@ export const loginUserService = async (
     );
 
   if (!validPassword) {
+    await registerFailedLogin(
+      cleanEmail,
+      "Contraseña incorrecta",
+      user.id
+    );
+
     throw new Error(
       "Credenciales inválidas"
     );
@@ -213,6 +295,20 @@ export const loginUserService = async (
       expiresIn: "1d",
     }
   );
+
+  // Registra el inicio de sesión exitoso.
+  await createAuditLog(prisma, {
+    actor: {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    module: AUDIT_MODULES.AUTH,
+    action: AUDIT_ACTIONS.LOGIN_SUCCESS,
+    entityType: "User",
+    entityId: user.id,
+    description: "Ingresó al sistema",
+  });
 
   // Obtiene únicamente los cargos activos.
   const positions =
@@ -239,7 +335,8 @@ export const loginUserService = async (
 export const changePasswordService = async (
   userId: number,
   currentPassword: string,
-  newPassword: string
+  newPassword: string,
+  auditActor: AuditActor
 ) => {
   // Busca únicamente los datos necesarios
   // para validar la contraseña.
@@ -293,13 +390,27 @@ export const changePasswordService = async (
       10
     );
 
-  await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      password:
-        hashedPassword,
-    },
-  });
+  // Actualiza la contraseña y registra la acción en la auditoría
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          password:
+            hashedPassword,
+        },
+      });
+
+      await createAuditLog(tx, {
+        actor: auditActor,
+        module: AUDIT_MODULES.AUTH,
+        action: AUDIT_ACTIONS.OWN_PASSWORD_CHANGED,
+        entityType: "User",
+        entityId: userId,
+        description: "Cambió su propia contraseña",
+      });
+    }
+  );
 };

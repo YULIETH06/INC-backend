@@ -229,6 +229,8 @@ model User {
 
   personnelCandidateCompetencyEvaluations PersonnelCandidateCompetencyEvaluation[] @relation("PerformedCompetencyEvaluations")
 
+  auditLogs AuditLog[] @relation("AuditLogActor")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -976,4 +978,27 @@ model PersonnelHiringConfirmationApproval {
   @@index([approverUserId])
   @@index([decision])
   @@index([isCurrent])
+}
+
+model AuditLog {
+  id Int @id @default(autoincrement())
+
+  actorUserId Int?
+  actorUser   User?   @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorName   String? @db.VarChar(150)
+  actorEmail  String? @db.VarChar(150)
+  actorRole   Role?
+
+  module      String @db.VarChar(50)
+  action      String @db.VarChar(80)
+  entityType  String @db.VarChar(80)
+  entityId    Int?
+  description String @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([module])
+  @@index([action])
+  @@index([createdAt])
 }

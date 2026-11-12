@@ -13,6 +13,10 @@ import {
     updateUserEmailService,
 } from "../../services/users/userAccount.service.js";
 
+import {
+    getAuditActor,
+} from "../../helpers/audit/auditLog.helper.js";
+
 // Convierte el id recibido en la ruta en un número válido.
 const parseUserId = (
     value: unknown
@@ -73,7 +77,7 @@ export const deactivateUser = async (
         const result =
             await deactivateUserService(
                 userId,
-                req.user.id
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -109,7 +113,8 @@ export const activateUser = async (
 
         const user =
             await activateUserService(
-                userId
+                userId,
+                getAuditActor(req)
             );
 
         return res.status(200).json({
@@ -158,7 +163,8 @@ export const updateUserEmail = async (
         const user =
             await updateUserEmailService(
                 userId,
-                email
+                email,
+                getAuditActor(req)
             );
 
         return res.status(200).json({

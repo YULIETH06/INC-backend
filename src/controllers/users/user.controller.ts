@@ -19,6 +19,10 @@ import type {
   AuthRequest,
 } from "../../interfaces/auth/auth.interface.js";
 
+import {
+  getAuditActor,
+} from "../../helpers/audit/auditLog.helper.js";
+
 export const getUsers = async (
   req: Request,
   res: Response
@@ -62,7 +66,7 @@ export const getAgents = async (
 };
 
 export const updateUserRole = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
   try {
@@ -122,7 +126,8 @@ export const updateUserRole = async (
     const updatedUser =
       await updateUserRoleService(
         userId,
-        role
+        role,
+        getAuditActor(req)
       );
 
     return res.status(200).json({
@@ -141,7 +146,7 @@ export const updateUserRole = async (
 
 // Permite al administrador restablecer la contraseña de un usuario.
 export const resetUserPassword = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ) => {
   try {
@@ -186,7 +191,8 @@ export const resetUserPassword = async (
     const updatedUser =
       await resetUserPasswordService(
         userId,
-        newPassword
+        newPassword,
+        getAuditActor(req)
       );
 
     if (!updatedUser) {
@@ -247,7 +253,8 @@ export const uploadUserSignatureController =
       const user =
         await updateUserSignatureService(
           req.user.id,
-          signatureUrl
+          signatureUrl,
+          getAuditActor(req)
         );
 
       return res.status(200).json({

@@ -1,19 +1,25 @@
 import prisma from "../../../config/client.js";
+
 import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
+
 import type {
     CreatePersonnelRequisitionData,
     DecidePersonnelRequisitionData,
 } from "../../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
+
 import {
     buildRequisitionApprovalFlow,
     getApprovalStepsFromCreatorLevel,
 } from "../../../helpers/humanTalent/requisitions/requisitionApprovalFlow.helper.js";
+
 import { validatePersonnelRequisitionCreator } from "../../../helpers/humanTalent/requisitions/requisitionCreator.helper.js";
+
 import {
     buildRequisitionOwnerWhere,
     getActivePositionIdsByUser,
     getRequisitionOwnerUserId,
 } from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
+
 import {
     notifyRequisitionNextApprovalService,
     notifyRequisitionPendingApprovalService,
@@ -21,23 +27,40 @@ import {
     notifyRequisitionRejectedService
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 
+import {
+    createAuditLog,
+    shortenAuditText,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
+import type {
+    AuditActor,
+} from "../../../interfaces/audit/auditLog.interface.js";
+
 type AuthenticatedUser = NonNullable<AuthRequest["user"]>;
 
 // Crea una requisición de personal y genera su flujo de aprobación.
-export const createPersonnelRequisitionService = async ({
-    departmentId,
-    positionId,
-    positionRevisionId,
-    reason,
-    otherReason,
-    cityId,
-    contractType,
-    directContractType,
-    contractDurationMonths,
-    internContractType,
-    proposedSalary,
-    createdById,
-}: CreatePersonnelRequisitionData) => {
+export const createPersonnelRequisitionService = async (
+    {
+        departmentId,
+        positionId,
+        positionRevisionId,
+        reason,
+        otherReason,
+        cityId,
+        contractType,
+        directContractType,
+        contractDurationMonths,
+        internContractType,
+        proposedSalary,
+        createdById,
+    }: CreatePersonnelRequisitionData,
+    auditActor: AuditActor
+) => {
     const department = await prisma.department.findFirst({
         where: {
             id: departmentId,
