@@ -7,6 +7,7 @@ import {
   getAgents,
   updateUserRole,
   resetUserPassword,
+    getUserSignatureController,
   uploadUserSignatureController,
 } from "../../controllers/users/user.controller.js";
 
@@ -130,6 +131,13 @@ router.patch(
   authMiddleware,
   roleMiddleware(["ADMIN"]),
   resetUserPassword
+);
+
+// Obtiene la firma registrada del usuario autenticado.
+router.get(
+  "/signature",
+  authMiddleware,
+  getUserSignatureController
 );
 
 router.patch(
