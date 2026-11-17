@@ -12,6 +12,16 @@ import {
     validatePersonnelCandidateManager,
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 
+import {
+    createAuditLog,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
 // Completa la Fase 5 - Evaluación de Competencias.
 // Registra las pruebas psicotécnicas, las competencias evaluadas
 // y el concepto general en una sola transacción.
@@ -37,6 +47,8 @@ export const completePersonnelCandidateCompetencyEvaluationService = async (
 
             select: {
                 id: true,
+                name: true,
+                requisitionId: true,
 
                 requisition: {
                     select: {
@@ -273,6 +285,16 @@ export const completePersonnelCandidateCompetencyEvaluationService = async (
                         },
                     },
                 });
+
+            // Registra la evaluación de competencias en la auditoría.
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.COMPETENCY_EVALUATION_COMPLETED,
+                entityType: "PersonnelRequisitionCandidate",
+                entityId: candidate.id,
+                description: `${candidate.name} – Requisición #${candidate.requisitionId}: ${data.isSuitable ? "apto" : "no apto"}`,
+            });
 
             const validation =
                 await tx.personnelCandidateValidation.update({

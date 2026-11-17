@@ -12,6 +12,16 @@ import {
     validatePersonnelCandidateManager,
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 
+import {
+    createAuditLog,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
 // Completa la Fase 3 - Validación del postulante.
 export const completePersonnelCandidateValidationService = async (
     data: CompletePersonnelCandidateValidationData,
@@ -33,6 +43,8 @@ export const completePersonnelCandidateValidationService = async (
             },
             select: {
                 id: true,
+                name: true,
+                requisitionId: true,
                 requisition: {
                     select: {
                         positionRevision: {
@@ -198,6 +210,21 @@ export const completePersonnelCandidateValidationService = async (
         async (tx) => {
             await tx.personnelCandidateRequirementValidation.createMany({
                 data: normalizedRequirementValidations,
+            });
+
+            // Registra la validación del postulante en la auditoría.
+            const compliedCount =
+                normalizedRequirementValidations.filter(
+                    (validation) => validation.complies
+                ).length;
+
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATE_REQUIREMENTS_VALIDATED,
+                entityType: "PersonnelRequisitionCandidate",
+                entityId: candidate.id,
+                description: `${candidate.name} – Requisición #${candidate.requisitionId}: ${data.isSuitable ? "apto" : "no apto"} (cumple ${compliedCount} de ${normalizedRequirementValidations.length} requisitos)`,
             });
 
             return tx.personnelCandidateValidation.update({

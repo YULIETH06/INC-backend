@@ -81,3 +81,6 @@ export type AuditModule =
 
 export type AuditAction =
     typeof AUDIT_ACTIONS[keyof typeof AUDIT_ACTIONS];
+
+// Cantidad máxima de registros que devuelve una consulta.
+export const AUDIT_LOG_QUERY_LIMIT = 500;

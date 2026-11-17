@@ -21,3 +21,13 @@ export interface CreateAuditLogData {
     entityId?: number | null;
     description: string;
 }
+
+// Filtros para consultar la auditoría.
+export interface AuditLogFilters {
+    module?: AuditModule | undefined;
+    action?: AuditAction | undefined;
+    actorUserId?: number | undefined;
+    search?: string | undefined;
+    dateFrom?: string | undefined;
+    dateTo?: string | undefined;
+}

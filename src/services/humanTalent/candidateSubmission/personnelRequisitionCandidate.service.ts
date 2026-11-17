@@ -21,6 +21,17 @@ import {
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 import { getPersonnelRequisitionByIdService } from "../requisitions/personnelRequisition.service.js";
 
+import {
+    createAuditLog,
+    shortenAuditText,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
 // Registra un candidato y su hoja de vida.
 export const createPersonnelRequisitionCandidateService = async (
     data: CreatePersonnelRequisitionCandidateData,
@@ -121,68 +132,82 @@ export const createPersonnelRequisitionCandidateService = async (
         );
     }
 
-    const candidate =
-        await prisma.personnelRequisitionCandidate.create({
-            data: {
-                requisitionId: data.requisitionId,
+    const candidate = await prisma.$transaction(async (tx) => {
+        const createdCandidate =
+            await tx.personnelRequisitionCandidate.create({
+                data: {
+                    requisitionId: data.requisitionId,
 
-                identificationTypeId:
-                    data.identificationTypeId,
+                    identificationTypeId:
+                        data.identificationTypeId,
 
-                identificationNumber:
-                    data.identificationNumber,
+                    identificationNumber:
+                        data.identificationNumber,
 
-                name: data.name,
-                observation: data.observation,
+                    name: data.name,
+                    observation: data.observation,
 
-                originalName: data.originalName,
-                fileName: data.fileName,
-                fileUrl: data.fileUrl,
-                mimeType: data.mimeType,
-                fileSize: data.fileSize,
+                    originalName: data.originalName,
+                    fileName: data.fileName,
+                    fileUrl: data.fileUrl,
+                    mimeType: data.mimeType,
+                    fileSize: data.fileSize,
 
-                uploadedById: authenticatedUser.id,
-            },
-
-            select: {
-                id: true,
-                requisitionId: true,
-
-                identificationTypeId: true,
-                identificationNumber: true,
-
-                name: true,
-                observation: true,
-
-                originalName: true,
-                fileName: true,
-                fileUrl: true,
-                mimeType: true,
-                fileSize: true,
-
-                uploadedById: true,
-
-                createdAt: true,
-                updatedAt: true,
-
-                identificationType: {
-                    select: {
-                        id: true,
-                        code: true,
-                        name: true,
-                    },
+                    uploadedById: authenticatedUser.id,
                 },
 
-                uploadedBy: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        role: true,
+                select: {
+                    id: true,
+                    requisitionId: true,
+
+                    identificationTypeId: true,
+                    identificationNumber: true,
+
+                    name: true,
+                    observation: true,
+
+                    originalName: true,
+                    fileName: true,
+                    fileUrl: true,
+                    mimeType: true,
+                    fileSize: true,
+
+                    uploadedById: true,
+
+                    createdAt: true,
+                    updatedAt: true,
+
+                    identificationType: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+
+                    uploadedBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            role: true,
+                        },
                     },
                 },
-            },
+            });
+
+        // Registra el cargue del candidato en la auditoría.
+        await createAuditLog(tx, {
+            actor: toAuditActor(authenticatedUser),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: AUDIT_ACTIONS.CANDIDATE_UPLOADED,
+            entityType: "PersonnelRequisitionCandidate",
+            entityId: createdCandidate.id,
+            description: `Requisición #${data.requisitionId} – ${createdCandidate.name}`,
         });
+
+        return createdCandidate;
+    });
 
     return candidate;
 };
@@ -776,6 +801,21 @@ export const closePersonnelRequisitionCandidatesService = async (
                 },
             });
 
+            // Registra el cierre en la auditoría.
+            const lateReasonText =
+                isLateFirstClosure && cleanLateReason
+                    ? `. Motivo del retraso: ${shortenAuditText(cleanLateReason)}`
+                    : "";
+
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATE_SUBMISSION_CLOSED,
+                entityType: "PersonnelRequisition",
+                entityId: requisitionId,
+                description: `Requisición #${requisitionId} – cerró la recepción de candidatos (cargue ${submissionNumber}, ${candidatesAtClosure.length} ${candidatesAtClosure.length === 1 ? "candidato" : "candidatos"})${lateReasonText}`,
+            });
+
             return updated;
         });
 
@@ -920,6 +960,16 @@ export const reopenPersonnelRequisitionCandidatesService = async (
                 },
             });
 
+            // Registra la reapertura en la auditoría.
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATE_SUBMISSION_REOPENED,
+                entityType: "PersonnelRequisition",
+                entityId: requisitionId,
+                description: `Requisición #${requisitionId} – reabrió la recepción de candidatos. Motivo: ${shortenAuditText(cleanReason)}`,
+            });
+
             return updated;
         });
 
@@ -1027,10 +1077,22 @@ export const deletePersonnelRequisitionCandidateService =
             );
         }
 
-        await prisma.personnelRequisitionCandidate.delete({
-            where: {
-                id: candidate.id,
-            },
+        await prisma.$transaction(async (tx) => {
+            await tx.personnelRequisitionCandidate.delete({
+                where: {
+                    id: candidate.id,
+                },
+            });
+
+            // Registra la eliminación en la auditoría.
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATE_DELETED,
+                entityType: "PersonnelRequisitionCandidate",
+                entityId: candidate.id,
+                description: `Requisición #${requisitionId} – ${candidate.name}`,
+            });
         });
 
         return candidate;
@@ -1097,6 +1159,7 @@ export const updatePersonnelRequisitionCandidateService =
                 },
                 select: {
                     id: true,
+                    name: true,
                     fileName: true,
                     identificationTypeId: true,
                     identificationNumber: true,
@@ -1255,47 +1318,71 @@ export const updatePersonnelRequisitionCandidateService =
                 newFileSize;
         }
 
-        const updatedCandidate =
-            await prisma.personnelRequisitionCandidate.update({
-                where: {
-                    id: currentCandidate.id,
-                },
-                data: updateData,
-                select: {
-                    id: true,
-                    requisitionId: true,
+        const updatedCandidate = await prisma.$transaction(async (tx) => {
+            const candidateAfterUpdate =
+                await tx.personnelRequisitionCandidate.update({
+                    where: {
+                        id: currentCandidate.id,
+                    },
+                    data: updateData,
+                    select: {
+                        id: true,
+                        requisitionId: true,
 
-                    identificationTypeId: true,
-                    identificationNumber: true,
+                        identificationTypeId: true,
+                        identificationNumber: true,
 
-                    identificationType: {
-                        select: {
-                            id: true,
-                            code: true,
-                            name: true,
+                        identificationType: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                            },
+                        },
+
+                        name: true,
+                        observation: true,
+                        originalName: true,
+                        fileName: true,
+                        fileUrl: true,
+                        mimeType: true,
+                        fileSize: true,
+                        uploadedById: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        uploadedBy: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                role: true,
+                            },
                         },
                     },
+                });
 
-                    name: true,
-                    observation: true,
-                    originalName: true,
-                    fileName: true,
-                    fileUrl: true,
-                    mimeType: true,
-                    fileSize: true,
-                    uploadedById: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    uploadedBy: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                            role: true,
-                        },
-                    },
-                },
+            // Registra la actualización en la auditoría.
+            const nameText =
+                currentCandidate.name !== candidateAfterUpdate.name
+                    ? `${currentCandidate.name} → ${candidateAfterUpdate.name}`
+                    : candidateAfterUpdate.name;
+
+            const resumeText =
+                newFileName !== undefined
+                    ? " (actualizó la hoja de vida)"
+                    : "";
+
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATE_UPDATED,
+                entityType: "PersonnelRequisitionCandidate",
+                entityId: currentCandidate.id,
+                description: `Requisición #${data.requisitionId} – ${nameText}${resumeText}`,
             });
+
+            return candidateAfterUpdate;
+        });
 
         return {
             candidate: updatedCandidate,
@@ -1419,20 +1506,37 @@ export const preselectPersonnelRequisitionCandidatesService =
 
         const preselectedAt = new Date();
 
-        await prisma.personnelRequisitionCandidate.updateMany({
-            where: {
-                requisitionId,
-                id: {
-                    in: uniqueCandidateIds,
+        await prisma.$transaction(async (tx) => {
+            await tx.personnelRequisitionCandidate.updateMany({
+                where: {
+                    requisitionId,
+                    id: {
+                        in: uniqueCandidateIds,
+                    },
+                    isPreselected: false,
                 },
-                isPreselected: false,
-            },
-            data: {
-                isPreselected: true,
-                preselectedAt,
-                preselectedById:
-                    authenticatedUser.id,
-            },
+                data: {
+                    isPreselected: true,
+                    preselectedAt,
+                    preselectedById:
+                        authenticatedUser.id,
+                },
+            });
+
+            // Registra la preselección en la auditoría.
+            const candidateNames =
+                candidates
+                    .map((candidate) => candidate.name)
+                    .join(", ");
+
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.CANDIDATES_PRESELECTED,
+                entityType: "PersonnelRequisition",
+                entityId: requisitionId,
+                description: `Requisición #${requisitionId} – ${candidates.length} ${candidates.length === 1 ? "candidato preseleccionado" : "candidatos preseleccionados"}: ${shortenAuditText(candidateNames, 300)}`,
+            });
         });
 
         const preselectedCandidates =

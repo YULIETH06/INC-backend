@@ -1,66 +1,52 @@
 import prisma from "../../../config/client.js";
-
 import type { AuthRequest } from "../../../interfaces/auth/auth.interface.js";
-
 import type {
     CreatePersonnelRequisitionData,
     DecidePersonnelRequisitionData,
 } from "../../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
-
 import {
     buildRequisitionApprovalFlow,
     getApprovalStepsFromCreatorLevel,
 } from "../../../helpers/humanTalent/requisitions/requisitionApprovalFlow.helper.js";
-
 import { validatePersonnelRequisitionCreator } from "../../../helpers/humanTalent/requisitions/requisitionCreator.helper.js";
-
 import {
     buildRequisitionOwnerWhere,
     getActivePositionIdsByUser,
     getRequisitionOwnerUserId,
 } from "../../../helpers/humanTalent/requisitions/requisitionOwner.helper.js";
-
 import {
     notifyRequisitionNextApprovalService,
     notifyRequisitionPendingApprovalService,
     notifyRequisitionReadyForHumanTalentService,
     notifyRequisitionRejectedService
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
-
 import {
     createAuditLog,
     shortenAuditText,
+    toAuditActor,
 } from "../../../helpers/audit/auditLog.helper.js";
-
 import {
     AUDIT_ACTIONS,
     AUDIT_MODULES,
 } from "../../../constants/audit/auditLog.constants.js";
 
-import type {
-    AuditActor,
-} from "../../../interfaces/audit/auditLog.interface.js";
-
 type AuthenticatedUser = NonNullable<AuthRequest["user"]>;
 
 // Crea una requisición de personal y genera su flujo de aprobación.
-export const createPersonnelRequisitionService = async (
-    {
-        departmentId,
-        positionId,
-        positionRevisionId,
-        reason,
-        otherReason,
-        cityId,
-        contractType,
-        directContractType,
-        contractDurationMonths,
-        internContractType,
-        proposedSalary,
-        createdById,
-    }: CreatePersonnelRequisitionData,
-    auditActor: AuditActor
-) => {
+export const createPersonnelRequisitionService = async ({
+    departmentId,
+    positionId,
+    positionRevisionId,
+    reason,
+    otherReason,
+    cityId,
+    contractType,
+    directContractType,
+    contractDurationMonths,
+    internContractType,
+    proposedSalary,
+    createdById,
+}: CreatePersonnelRequisitionData) => {
     const department = await prisma.department.findFirst({
         where: {
             id: departmentId,
@@ -228,6 +214,16 @@ export const createPersonnelRequisitionService = async (
                 createdById,
                 ownerPositionId: creatorAssignment.position.id,
             },
+        });
+
+        // Registra la creación en la auditoría.
+        await createAuditLog(tx, {
+            actor: toAuditActor(user),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: AUDIT_ACTIONS.REQUISITION_CREATED,
+            entityType: "PersonnelRequisition",
+            entityId: createdRequisition.id,
+            description: `Requisición #${createdRequisition.id} – ${position.name}`,
         });
 
         // Crea los pasos de aprobación de la requisición.
@@ -909,6 +905,31 @@ export const decidePersonnelRequisitionService = async (
                 decidedAt: new Date(),
                 isCurrent: false,
             },
+        });
+
+        // Registra la decisión en la auditoría.
+        const requisitionLabel =
+            `Requisición #${requisitionId} – ${currentRequisition.position.name}`;
+
+        const cleanComment = comment?.trim();
+
+        const decisionAuditAction =
+            decision === "APROBADA"
+                ? AUDIT_ACTIONS.REQUISITION_APPROVED
+                : decision === "RECHAZADA"
+                    ? AUDIT_ACTIONS.REQUISITION_REJECTED
+                    : AUDIT_ACTIONS.REQUISITION_CANCELLED;
+
+        await createAuditLog(tx, {
+            actor: toAuditActor(user),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: decisionAuditAction,
+            entityType: "PersonnelRequisition",
+            entityId: requisitionId,
+            description:
+                decision !== "APROBADA" && cleanComment
+                    ? `${requisitionLabel}. Motivo: ${shortenAuditText(cleanComment)}`
+                    : requisitionLabel,
         });
 
         if (decision === "RECHAZADA" || decision === "CANCELADA") {

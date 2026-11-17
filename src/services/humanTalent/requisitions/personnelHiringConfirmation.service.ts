@@ -22,6 +22,17 @@ import {
     notifyHiringConfirmationRejectedService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 
+import {
+    createAuditLog,
+    shortenAuditText,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
 // Código del cargo encargado de gestionar candidatos en Talento Humano.
 const HUMAN_TALENT_CANDIDATE_MANAGER_POSITION_CODE = "DPC-TH-0118";
 
@@ -247,6 +258,16 @@ export const createPersonnelHiringConfirmationService = async ({
                     createdById,
                 },
             });
+
+        // Registra la confirmación en la auditoría.
+        await createAuditLog(tx, {
+            actor: toAuditActor(user),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: AUDIT_ACTIONS.HIRING_CONFIRMATION_CREATED,
+            entityType: "PersonnelHiringConfirmation",
+            entityId: hiringConfirmation.id,
+            description: `Requisición #${requisitionId} – ${requisition.position.name}`,
+        });
 
         // Crea los pasos de aprobación de la confirmación de contratación.
         await tx.personnelHiringConfirmationApproval.createMany({
@@ -543,6 +564,41 @@ export const decidePersonnelHiringConfirmationService = async ({
                 },
             });
 
+            // Registra la decisión en la auditoría.
+            const isFinalApproval =
+                decision === "APROBADA" &&
+                !hiringConfirmation.approvals.some(
+                    (approval) =>
+                        approval.approvalOrder ===
+                        currentApproval.approvalOrder + 1
+                );
+
+            const confirmationLabel =
+                `Requisición #${hiringConfirmation.requisition.id} – ${hiringConfirmation.requisition.position.name}`;
+
+            const cleanComment = comment?.trim();
+
+            const decisionAuditAction =
+                decision === "APROBADA"
+                    ? AUDIT_ACTIONS.HIRING_CONFIRMATION_APPROVED
+                    : decision === "RECHAZADA"
+                        ? AUDIT_ACTIONS.HIRING_CONFIRMATION_REJECTED
+                        : AUDIT_ACTIONS.HIRING_CONFIRMATION_CANCELLED;
+
+            await createAuditLog(tx, {
+                actor: toAuditActor(user),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: decisionAuditAction,
+                entityType: "PersonnelHiringConfirmation",
+                entityId: hiringConfirmationId,
+                description:
+                    decision !== "APROBADA" && cleanComment
+                        ? `${confirmationLabel}. Motivo: ${shortenAuditText(cleanComment)}`
+                        : isFinalApproval
+                            ? `${confirmationLabel} (aprobación final: se habilitó el cargue de candidatos)`
+                            : confirmationLabel,
+            });
+
             if (
                 decision === "RECHAZADA" ||
                 decision === "CANCELADA"
@@ -697,7 +753,7 @@ export const decidePersonnelHiringConfirmationService = async ({
             });
 
             // Busca directamente al usuario que tenga activo el cargo de Analista de Talento Humano.
-            const activeCandidateManager  =
+            const activeCandidateManager =
                 await tx.userPositionAssignment.findFirst({
                     where: {
                         isActive: true,

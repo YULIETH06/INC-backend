@@ -12,6 +12,16 @@ import {
     validatePersonnelCandidateManager,
 } from "../../../helpers/humanTalent/candidateSubmission/personnelCandidateManager.helper.js";
 
+import {
+    createAuditLog,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
 // Guarda la Fase 2 - Validación de cargo.
 export const updatePersonnelCandidatePositionValidationService = async (
     data: UpdatePersonnelCandidatePositionValidationData,
@@ -33,6 +43,8 @@ export const updatePersonnelCandidatePositionValidationService = async (
             },
             select: {
                 id: true,
+                name: true,
+                requisitionId: true,
                 requisition: {
                     select: {
                         positionRevisionId: true,
@@ -102,31 +114,53 @@ export const updatePersonnelCandidatePositionValidationService = async (
         );
     }
 
-    const validation =
-        await prisma.personnelCandidateValidation.update({
-            where: {
-                id: candidate.validation.id,
-            },
-            data: {
-                positionType: data.positionType,
-                changeControlCode:
-                    data.positionType === "NUEVO_CARGO"
-                        ? data.changeControlCode?.trim() || null
-                        : null,
-                isPositionProfileCurrent,
-                completedStep: 2,
-            },
-            select: {
-                id: true,
-                candidateId: true,
-                applicationConcept: true,
-                positionType: true,
-                changeControlCode: true,
-                isPositionProfileCurrent: true,
-                completedStep: true,
-                updatedAt: true,
-            },
+    const changeControlCode =
+        data.positionType === "NUEVO_CARGO"
+            ? data.changeControlCode?.trim() || null
+            : null;
+
+    const candidateValidationId =
+        candidate.validation.id;
+
+    const validation = await prisma.$transaction(async (tx) => {
+        const updatedValidation =
+            await tx.personnelCandidateValidation.update({
+                where: {
+                    id: candidateValidationId,
+                },
+                data: {
+                    positionType: data.positionType,
+                    changeControlCode,
+                    isPositionProfileCurrent,
+                    completedStep: 2,
+                },
+                select: {
+                    id: true,
+                    candidateId: true,
+                    applicationConcept: true,
+                    positionType: true,
+                    changeControlCode: true,
+                    isPositionProfileCurrent: true,
+                    completedStep: true,
+                    updatedAt: true,
+                },
+            });
+
+        // Registra la validación de cargo en la auditoría.
+        await createAuditLog(tx, {
+            actor: toAuditActor(authenticatedUser),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: AUDIT_ACTIONS.CANDIDATE_POSITION_VALIDATED,
+            entityType: "PersonnelRequisitionCandidate",
+            entityId: candidate.id,
+            description:
+                data.positionType === "NUEVO_CARGO"
+                    ? `${candidate.name} – Requisición #${candidate.requisitionId}: nuevo cargo (control de cambio ${changeControlCode})`
+                    : `${candidate.name} – Requisición #${candidate.requisitionId}: cargo existente`,
         });
+
+        return updatedValidation;
+    });
 
     return validation;
 };

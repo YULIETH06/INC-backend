@@ -23,6 +23,26 @@ import {
     notifyCandidateTechnicalEvaluationPendingService,
 } from "../../notifications/humanTalent/humanTalentNotification.service.js";
 
+import {
+    createAuditLog,
+    toAuditActor,
+} from "../../../helpers/audit/auditLog.helper.js";
+
+import {
+    AUDIT_ACTIONS,
+    AUDIT_MODULES,
+} from "../../../constants/audit/auditLog.constants.js";
+
+// Muestra una calificación con un decimal, por ejemplo 4.0.
+// Acepta números y valores Decimal de Prisma.
+const formatScore = (
+    score: { toString(): string } | null
+) => {
+    return score === null
+        ? "sin registrar"
+        : Number(score.toString()).toFixed(1);
+};
+
 // Guarda las calificaciones de la Fase 4 - Evaluación Técnica.
 export const savePersonnelCandidateTechnicalEvaluationService = async (
     data: SavePersonnelCandidateTechnicalEvaluationData,
@@ -221,148 +241,165 @@ export const savePersonnelCandidateTechnicalEvaluationService = async (
         finalExamScore !== null &&
         finalExamEvidenceFileUrl !== null;
 
-    const evaluation =
-        await prisma.personnelCandidateTechnicalEvaluation.upsert({
-            where: {
-                candidateValidationId:
-                    candidate.validation.id,
-            },
+    const candidateValidationId =
+        candidate.validation.id;
 
-            create: {
-                candidateValidationId:
-                    candidate.validation.id,
+    const evaluation = await prisma.$transaction(async (tx) => {
+        const savedEvaluation =
+            await tx.personnelCandidateTechnicalEvaluation.upsert({
+                where: {
+                    candidateValidationId:
+                        candidateValidationId,
+                },
 
-                interviewScore:
-                    data.interviewScore ?? null,
+                create: {
+                    candidateValidationId:
+                        candidateValidationId,
 
-                interviewRecordedAt:
-                    data.interviewScore !== undefined &&
-                        data.interviewScore !== null
-                        ? now
-                        : null,
+                    interviewScore:
+                        data.interviewScore ?? null,
 
-                examScore:
-                    data.examScore ?? null,
+                    interviewRecordedAt:
+                        data.interviewScore !== undefined &&
+                            data.interviewScore !== null
+                            ? now
+                            : null,
 
-                examRecordedAt:
-                    data.examScore !== undefined &&
-                        data.examScore !== null
-                        ? now
-                        : null,
+                    examScore:
+                        data.examScore ?? null,
 
-                examEvidenceOriginalName:
-                    data.examEvidence?.originalName ?? null,
+                    examRecordedAt:
+                        data.examScore !== undefined &&
+                            data.examScore !== null
+                            ? now
+                            : null,
 
-                examEvidenceFileName:
-                    data.examEvidence?.fileName ?? null,
+                    examEvidenceOriginalName:
+                        data.examEvidence?.originalName ?? null,
 
-                examEvidenceFileUrl:
-                    data.examEvidence?.fileUrl ?? null,
+                    examEvidenceFileName:
+                        data.examEvidence?.fileName ?? null,
 
-                examEvidenceMimeType:
-                    data.examEvidence?.mimeType ?? null,
+                    examEvidenceFileUrl:
+                        data.examEvidence?.fileUrl ?? null,
 
-                examEvidenceFileSize:
-                    data.examEvidence?.fileSize ?? null,
+                    examEvidenceMimeType:
+                        data.examEvidence?.mimeType ?? null,
 
-                examEvidenceUploadedAt:
-                    data.examEvidence
-                        ? now
-                        : null,
+                    examEvidenceFileSize:
+                        data.examEvidence?.fileSize ?? null,
 
-                enteredById:
-                    authenticatedUser.id,
+                    examEvidenceUploadedAt:
+                        data.examEvidence
+                            ? now
+                            : null,
 
-                status:
-                    isEvaluationComplete
-                        ? "PENDIENTE_APROBACION"
-                        : "EN_REGISTRO",
-            },
+                    enteredById:
+                        authenticatedUser.id,
 
-            update: {
-                ...(data.interviewScore !== undefined
-                    ? {
-                        interviewScore:
-                            data.interviewScore,
+                    status:
+                        isEvaluationComplete
+                            ? "PENDIENTE_APROBACION"
+                            : "EN_REGISTRO",
+                },
 
-                        // Conserva la primera fecha en que fue diligenciada.
-                        interviewRecordedAt:
-                            existingEvaluation
-                                ?.interviewRecordedAt ??
-                            (
-                                data.interviewScore !== null
-                                    ? now
-                                    : null
-                            ),
-                    }
-                    : {}),
+                update: {
+                    ...(data.interviewScore !== undefined
+                        ? {
+                            interviewScore:
+                                data.interviewScore,
 
-                ...(data.examScore !== undefined
-                    ? {
-                        examScore:
-                            data.examScore,
+                            // Conserva la primera fecha en que fue diligenciada.
+                            interviewRecordedAt:
+                                existingEvaluation
+                                    ?.interviewRecordedAt ??
+                                (
+                                    data.interviewScore !== null
+                                        ? now
+                                        : null
+                                ),
+                        }
+                        : {}),
 
-                        // Conserva la primera fecha en que fue diligenciado.
-                        examRecordedAt:
-                            existingEvaluation
-                                ?.examRecordedAt ??
-                            (
-                                data.examScore !== null
-                                    ? now
-                                    : null
-                            ),
-                    }
-                    : {}),
+                    ...(data.examScore !== undefined
+                        ? {
+                            examScore:
+                                data.examScore,
 
-                ...(data.examEvidence
-                    ? {
-                        examEvidenceOriginalName:
-                            data.examEvidence.originalName,
+                            // Conserva la primera fecha en que fue diligenciado.
+                            examRecordedAt:
+                                existingEvaluation
+                                    ?.examRecordedAt ??
+                                (
+                                    data.examScore !== null
+                                        ? now
+                                        : null
+                                ),
+                        }
+                        : {}),
 
-                        examEvidenceFileName:
-                            data.examEvidence.fileName,
+                    ...(data.examEvidence
+                        ? {
+                            examEvidenceOriginalName:
+                                data.examEvidence.originalName,
 
-                        examEvidenceFileUrl:
-                            data.examEvidence.fileUrl,
+                            examEvidenceFileName:
+                                data.examEvidence.fileName,
 
-                        examEvidenceMimeType:
-                            data.examEvidence.mimeType,
+                            examEvidenceFileUrl:
+                                data.examEvidence.fileUrl,
 
-                        examEvidenceFileSize:
-                            data.examEvidence.fileSize,
+                            examEvidenceMimeType:
+                                data.examEvidence.mimeType,
 
-                        examEvidenceUploadedAt: now,
-                    }
-                    : {}),
+                            examEvidenceFileSize:
+                                data.examEvidence.fileSize,
 
-                status:
-                    isEvaluationComplete
-                        ? "PENDIENTE_APROBACION"
-                        : "EN_REGISTRO",
-            },
+                            examEvidenceUploadedAt: now,
+                        }
+                        : {}),
 
-            select: {
-                id: true,
-                candidateValidationId: true,
+                    status:
+                        isEvaluationComplete
+                            ? "PENDIENTE_APROBACION"
+                            : "EN_REGISTRO",
+                },
 
-                interviewScore: true,
-                interviewRecordedAt: true,
+                select: {
+                    id: true,
+                    candidateValidationId: true,
 
-                examScore: true,
-                examRecordedAt: true,
+                    interviewScore: true,
+                    interviewRecordedAt: true,
 
-                examEvidenceOriginalName: true,
-                examEvidenceFileName: true,
-                examEvidenceFileUrl: true,
-                examEvidenceMimeType: true,
-                examEvidenceFileSize: true,
-                examEvidenceUploadedAt: true,
+                    examScore: true,
+                    examRecordedAt: true,
 
-                status: true,
-                enteredById: true,
-                updatedAt: true,
-            },
+                    examEvidenceOriginalName: true,
+                    examEvidenceFileName: true,
+                    examEvidenceFileUrl: true,
+                    examEvidenceMimeType: true,
+                    examEvidenceFileSize: true,
+                    examEvidenceUploadedAt: true,
+
+                    status: true,
+                    enteredById: true,
+                    updatedAt: true,
+                },
+            });
+
+        // Registra las calificaciones en la auditoría.
+        await createAuditLog(tx, {
+            actor: toAuditActor(authenticatedUser),
+            module: AUDIT_MODULES.HUMAN_TALENT,
+            action: AUDIT_ACTIONS.TECHNICAL_EVALUATION_SAVED,
+            entityType: "PersonnelRequisitionCandidate",
+            entityId: candidate.id,
+            description: `${candidate.name} – Requisición #${candidate.requisition.id}: entrevista ${formatScore(finalInterviewScore)}, examen ${formatScore(finalExamScore)}${isEvaluationComplete ? " (enviada para aprobación)" : ""}`,
         });
+
+        return savedEvaluation;
+    });
 
     // Cuando ambas notas quedan listas, notifica al responsable actual de la requisición.
     if (isEvaluationComplete) {
@@ -554,6 +591,16 @@ export const approvePersonnelCandidateTechnicalEvaluationService = async (
                         },
                     },
                 });
+
+            // Registra la aprobación en la auditoría.
+            await createAuditLog(tx, {
+                actor: toAuditActor(authenticatedUser),
+                module: AUDIT_MODULES.HUMAN_TALENT,
+                action: AUDIT_ACTIONS.TECHNICAL_EVALUATION_APPROVED,
+                entityType: "PersonnelRequisitionCandidate",
+                entityId: candidate.id,
+                description: `${candidate.name} – Requisición #${candidate.requisition.id}: ${data.isSuitable ? "apto" : "no apto"} para continuar`,
+            });
 
             const validation =
                 await tx.personnelCandidateValidation.update({

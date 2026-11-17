@@ -1,3 +1,5 @@
+import type { Role } from "@prisma/client";
+
 import type { AuthRequest } from "../../interfaces/auth/auth.interface.js";
 import type { PrismaExecutor } from "../../interfaces/humanTalent/requisitions/personnelRequisition.interface.js";
 
@@ -15,6 +17,22 @@ export const getAuditActor = (
         userId: req.user?.id ?? null,
         email: req.user?.email ?? null,
         role: req.user?.role ?? null,
+    };
+};
+
+// Convierte un usuario que ya tiene el servicio en el actor de la auditoría.
+// Se usa cuando el servicio ya recibe o consulta al usuario que hace la acción.
+export const toAuditActor = (
+    user: {
+        id: number;
+        email: string;
+        role: Role;
+    }
+): AuditActor => {
+    return {
+        userId: user.id,
+        email: user.email,
+        role: user.role,
     };
 };
 

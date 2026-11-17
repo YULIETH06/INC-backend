@@ -19,6 +19,8 @@ import personnelCandidateValidationRoutes from "./humanTalent/candidateValidatio
 import positionProfileRoutes from "./positionManagement/positionProfile.routes.js";
 import positionProfileRevisionRoutes from "./positionManagement/positionProfileRevision.routes.js";
 
+import auditLogRoutes from "./audit/auditLog.routes.js";
+
 const router = Router();
 
 router.get("/health", (req, res) => {
@@ -83,5 +85,8 @@ router.use(
   "/position-management/position-profiles",
   positionProfileRevisionRoutes
 );
+
+// Auditoría.
+router.use("/audit-logs", auditLogRoutes);
 
 export default router;
