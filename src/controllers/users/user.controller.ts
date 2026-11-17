@@ -12,6 +12,7 @@ import {
   updateUserRoleService,
   getAgentsService,
   resetUserPasswordService,
+  getUserSignatureService,
   updateUserSignatureService,
 } from "../../services/users/user.service.js";
 
@@ -225,6 +226,42 @@ export const resetUserPassword = async (
     });
   }
 };
+
+// Obtiene la firma registrada del usuario autenticado.
+export const getUserSignatureController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          message:
+            "Usuario no autenticado",
+        });
+      }
+
+      const signatureUrl =
+        await getUserSignatureService(
+          req.user.id
+        );
+
+      return res.status(200).json({
+        message:
+          "Firma obtenida correctamente",
+        signatureUrl,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Error al obtener la firma";
+
+      return res.status(400).json({
+        message,
+      });
+    }
+  }; 
 
 // Sube y guarda la firma del usuario autenticado.
 export const uploadUserSignatureController =

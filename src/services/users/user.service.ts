@@ -233,6 +233,26 @@ export const resetUserPasswordService = async (
     });
 };
 
+// Obtiene la firma registrada del usuario autenticado.
+export const getUserSignatureService = async (
+    userId: number
+) => {
+    const user = await prisma.user.findUnique({
+        where: {
+            id: userId,
+        },
+        select: {
+            signatureUrl: true,
+        },
+    });
+
+    if (!user) {
+        throw new Error("El usuario no existe");
+    }
+
+    return user.signatureUrl;
+};
+
 // Actualiza la firma del usuario autenticado.
 export const updateUserSignatureService = async (
     userId: number,

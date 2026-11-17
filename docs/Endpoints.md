@@ -4538,6 +4538,98 @@ AGENT
 
 ---
 
+# Obtener firma del usuario autenticado
+
+## Endpoint protegido
+
+```http
+GET /api/users/signature
+```
+
+## Descripción
+
+Endpoint privado encargado de consultar la firma registrada del usuario autenticado.
+
+Retorna la ruta guardada en el campo `signatureUrl` del usuario. Cuando el usuario todavía no ha registrado su firma, `signatureUrl` se retorna como `null`; esto no se considera un error.
+
+El usuario se identifica mediante el token, por lo que cada usuario solo puede consultar su propia firma.
+
+La imagen se obtiene concatenando la URL del backend con `signatureUrl`, ya que la carpeta `/uploads` se sirve de forma estática.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+```
+
+---
+
+## Acceso permitido
+
+```txt
+USER
+ADMIN
+AGENT
+```
+
+---
+
+## Ejemplo en Postman
+
+```txt
+Método: GET
+URL: http://localhost:4000/api/users/signature
+
+Headers:
+Authorization: Bearer TOKEN
+```
+
+---
+
+## Respuesta exitosa con firma registrada
+
+```json
+{
+  "message": "Firma obtenida correctamente",
+  "signatureUrl": "/uploads/signatures/signature-1780612884091.png"
+}
+```
+
+---
+
+## Respuesta exitosa sin firma registrada
+
+```json
+{
+  "message": "Firma obtenida correctamente",
+  "signatureUrl": null
+}
+```
+
+---
+
+## Respuesta si el usuario no está autenticado
+
+```json
+{
+  "message": "Usuario no autenticado"
+}
+```
+
+---
+
+## Respuesta si el usuario no existe
+
+```json
+{
+  "message": "El usuario no existe"
+}
+```
+
+---
+
 # Subir firma del usuario autenticado
 
 ## Endpoint protegido
@@ -12795,6 +12887,7 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/users/:id/deactivate | Desactiva un usuario, le retira sus cargos y libera su correo | ADMIN |
 | PATCH  | /api/users/:id/activate | Activa nuevamente un usuario desactivado | ADMIN |
 | PATCH  | /api/users/:id/email | Cambia el correo de un usuario | ADMIN |
+| GET    | /api/users/signature | Obtiene la firma registrada del usuario autenticado | Usuario autenticado |
 | PATCH  | /api/users/signature                                                                                                                        | Sube la firma del usuario autenticado                      | Usuario autenticado                                             |
 | POST   | /api/auth/register                                                                                                                          | Registra un nuevo usuario                                  | Público                                                         |
 | POST   | /api/users/bulk                                                                                                          | Registra usuarios mediante carga masiva desde Excel        | ADMIN                                                           |
