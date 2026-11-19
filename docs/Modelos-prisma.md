@@ -65,6 +65,7 @@ Esto permite manejar:
 | approvedPersonnelCandidateTechnicalEvaluations | PersonnelCandidateTechnicalEvaluation[] | Evaluaciones técnicas confirmadas por el usuario                      |
 | personnelCandidatePsychotechnicalTests | PersonnelCandidatePsychotechnicalTest[] | Pruebas psicotécnicas registradas por el usuario en la Fase 5 |
 | personnelCandidateCompetencyEvaluations | PersonnelCandidateCompetencyEvaluation[] | Evaluaciones generales de competencias realizadas por el usuario |
+| auditLogs                              | AuditLog[]                            | Acciones del usuario registradas en la auditoría                      |
 | createdAt                              | DateTime                              | Fecha de creación del usuario                                         |
 | updatedAt                              | DateTime                              | Fecha de última actualización del usuario                             |
 
@@ -81,7 +82,7 @@ Un usuario puede estar activo o desactivado. El correo solo es único entre los 
 
 El índice único de `activeEmail` impide dos usuarios activos con el mismo correo. Como MySQL permite varios valores `null` en un índice único, el correo de un usuario desactivado queda libre para un nuevo registro.
 
-Por eso, el registro, el login y la carga masiva buscan por `activeEmail`, no por `email`. El detalle del flujo está en `Flujos/Flujo-usuarios.md`.
+Por eso, el registro, el login y la carga masiva buscan por `activeEmail`, no por `email`.
 
 ---
 
@@ -1528,5 +1529,55 @@ Mientras `PersonnelCandidateCompetencyValidation` registra el resultado individu
 ```
 
 Garantiza que cada candidato tenga como máximo un registro de cierre general de la evaluación de competencias.
+
+---
+
+# Modelo AuditLog
+
+## Descripción
+
+El modelo `AuditLog` guarda la auditoría del sistema: un registro por cada acción importante que realiza una persona.
+
+Cada registro responde quién hizo la acción, en qué módulo, qué acción fue, sobre qué registro y cuándo. La descripción ya incluye el detalle, por ejemplo el valor anterior y el nuevo.
+
+La pantalla de Auditoría lee únicamente esta tabla. No consulta las demás tablas, porque cada registro se guarda completo en el momento de la acción.
+
+## Campos principales
+
+| Campo       | Tipo     | Descripción |
+| ----------- | -------- | ----------- |
+| id          | Int      | Identificador único del registro |
+| actorUserId | Int?     | Usuario que realizó la acción. Es `null` en un intento fallido de inicio de sesión |
+| actorUser   | User?    | Relación con el usuario que realizó la acción. Si el usuario se elimina, queda en `null` (`onDelete: SetNull`) y el registro se conserva |
+| actorName   | String?  | Nombre del usuario en el momento de la acción. Máximo 150 caracteres |
+| actorEmail  | String?  | Correo del usuario en el momento de la acción. En un intento fallido, el correo que se escribió. Máximo 150 caracteres |
+| actorRole   | Role?    | Rol del usuario en el momento de la acción. Es `null` en un intento fallido |
+| module      | String   | Módulo de la acción: `AUTH`, `USERS`, `PQRS`, `POSITION_MANAGEMENT` o `HUMAN_TALENT` |
+| action      | String   | Código de la acción, por ejemplo `USER_DEACTIVATED` |
+| entityType  | String   | Nombre del modelo sobre el que se hizo la acción, por ejemplo  `User`, `PQR` o `PersonnelRequisition` |
+| entityId    | Int?     | Id del registro afectado. Es `null` cuando la acción no es sobre un solo registro, como la carga masiva |
+| description | String   | Texto que se muestra en la pantalla, por ejemplo `Desactivó a María Pérez`. Máximo 500 caracteres |
+| createdAt   | DateTime | Fecha y hora de la acción |
+
+`actorName`, `actorEmail` y `actorRole` se copian en el momento de la acción. Así, si después cambia el correo o el rol del usuario, el registro sigue mostrando lo que era cierto cuando actuó.
+
+`module` y `action` se guardan como texto y no como `enum`, para que agregar una acción nueva no requiera una migración. Los valores permitidos están en:
+
+```txt
+src/constants/audit/auditLog.constants.ts
+```
+
+## Índices
+
+```prisma
+@@index([actorUserId])
+@@index([module])
+@@index([action])
+@@index([createdAt])
+```
+
+## Reglas y acciones
+
+Las reglas de la auditoría y la lista de acciones registradas por módulo están en `Flujos/Flujo-auditoria.md`.
 
 ---

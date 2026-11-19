@@ -63,10 +63,17 @@ src/
 │   └── socket.ts
 │
 ├── constants/
-│   └── humanTalent/
-│       └── personnelRequisition.constants.ts
+│   ├── audit/
+│   │   └── auditLog.constants.ts
+│   ├── humanTalent/
+│   │   └── personnelRequisition.constants.ts
+│   └── pqrs/
+│       └── pqr.constants.ts
 │
 ├── controllers/
+│   │
+│   ├── audit/
+│   │   └── auditLog.controller.ts
 │   │
 │   ├── auth/
 │   │   └── auth.controller.ts
@@ -104,6 +111,9 @@ src/
 │       └── userPositionAssignment.controller.ts
 │
 ├── interfaces/
+│   │
+│   ├── audit/
+│   │   └── auditLog.interface.ts
 │   │
 │   ├── auth/
 │   │   └── auth.interface.ts
@@ -159,6 +169,9 @@ src/
 │   └── index.ts
 │
 ├── routes/
+│   ├── audit/
+│   │   └── auditLog.routes.ts
+│   │
 │   ├── auth/
 │   │   └── auth.routes.ts
 │   │
@@ -194,6 +207,9 @@ src/
 │   └── index.ts
 │
 ├── services/
+│   │
+│   ├── audit/
+│   │   └── auditLog.service.ts
 │   │
 │   ├── auth/
 │   │   └── auth.service.ts
@@ -248,6 +264,8 @@ src/
 │   └── index.socket.ts
 │
 ├── helpers/
+│   ├── audit/
+│   │   └── auditLog.helper.ts
 │   ├── humanTalent/
 │   │   ├── candidateSubmission/
 │   │   │   └── personnelCandidateManager.helper.ts

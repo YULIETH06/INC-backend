@@ -12875,6 +12875,160 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 
 ---
 
+# Consultar la auditoría
+
+## Endpoint protegido para ADMIN
+
+```http
+GET /api/audit-logs
+```
+
+## Ejemplo
+
+```http
+GET /api/audit-logs?module=USERS&dateFrom=2026-11-01&dateTo=2026-11-19
+```
+
+## Descripción
+
+Endpoint privado encargado de consultar los registros de la auditoría, del más reciente al más antiguo.
+
+Devuelve como máximo 500 registros y el total de registros que cumplen los filtros.
+
+No requiere body.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN_ADMIN
+```
+
+---
+
+## Acceso permitido
+
+* ADMIN
+
+---
+
+## Filtros opcionales (query)
+
+| Parámetro | Tipo | Descripción |
+| --------- | ---- | ----------- |
+| `module` | String | Módulo: `AUTH`, `USERS`, `PQRS`, `POSITION_MANAGEMENT` o `HUMAN_TALENT` |
+| `action` | String | Código de la acción, por ejemplo `USER_DEACTIVATED` |
+| `actorUserId` | Number | Id del usuario que realizó la acción |
+| `search` | String | Texto a buscar en el nombre, el correo o la descripción. Máximo 100 caracteres |
+| `dateFrom` | String | Fecha inicial en formato `AAAA-MM-DD`. Incluye todo el día |
+| `dateTo` | String | Fecha final en formato `AAAA-MM-DD`. Incluye todo el día |
+
+Las fechas se interpretan en hora de Colombia (`-05:00`).
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "logs": [
+    {
+      "id": 120,
+      "actorUserId": 1,
+      "actorName": "Yulieth Devia",
+      "actorEmail": "yulieth@gmail.com",
+      "actorRole": "ADMIN",
+      "module": "USERS",
+      "action": "USER_DEACTIVATED",
+      "entityType": "User",
+      "entityId": 5,
+      "description": "Desactivó a María Pérez",
+      "createdAt": "2026-11-19T19:30:00.000Z"
+    },
+    {
+      "id": 119,
+      "actorUserId": null,
+      "actorName": null,
+      "actorEmail": "pedro@gmail.com",
+      "actorRole": null,
+      "module": "AUTH",
+      "action": "LOGIN_FAILED",
+      "entityType": "User",
+      "entityId": 8,
+      "description": "Contraseña incorrecta",
+      "createdAt": "2026-11-19T14:02:00.000Z"
+    }
+  ],
+  "total": 2,
+  "limit": 500
+}
+```
+
+`total` indica cuántos registros cumplen los filtros. Si es mayor que la cantidad de registros recibidos, hay más de 500 y se deben usar los filtros para acotar la consulta.
+
+---
+
+## Respuesta si el módulo no es válido
+
+```json
+{
+  "message": "El módulo no es válido"
+}
+```
+
+---
+
+## Respuesta si la acción no es válida
+
+```json
+{
+  "message": "La acción no es válida"
+}
+```
+
+---
+
+## Respuesta si una fecha no tiene el formato correcto
+
+```json
+{
+  "message": "Las fechas deben tener el formato AAAA-MM-DD"
+}
+```
+
+---
+
+## Respuesta si la fecha inicial es mayor que la final
+
+```json
+{
+  "message": "La fecha inicial no puede ser mayor que la fecha final"
+}
+```
+
+---
+
+## Respuesta si el usuario no es válido
+
+```json
+{
+  "message": "El usuario no es válido"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al consultar la auditoría"
+}
+```
+
+---
+
 # Resumen actualizado de endpoints funcionales
 
 | Método | Endpoint                                                                                                                                    | Descripción                                                | Acceso                                                          |
@@ -12952,6 +13106,7 @@ Indica si el usuario puede confirmar la Evaluación Técnica.
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation                                                                             | Guarda las calificaciones de la Evaluación Técnica        | Analista de Talento Humano                                      |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/technical-evaluation/approve                                                                     | Confirma la Evaluación Técnica y determina si continúa    | Exclusivamente el usuario creador de la requisición             |
 | PATCH  | /api/human-talent/candidate-validations/:candidateId/competency-evaluation | Completa la evaluación de competencias Fase 5 | Analista de Talento Humano |
+| GET    | /api/audit-logs | Consulta los registros de la auditoría (máximo 500) | ADMIN |
 
 ---
 
