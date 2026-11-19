@@ -3,6 +3,7 @@ import { Router } from "express";
 import {
   changePassword,
   loginUser,
+  logoutUser,
   registerUser,
 } from "../../controllers/auth/auth.controller.js";
 
@@ -29,6 +30,13 @@ router.patch(
   "/password",
   authMiddleware,
   changePassword
+);
+
+// Registra el cierre de sesión del usuario autenticado.
+router.post(
+  "/logout",
+  authMiddleware,
+  logoutUser
 );
 
 export default router;

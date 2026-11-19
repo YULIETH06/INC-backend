@@ -593,7 +593,18 @@ Authorization: Bearer TOKEN_ADMIN
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -669,7 +680,18 @@ Authorization: Bearer TOKEN_ADMIN
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -1005,7 +1027,18 @@ Content-Type: application/json
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -2054,7 +2087,18 @@ Cualquier usuario autenticado puede cambiar únicamente su propia contraseña.
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -2075,6 +2119,95 @@ Cualquier usuario autenticado puede cambiar únicamente su propia contraseña.
 ```json
 {
   "message": "Error al cambiar la contraseña"
+}
+```
+
+---
+
+# Cerrar sesión
+
+## Endpoint protegido
+
+```http
+POST /api/auth/logout
+```
+
+## Descripción
+
+Endpoint privado encargado de registrar en la auditoría el cierre de sesión del usuario autenticado.
+
+El token no se invalida en el backend: el frontend lo elimina del navegador.
+
+---
+
+## Header requerido
+
+```http
+Authorization: Bearer TOKEN
+Content-Type: application/json
+```
+
+---
+
+## Acceso permitido
+
+* USER
+* ADMIN
+* AGENT
+
+---
+
+## Body (opcional)
+
+```json
+{
+  "reason": "INACTIVITY"
+}
+```
+
+| Valor de `reason` | Descripción | Acción en la auditoría |
+| ----------------- | ----------- | ---------------------- |
+| `MANUAL` | El usuario cerró la sesión. Es el valor por defecto si no se envía | `LOGOUT` |
+| `INACTIVITY` | La sesión se cerró por inactividad | `LOGOUT_INACTIVITY` |
+
+---
+
+## Respuesta exitosa
+
+```json
+{
+  "message": "Sesión cerrada correctamente"
+}
+```
+
+---
+
+## Respuesta si el motivo no es válido
+
+```json
+{
+  "message": "El motivo del cierre de sesión no es válido"
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
+}
+```
+
+---
+
+## Respuesta en caso de error
+
+```json
+{
+  "message": "Error al cerrar la sesión"
 }
 ```
 
@@ -4436,7 +4569,18 @@ AGENT
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -4522,7 +4666,18 @@ AGENT
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -4901,7 +5056,18 @@ AGENT
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -5046,7 +5212,18 @@ AGENT
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -6465,7 +6642,18 @@ Este endpoint no requiere body.
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -7042,7 +7230,18 @@ El acceso real depende de la relación del usuario con la requisición o con el 
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -7277,7 +7476,18 @@ Esto evita mostrar una firma antes de que el usuario haya aprobado, rechazado o 
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -7655,7 +7865,18 @@ Si el cargo de Analista de Talento Humano está vacío al terminar la aprobació
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -8175,7 +8396,18 @@ Cuando `contractType` es `PRACTICANTE`, se debe enviar el tipo de practicante.
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -8576,7 +8808,18 @@ Si el cargo del Jefe de Talento Humano está vacío, la confirmación avanza igu
 
 ```json
 {
-  "message": "Token inválido o expirado."
+  "message": "Token inválido."
+}
+```
+
+---
+
+## Respuesta si el token venció
+
+```json
+{
+  "message": "Tu sesión expiró. Inicia sesión nuevamente.",
+  "code": "TOKEN_EXPIRED"
 }
 ```
 
@@ -13050,6 +13293,7 @@ Las fechas se interpretan en hora de Colombia (`-05:00`).
 | POST   | /api/users/:id/position-assignments | Asigna o cambia el cargo de un usuario | ADMIN |
 | PATCH  | /api/users/:id/position-assignments/current/end | Retira el cargo activo de un usuario | ADMIN |
 | PATCH  | /api/auth/password                                                                                                                          | Cambia la contraseña del usuario autenticado               | USER / ADMIN / AGENT                                            |
+| POST   | /api/auth/logout | Registra el cierre de sesión en la auditoría | USER / ADMIN / AGENT |
 | POST   | /api/auth/login                                                                                                                            | Inicia sesión y genera token JWT                           | Público                                                         |
 | GET    | /api/profile                                                                                                                                | Obtiene el perfil del usuario autenticado                  | Usuario autenticado                                             |
 | GET    | /api/common/cities                                                                                                                          | Obtiene las ciudades activas del sistema                   | Usuario autenticado                                             |

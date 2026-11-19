@@ -13,6 +13,9 @@ import {
 // Código que el frontend usa para cerrar la sesión de un usuario desactivado.
 export const USER_INACTIVE_CODE = "USER_INACTIVE";
 
+// Código que el frontend usa para cerrar la sesión cuando el token venció.
+export const TOKEN_EXPIRED_CODE = "TOKEN_EXPIRED";
+
 interface TokenPayload {
   id: number;
   email: string;
@@ -48,12 +51,20 @@ export const authMiddleware = async (
       process.env.JWT_SECRET as string
     ) as TokenPayload;
   } catch (error) {
+    // El token venció: el frontend cierra la sesión y avisa al usuario.
+    if (error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({
+        message: "Tu sesión expiró. Inicia sesión nuevamente.",
+        code: TOKEN_EXPIRED_CODE,
+      });
+    }
+
     decoded = null;
   }
 
   if (!decoded) {
     return res.status(401).json({
-      message: "Token inválido o expirado.",
+      message: "Token inválido.",
     });
   }
 

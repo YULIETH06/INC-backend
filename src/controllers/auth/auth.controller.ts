@@ -10,8 +10,13 @@ import type {
 import {
   changePasswordService,
   loginUserService,
+  logoutService,
   USER_INACTIVE_MESSAGE,
   registerUserService,
+} from "../../services/auth/auth.service.js";
+
+import type {
+  LogoutReason,
 } from "../../services/auth/auth.service.js";
 
 import {
@@ -178,6 +183,43 @@ export const changePassword = async (
     return res.status(500).json({
       message:
         "Error al cambiar la contraseña",
+    });
+  }
+};
+
+// Registra el cierre de sesión del usuario autenticado.
+export const logoutUser = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const reason = req.body?.reason ?? "MANUAL";
+
+    // Motivos de cierre de sesión permitidos.
+    const validLogoutReasons: LogoutReason[] = [
+      "MANUAL",
+      "INACTIVITY",
+    ];
+
+    if (!validLogoutReasons.includes(reason)) {
+      return res.status(400).json({
+        message: "El motivo del cierre de sesión no es válido",
+      });
+    }
+
+    await logoutService(
+      getAuditActor(req),
+      reason
+    );
+
+    return res.status(200).json({
+      message: "Sesión cerrada correctamente",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Error al cerrar la sesión",
     });
   }
 };

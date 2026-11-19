@@ -37,6 +37,8 @@ src/helpers/audit/auditLog.helper.ts
 | `LOGIN_FAILED` | El correo no está registrado / Contraseña incorrecta / Usuario desactivado |
 | `USER_REGISTERED` | Creó su cuenta |
 | `OWN_PASSWORD_CHANGED` | Cambió su propia contraseña |
+| `LOGOUT` | Cerró sesión |
+| `LOGOUT_INACTIVITY` | Sesión cerrada por inactividad |
 
 ### Usuarios (`USERS`)
 

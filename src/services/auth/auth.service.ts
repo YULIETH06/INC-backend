@@ -414,3 +414,28 @@ export const changePasswordService = async (
     }
   );
 };
+
+// Motivo del cierre de sesión.
+export type LogoutReason = "MANUAL" | "INACTIVITY";
+
+// Registra en la auditoría el cierre de sesión del usuario autenticado.
+// El token no se invalida en el backend: el frontend lo elimina.
+export const logoutService = async (
+  auditActor: AuditActor,
+  reason: LogoutReason
+) => {
+  await createAuditLog(prisma, {
+    actor: auditActor,
+    module: AUDIT_MODULES.AUTH,
+    action:
+      reason === "INACTIVITY"
+        ? AUDIT_ACTIONS.LOGOUT_INACTIVITY
+        : AUDIT_ACTIONS.LOGOUT,
+    entityType: "User",
+    entityId: auditActor.userId,
+    description:
+      reason === "INACTIVITY"
+        ? "Sesión cerrada por inactividad"
+        : "Cerró sesión",
+  });
+};
